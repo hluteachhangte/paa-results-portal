@@ -83,6 +83,10 @@ let state = loadState();
 let activeView = "entry";
 let currentUser = loadCurrentUser();
 let editingStudentRoll = null;
+const firebaseResultListeners = {
+  app: null,
+  public: null
+};
 
 const els = {
   loginScreen: document.querySelector("#loginScreen"),
@@ -940,6 +944,7 @@ function getPreviousTerm(term) {
 
 async function searchFirebaseResult(event) {
   return searchFirebaseResultWithControls(event, {
+    listenerKey: "app",
     input: els.firebaseRollInput,
     status: els.firebaseResultStatus,
     card: els.firebaseResultCard
@@ -948,6 +953,7 @@ async function searchFirebaseResult(event) {
 
 async function searchPublicFirebaseResult(event) {
   return searchFirebaseResultWithControls(event, {
+    listenerKey: "public",
     input: els.publicFirebaseRollInput,
     status: els.publicFirebaseResultStatus,
     card: els.publicFirebaseResultCard
@@ -964,25 +970,35 @@ async function searchFirebaseResultWithControls(event, controls) {
     return;
   }
 
-  if (!window.MarkHubFirebase?.getResultByRoll) {
+  if (!window.MarkHubFirebase?.listenResultByRoll) {
     setFirebaseResultStatus(controls.status, "Firebase is not ready. Check internet connection.", "error");
     controls.card.classList.add("hidden");
     return;
   }
 
-  setFirebaseResultStatus(controls.status, "Searching...", "");
+  stopFirebaseResultListener(controls.listenerKey);
+  setFirebaseResultStatus(controls.status, "Listening for live result...", "");
   controls.card.classList.add("hidden");
 
   try {
-    const result = await window.MarkHubFirebase.getResultByRoll(roll);
+    firebaseResultListeners[controls.listenerKey] = window.MarkHubFirebase.listenResultByRoll(
+      roll,
+      (result) => {
+        if (!result) {
+          setFirebaseResultStatus(controls.status, `No result found for Roll No. ${roll}.`, "error");
+          controls.card.classList.add("hidden");
+          return;
+        }
 
-    if (!result) {
-      setFirebaseResultStatus(controls.status, `No result found for Roll No. ${roll}.`, "error");
-      return;
-    }
-
-    renderFirebaseResult(result, controls.card);
-    setFirebaseResultStatus(controls.status, `Result loaded for Roll No. ${roll}.`, "success");
+        renderFirebaseResult(result, controls.card);
+        setFirebaseResultStatus(controls.status, `Live result loaded for Roll No. ${roll}.`, "success");
+      },
+      (error) => {
+        console.error(error);
+        setFirebaseResultStatus(controls.status, "Could not load live result from Firestore.", "error");
+        controls.card.classList.add("hidden");
+      }
+    );
   } catch (error) {
     console.error(error);
     setFirebaseResultStatus(controls.status, "Could not load result from Firestore.", "error");
@@ -991,6 +1007,7 @@ async function searchFirebaseResultWithControls(event, controls) {
 
 function clearFirebaseResultSearch() {
   clearFirebaseResultControls({
+    listenerKey: "app",
     input: els.firebaseRollInput,
     status: els.firebaseResultStatus,
     card: els.firebaseResultCard
@@ -999,6 +1016,7 @@ function clearFirebaseResultSearch() {
 
 function clearPublicFirebaseResultSearch() {
   clearFirebaseResultControls({
+    listenerKey: "public",
     input: els.publicFirebaseRollInput,
     status: els.publicFirebaseResultStatus,
     card: els.publicFirebaseResultCard
@@ -1006,11 +1024,18 @@ function clearPublicFirebaseResultSearch() {
 }
 
 function clearFirebaseResultControls(controls) {
+  stopFirebaseResultListener(controls.listenerKey);
   controls.input.value = "";
   controls.status.textContent = "";
   controls.status.className = "firebase-result-status";
   controls.card.innerHTML = "";
   controls.card.classList.add("hidden");
+}
+
+function stopFirebaseResultListener(listenerKey) {
+  if (!listenerKey || typeof firebaseResultListeners[listenerKey] !== "function") return;
+  firebaseResultListeners[listenerKey]();
+  firebaseResultListeners[listenerKey] = null;
 }
 
 function setFirebaseResultStatus(statusElement, message, type) {

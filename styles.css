@@ -1122,6 +1122,24 @@ th:first-child {
   margin-bottom: 18px;
 }
 
+#studentsView table {
+  min-width: 1180px;
+}
+
+#studentsView th:nth-child(2),
+#studentsView td:nth-child(2) {
+  width: 96px;
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+#studentsView th:nth-child(4),
+#studentsView td:nth-child(4) {
+  width: 118px;
+  min-width: 118px;
+  white-space: nowrap;
+}
+
 .row-actions {
   display: flex;
   gap: 6px;

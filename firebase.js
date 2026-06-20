@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0RxeHkphyME9sziVGmT-0qXRkMA1J9V0",
@@ -16,14 +16,17 @@ const db = getFirestore(app);
 window.MarkHubFirebase = {
   app,
   db,
-  async getResultByRoll(rollNumber) {
+  listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();
-    if (!roll) return null;
+    if (!roll) return () => {};
 
-    const snapshot = await getDoc(doc(db, "results", roll));
-
-    if (!snapshot.exists()) return null;
-    return { id: snapshot.id, ...snapshot.data() };
+    return onSnapshot(
+      doc(db, "results", roll),
+      (snapshot) => {
+        onResult(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+      },
+      onError
+    );
   }
 };
 
