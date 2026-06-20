@@ -83,6 +83,10 @@ let state = loadState();
 let activeView = "entry";
 let currentUser = loadCurrentUser();
 let editingStudentRoll = null;
+let applyingRemoteState = false;
+let firebaseStateSyncStarted = false;
+let firebaseStateSaveTimer = null;
+let firebaseStateUnsubscribe = null;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -162,18 +166,24 @@ function loadState() {
   if (!saved) return structuredClone(defaultState);
 
   try {
-    const parsed = { ...structuredClone(defaultState), ...JSON.parse(saved) };
-    parsed.classes = normalizeClasses(parsed.classes);
-    parsed.exams = examNames;
-    parsed.maxMarks = normalizeExamMarks(parsed.maxMarks, 100);
-    parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
-    parsed.workingDays = normalizeTermMarks(parsed.workingDays, 0);
-    parsed.attendance = parsed.attendance || {};
-    parsed.measurements = parsed.measurements || {};
-    return parsed;
+    return normalizeState(JSON.parse(saved));
   } catch {
     return structuredClone(defaultState);
   }
+}
+
+function normalizeState(existingState = {}) {
+  const parsed = { ...structuredClone(defaultState), ...(existingState || {}) };
+  parsed.classes = normalizeClasses(parsed.classes);
+  parsed.exams = examNames;
+  parsed.maxMarks = normalizeExamMarks(parsed.maxMarks, 100);
+  parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
+  parsed.workingDays = normalizeTermMarks(parsed.workingDays, 0);
+  parsed.attendance = parsed.attendance || {};
+  parsed.measurements = parsed.measurements || {};
+  parsed.marks = parsed.marks || {};
+  parsed.published = parsed.published || {};
+  return parsed;
 }
 
 function createEmptyClasses() {
@@ -226,6 +236,60 @@ function activityExamSubjects(subjects, finalSubject) {
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+  queueFirebaseStateSave();
+}
+
+function queueFirebaseStateSave() {
+  if (applyingRemoteState || !window.MarkHubFirebase?.saveAppState) return;
+  clearTimeout(firebaseStateSaveTimer);
+  firebaseStateSaveTimer = setTimeout(() => {
+    window.MarkHubFirebase.saveAppState(structuredClone(state)).catch((error) => {
+      console.error(error);
+      showToast("Could not sync live data to Firestore.");
+    });
+  }, 250);
+}
+
+function startFirebaseStateSync(attempt = 0) {
+  if (firebaseStateSyncStarted) return;
+
+  if (!window.MarkHubFirebase?.listenAppState || !window.MarkHubFirebase?.saveAppState) {
+    if (attempt < 80) {
+      setTimeout(() => startFirebaseStateSync(attempt + 1), 250);
+    }
+    return;
+  }
+
+  firebaseStateSyncStarted = true;
+  firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
+    if (!remoteState) {
+      queueFirebaseStateSave();
+      return;
+    }
+
+    applyingRemoteState = true;
+    state = normalizeState(remoteState);
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    refreshStateControls();
+    applyingRemoteState = false;
+  }, (error) => {
+    console.error(error);
+    showToast("Live Firestore updates are not available.");
+  });
+}
+
+function refreshStateControls() {
+  els.academicSessionInput.value = state.academicSession || "2026 - 2027";
+  populateSelect(els.classSelect, Object.keys(state.classes));
+  populateSelect(els.studentsClassSelect, Object.keys(state.classes));
+  populateSelect(els.attendanceClassSelect, Object.keys(state.classes));
+  populateSelect(els.attendanceTermSelect, termExams);
+  syncStudentsClassSelect();
+  updateExamSelect();
+  updateSubjectSelect();
+  updateAttendanceInputs();
+  cancelStudentEdit();
+  render();
 }
 
 function loadCurrentUser() {
@@ -679,6 +743,7 @@ function init() {
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
   document.addEventListener("keydown", handleEnterAsTab);
   updateMarksheetZoom();
+  startFirebaseStateSync();
 
   render();
 }

@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0RxeHkphyME9sziVGmT-0qXRkMA1J9V0",
@@ -12,6 +12,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const appStateRef = doc(db, "appState", "markhub");
 
 window.MarkHubFirebase = {
   app,
@@ -27,6 +28,21 @@ window.MarkHubFirebase = {
       },
       onError
     );
+  },
+  listenAppState(onState, onError) {
+    return onSnapshot(
+      appStateRef,
+      (snapshot) => {
+        onState(snapshot.exists() ? snapshot.data().state : null);
+      },
+      onError
+    );
+  },
+  saveAppState(state) {
+    return setDoc(appStateRef, {
+      state,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
   }
 };
 
