@@ -226,6 +226,7 @@
           </div>
           <div class="inline-actions print-controls">
             <button id="printResultsBtn" class="primary-button" type="button">Print Results</button>
+            <button id="saveResultsPdfBtn" class="ghost-button" type="button">Save PDF</button>
             <button id="unpublishBtn" class="ghost-button danger" type="button">Unpublish</button>
           </div>
         </div>
@@ -261,6 +262,7 @@
               <button id="zoomInMarksheetBtn" class="ghost-button" type="button" title="Zoom in" aria-label="Zoom in">+</button>
             </div>
             <button id="printMarksheetsBtn" class="primary-button" type="button">Print Marksheets</button>
+            <button id="saveMarksheetsPdfBtn" class="ghost-button" type="button">Save PDF</button>
           </div>
         </div>
         <div id="marksheetBody" class="marksheet-list"></div>
@@ -280,6 +282,10 @@
         </div>
 
         <form id="studentForm" class="student-form">
+          <label class="students-class-filter">
+            Class
+            <select id="studentsClassSelect"></select>
+          </label>
           <label>
             Roll No.
             <input id="rollInput" type="number" min="1" required>

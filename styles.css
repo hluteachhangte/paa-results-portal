@@ -409,6 +409,71 @@ body.students-active #mainFilters {
   margin-bottom: 10px;
 }
 
+body.results-active,
+body.students-active {
+  overflow: hidden;
+}
+
+body.results-active .app-shell,
+body.students-active .app-shell {
+  height: 100vh;
+  min-height: 0;
+}
+
+body.results-active .main-content,
+body.students-active .main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.results-active .topbar,
+body.results-active #mainFilters,
+body.results-active #resultsView > .print-results-header,
+body.results-active #resultsView > .section-head,
+body.results-active #resultSummary,
+body.results-active #firebaseResultSearch,
+body.results-active #firebaseResultCard {
+  flex: 0 0 auto;
+}
+
+body.students-active .topbar,
+body.students-active #mainFilters,
+body.students-active #studentsView > .section-head,
+body.students-active #studentForm {
+  flex: 0 0 auto;
+}
+
+body.results-active #resultsView.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.students-active #studentsView.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.results-active #resultsView > .table-wrap {
+  flex: 1 1 auto;
+  min-height: 160px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+body.students-active #studentsView > .table-wrap {
+  flex: 1 1 auto;
+  min-height: 160px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
 body.results-active #mainFilters label,
 body.students-active #mainFilters label,
 body.attendance-active .attendance-filters label,
@@ -487,6 +552,20 @@ body.students-active .student-form {
   grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.students-class-filter {
+  width: 150px;
+  padding: 5px 8px;
+  font-size: 0.7rem;
+  box-shadow: none;
+}
+
+.students-class-filter select {
+  min-height: 30px;
+  margin-top: 3px;
+  padding: 4px 7px;
+  font-size: 0.78rem;
 }
 
 .topbar {
@@ -724,6 +803,101 @@ th:first-child {
   font-weight: 800;
 }
 
+#entryView table,
+#attendanceView table {
+  min-width: 0;
+  table-layout: auto;
+}
+
+#entryView th,
+#entryView td,
+#attendanceView th,
+#attendanceView td {
+  padding: 8px 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+#entryView th:first-child,
+#entryView td:first-child,
+#attendanceView th:first-child,
+#attendanceView td:first-child {
+  width: 64px;
+  min-width: 64px;
+}
+
+#entryView th:nth-child(2),
+#entryView td:nth-child(2),
+#attendanceView th:nth-child(2),
+#attendanceView td:nth-child(2) {
+  min-width: 190px;
+  white-space: normal;
+}
+
+#entryView th:nth-child(3),
+#entryView td:nth-child(3) {
+  width: 140px;
+  min-width: 140px;
+}
+
+#entryView th:nth-child(3) {
+  white-space: normal;
+}
+
+#entryView th:nth-child(4),
+#entryView td:nth-child(4) {
+  width: 104px;
+  min-width: 104px;
+}
+
+#entryView th:nth-child(5),
+#entryView td:nth-child(5) {
+  width: 112px;
+  min-width: 112px;
+}
+
+#entryView th:nth-child(6),
+#entryView td:nth-child(6) {
+  width: 92px;
+  min-width: 92px;
+}
+
+#entryView .mark-input {
+  width: 96px;
+  min-width: 82px;
+}
+
+#entryView .activity-project-input {
+  width: 118px;
+  min-width: 108px;
+}
+
+#attendanceView th:nth-child(3),
+#attendanceView td:nth-child(3) {
+  width: 108px;
+  min-width: 108px;
+}
+
+#attendanceView th:nth-child(4),
+#attendanceView td:nth-child(4) {
+  width: 116px;
+  min-width: 116px;
+  text-align: center;
+}
+
+#attendanceView th:nth-child(5),
+#attendanceView td:nth-child(5),
+#attendanceView th:nth-child(6),
+#attendanceView td:nth-child(6) {
+  width: 118px;
+  min-width: 118px;
+}
+
+#attendanceView .mark-input {
+  width: 96px;
+  min-width: 86px;
+}
+
 .remark-input {
   min-width: 220px;
 }
@@ -772,7 +946,10 @@ th:first-child {
 
 .results-table th:nth-child(2),
 .results-table td:nth-child(2) {
+  width: var(--student-name-width, auto);
+  min-width: var(--student-name-width, 170px);
   text-align: left;
+  white-space: nowrap;
 }
 
 .results-table thead th:nth-child(2),
@@ -781,7 +958,7 @@ th:first-child {
 }
 
 .results-table.structured-results {
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .results-table.structured-results th,
@@ -794,9 +971,10 @@ th:first-child {
 
 .results-table.structured-results .student-name-column,
 .results-table.structured-results tbody td:nth-child(2) {
-  width: 170px;
-  min-width: 170px;
-  max-width: 170px;
+  width: var(--student-name-width, 170px);
+  min-width: var(--student-name-width, 170px);
+  max-width: none;
+  white-space: nowrap;
 }
 
 .results-table.structured-results .student-name-column {
@@ -844,7 +1022,7 @@ th:first-child {
 }
 
 .results-table .student-name-column {
-  width: 170px;
+  width: var(--student-name-width, auto);
 }
 
 .results-table .component-column {
@@ -1479,8 +1657,22 @@ th:first-child {
     overflow: visible;
   }
 
+  body.results-active,
+  body.students-active {
+    overflow: visible;
+  }
+
   body.marksheet-active .app-shell,
   body.marksheet-active .main-content {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  body.results-active .app-shell,
+  body.results-active .main-content,
+  body.students-active .app-shell,
+  body.students-active .main-content {
     display: block;
     height: auto;
     overflow: visible;
@@ -1490,10 +1682,28 @@ th:first-child {
     display: block;
   }
 
+  body.results-active #resultsView.active {
+    display: block;
+  }
+
+  body.students-active #studentsView.active {
+    display: block;
+  }
+
   body.marksheet-active #marksheetBody {
     overflow: visible;
     padding-right: 0;
     zoom: 1;
+  }
+
+  body.results-active #resultsView > .table-wrap {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  body.students-active #studentsView > .table-wrap {
+    overflow: visible;
+    min-height: 0;
   }
 
   .sidebar,

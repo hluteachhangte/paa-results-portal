@@ -111,6 +111,7 @@ const els = {
   attendanceClassSelect: document.querySelector("#attendanceClassSelect"),
   attendanceTermSelect: document.querySelector("#attendanceTermSelect"),
   attendanceBody: document.querySelector("#attendanceBody"),
+  studentsClassSelect: document.querySelector("#studentsClassSelect"),
   studentCsvInput: document.querySelector("#studentCsvInput"),
   importStudentsBtn: document.querySelector("#importStudentsBtn"),
   downloadStudentTemplateBtn: document.querySelector("#downloadStudentTemplateBtn"),
@@ -131,11 +132,13 @@ const els = {
   clearFirebaseResultBtn: document.querySelector("#clearFirebaseResultBtn"),
   marksheetBody: document.querySelector("#marksheetBody"),
   printMarksheetsBtn: document.querySelector("#printMarksheetsBtn"),
+  saveMarksheetsPdfBtn: document.querySelector("#saveMarksheetsPdfBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
   zoomInMarksheetBtn: document.querySelector("#zoomInMarksheetBtn"),
   printResultsBtn: document.querySelector("#printResultsBtn"),
+  saveResultsPdfBtn: document.querySelector("#saveResultsPdfBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -336,7 +339,7 @@ function getPassMarks(className = selectedClass(), exam = selectedExam()) {
 
 function getSubjectMaxMarks(className = selectedClass(), exam = selectedExam(), subject = selectedSubject()) {
   if (className === "LKG" && (subject === "Rhymes" || subject === "A.E.")) return 50;
-  if (className === "UKG" && subject === "Rhymes") return 50;
+  if (className === "UKG" && subject === "A.E.") return 50;
   if (isHighClass(className) && exam === "Third Term" && subject.endsWith(" (Assignment)")) return 2;
   if (isHighClass(className) && exam === "Third Term" && subject.endsWith(" (Exam)")) return 80;
   if (isHighThirdTermNumericSubject(className, exam, subject)) return 80;
@@ -431,7 +434,7 @@ function currentSubjects(className = selectedClass(), exam = selectedExam()) {
 
   if (className === "Class V") {
     const subjects = activityExamTerm ? subjectGroups.upperPrimaryTerm : subjectGroups.upperPrimaryRegular;
-    return isPrimaryUnitTest(className, exam) ? subjects.filter((subject) => subject !== "A.E.") : subjects;
+    return subjects.filter((subject) => subject !== "A.E.");
   }
 
   if (["Class VI", "Class VII", "Class VIII"].includes(className)) {
@@ -590,6 +593,8 @@ function populateSelect(select, options) {
 function init() {
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
+  populateSelect(els.studentsClassSelect, Object.keys(state.classes));
+  els.studentsClassSelect.value = els.classSelect.value;
   updateExamSelect();
   updateSubjectSelect();
   populateSelect(els.attendanceClassSelect, Object.keys(state.classes));
@@ -601,6 +606,15 @@ function init() {
   });
 
   els.classSelect.addEventListener("change", () => {
+    syncStudentsClassSelect();
+    cancelStudentEdit();
+    updateExamSelect();
+    updateSubjectSelect();
+    render();
+  });
+
+  els.studentsClassSelect.addEventListener("change", () => {
+    els.classSelect.value = els.studentsClassSelect.value;
     cancelStudentEdit();
     updateExamSelect();
     updateSubjectSelect();
@@ -655,12 +669,15 @@ function init() {
   els.marksCsvInput.addEventListener("change", importMarksCsv);
   els.downloadMarksTemplateBtn.addEventListener("click", downloadMarksCsvTemplate);
   els.printMarksheetsBtn.addEventListener("click", printMarksheets);
+  els.saveMarksheetsPdfBtn.addEventListener("click", saveMarksheetsPdf);
   els.printResultsBtn.addEventListener("click", printResults);
+  els.saveResultsPdfBtn.addEventListener("click", saveResultsPdf);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetZoomInput.addEventListener("input", updateMarksheetZoom);
   els.zoomOutMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(-10));
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
+  document.addEventListener("keydown", handleEnterAsTab);
   updateMarksheetZoom();
 
   render();
@@ -698,6 +715,26 @@ function updateExamSelect() {
 
 function updateAttendanceInputs() {
   els.workingDaysInput.value = state.workingDays[selectedAttendanceTerm()] ?? 0;
+}
+
+function syncStudentsClassSelect() {
+  if (els.studentsClassSelect) els.studentsClassSelect.value = selectedClass();
+}
+
+function handleEnterAsTab(event) {
+  if (event.key !== "Enter" || event.isComposing) return;
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement) || target.type === "hidden") return;
+  if (!target.closest("#entryView.active, #attendanceView.active, #studentsView.active")) return;
+
+  const fields = [...document.querySelectorAll(
+    "#entryView.active input:not([type='hidden']), #attendanceView.active input:not([type='hidden']), #studentsView.active input:not([type='hidden'])"
+  )].filter((field) => !field.disabled && !field.readOnly && field.offsetParent !== null);
+  const currentIndex = fields.indexOf(target);
+  if (currentIndex === -1) return;
+
+  event.preventDefault();
+  fields[Math.min(currentIndex + 1, fields.length - 1)]?.focus();
 }
 
 function switchView(view) {
@@ -738,7 +775,8 @@ function renderViewFilters() {
   document.body.classList.toggle("results-active", activeView === "results");
   document.body.classList.toggle("students-active", activeView === "students");
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
-  const showMainFilters = activeView !== "attendance";
+  syncStudentsClassSelect();
+  const showMainFilters = activeView !== "attendance" && activeView !== "students";
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -1112,6 +1150,8 @@ function renderResults() {
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
   els.resultsTable.style.width = "";
+  els.resultsTable.style.removeProperty("--student-name-width");
+  els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);
   els.printResultsTitle.textContent = `${selectedClass()} ${selectedExam()} Result : ${formatAcademicSession(state.academicSession)}`;
 
   els.resultNotice.textContent = published
@@ -1246,8 +1286,10 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
   const showGrade = !highThirdTermSheet;
   const finalColumns = showGrade ? 6 : 5;
   const columnCount = 2 + (structure.groups.length * componentsPerSubject) + structure.standalone.length + finalColumns;
-  const tableWidth = 54 + 170 + (structure.groups.length * (componentsPerSubject * 32))
+  const studentNameColumnWidth = getStudentNameColumnWidth(students);
+  const tableWidth = 54 + studentNameColumnWidth + (structure.groups.length * (componentsPerSubject * 32))
     + (structure.standalone.length * 48) + 220;
+  els.resultsTable.style.setProperty("--student-name-width", `${studentNameColumnWidth}px`);
   els.resultsTable.style.width = `${tableWidth}px`;
 
   els.resultsHead.innerHTML = `
@@ -1340,6 +1382,13 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
 
   const appearedRecords = records.filter((record) => record.appeared);
   renderResultSummary(appearedRecords.map((record) => ({ ...record, appeared: true })), students.length);
+}
+
+function getStudentNameColumnWidth(students) {
+  const longestNameLength = students.reduce((longest, student) => {
+    return Math.max(longest, String(student.name || "").length);
+  }, "Student Name".length);
+  return Math.max(170, Math.ceil(longestNameLength * 8.5) + 40);
 }
 
 function renderResultSummary(records, studentCount) {
@@ -1940,11 +1989,29 @@ function printResults() {
   printView("results");
 }
 
+function saveResultsPdf() {
+  if (!isPublished()) {
+    showToast("Publish the result before saving PDF.");
+    return;
+  }
+  showToast('Choose "Save as PDF" in the print dialog.');
+  printView("results");
+}
+
 function printMarksheets() {
   if (!isPublished()) {
     showToast("Publish the result before printing marksheets.");
     return;
   }
+  printView("marksheets");
+}
+
+function saveMarksheetsPdf() {
+  if (!isPublished()) {
+    showToast("Publish the result before saving PDF.");
+    return;
+  }
+  showToast('Choose "Save as PDF" in the print dialog.');
   printView("marksheets");
 }
 
@@ -2477,6 +2544,8 @@ function resetDemo() {
   saveState();
   els.academicSessionInput.value = state.academicSession;
   populateSelect(els.classSelect, Object.keys(state.classes));
+  populateSelect(els.studentsClassSelect, Object.keys(state.classes));
+  syncStudentsClassSelect();
   updateExamSelect();
   updateSubjectSelect();
   populateSelect(els.attendanceClassSelect, Object.keys(state.classes));
