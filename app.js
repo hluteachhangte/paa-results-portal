@@ -267,10 +267,11 @@ function startFirebaseStateSync(attempt = 0) {
       return;
     }
 
+    const uiState = captureUiState();
     applyingRemoteState = true;
     state = normalizeState(remoteState);
     localStorage.setItem(storageKey, JSON.stringify(state));
-    refreshStateControls();
+    applyRemoteStateToCurrentView(uiState);
     applyingRemoteState = false;
   }, (error) => {
     console.error(error);
@@ -278,18 +279,88 @@ function startFirebaseStateSync(attempt = 0) {
   });
 }
 
-function refreshStateControls() {
+function captureUiState() {
+  const activeElement = document.activeElement;
+  return {
+    activeView,
+    className: selectedClass(),
+    exam: selectedExam(),
+    subject: selectedSubject(),
+    attendanceClass: selectedAttendanceClass(),
+    attendanceTerm: selectedAttendanceTerm(),
+    focusedSelector: getFocusSelector(activeElement),
+    selectionStart: activeElement instanceof HTMLInputElement ? activeElement.selectionStart : null,
+    selectionEnd: activeElement instanceof HTMLInputElement ? activeElement.selectionEnd : null
+  };
+}
+
+function getFocusSelector(element) {
+  if (!(element instanceof HTMLElement) || !element.id) return "";
+  return `#${CSS.escape(element.id)}`;
+}
+
+function restoreFocus(uiState) {
+  if (!uiState.focusedSelector) return;
+  const element = document.querySelector(uiState.focusedSelector);
+  if (!(element instanceof HTMLInputElement)) return;
+  element.focus({ preventScroll: true });
+  if (uiState.selectionStart !== null && uiState.selectionEnd !== null) {
+    try {
+      element.setSelectionRange(uiState.selectionStart, uiState.selectionEnd);
+    } catch {
+      // Number inputs do not support selection ranges.
+    }
+  }
+}
+
+function applyRemoteStateToCurrentView(uiState) {
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
   populateSelect(els.studentsClassSelect, Object.keys(state.classes));
   populateSelect(els.attendanceClassSelect, Object.keys(state.classes));
   populateSelect(els.attendanceTermSelect, termExams);
+
+  activeView = uiState.activeView || activeView;
+  setSelectValueIfAvailable(els.classSelect, uiState.className);
+  setSelectValueIfAvailable(els.attendanceClassSelect, uiState.attendanceClass);
+  setSelectValueIfAvailable(els.attendanceTermSelect, uiState.attendanceTerm);
   syncStudentsClassSelect();
   updateExamSelect();
+  setSelectValueIfAvailable(els.examSelect, uiState.exam);
   updateSubjectSelect();
+  setSelectValueIfAvailable(els.subjectSelect, uiState.subject);
   updateAttendanceInputs();
-  cancelStudentEdit();
-  render();
+
+  renderActiveViewOnly();
+  restoreFocus(uiState);
+}
+
+function setSelectValueIfAvailable(select, value) {
+  if (!select || value === undefined || value === null) return;
+  const values = [...select.options].map((option) => option.value);
+  if (values.includes(value)) select.value = value;
+}
+
+function renderActiveViewOnly() {
+  renderPublishStatus();
+  if (activeView === "entry") {
+    renderEntry();
+  } else if (activeView === "attendance") {
+    renderAttendance();
+  } else if (activeView === "results") {
+    renderResults();
+  } else if (activeView === "marksheet") {
+    renderMarksheets();
+  } else if (activeView === "students") {
+    renderStudents();
+  } else {
+    render();
+  }
+}
+
+function refreshStateControls() {
+  const uiState = captureUiState();
+  applyRemoteStateToCurrentView(uiState);
 }
 
 function loadCurrentUser() {
