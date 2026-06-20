@@ -1,5 +1,6 @@
 const storageKey = "results-desk-state-v1";
 const authKey = "markhub-current-user-v1";
+const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
 
 const users = {
@@ -399,7 +400,9 @@ function refreshStateControls() {
 }
 
 function loadCurrentUser() {
-  const saved = localStorage.getItem(authKey);
+  const saved = isMobileView()
+    ? sessionStorage.getItem(mobileAuthKey)
+    : localStorage.getItem(authKey);
   if (!saved) return null;
 
   try {
@@ -413,11 +416,22 @@ function loadCurrentUser() {
 function saveCurrentUser(user) {
   currentUser = user;
   if (user) {
-    localStorage.setItem(authKey, JSON.stringify(user));
+    if (isMobileView()) {
+      sessionStorage.setItem(mobileAuthKey, JSON.stringify(user));
+      localStorage.removeItem(authKey);
+    } else {
+      localStorage.setItem(authKey, JSON.stringify(user));
+      sessionStorage.removeItem(mobileAuthKey);
+    }
   } else {
     localStorage.removeItem(authKey);
+    sessionStorage.removeItem(mobileAuthKey);
   }
   renderAuth();
+}
+
+function isMobileView() {
+  return window.matchMedia("(max-width: 768px)").matches;
 }
 
 function isAdmin() {

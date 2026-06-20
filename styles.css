@@ -2427,6 +2427,78 @@ th:first-child {
   }
 }
 
+@media (max-width: 768px) {
+  .topbar {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .top-actions {
+    order: -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    width: 100%;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .top-actions .user-badge {
+    width: auto;
+    min-height: 28px;
+    justify-content: flex-start;
+    padding: 0 6px;
+    font-size: 0.58rem;
+    line-height: 1.1;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .top-actions .ghost-button {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 0 6px;
+    font-size: 0.58rem;
+    line-height: 1;
+  }
+
+  #exportBtn span,
+  #resetBtn span {
+    display: none;
+  }
+
+  .topbar h2 {
+    margin-top: 2px;
+  }
+
+  .main-content {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .table-wrap,
+  #entryView > .table-wrap,
+  #attendanceView > .table-wrap,
+  body.results-active #resultsView > .table-wrap,
+  body.students-active #studentsView > .table-wrap,
+  body.marksheet-active #marksheetBody,
+  .marksheet {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+}
+
+@media (max-width: 380px) {
+  .top-actions {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 3px;
+  }
+
+  .top-actions .user-badge,
+  .top-actions .ghost-button {
+    min-height: 26px;
+    padding: 0 4px;
+    font-size: 0.52rem;
+  }
+}
+
 @media print {
   body {
     background: white;
