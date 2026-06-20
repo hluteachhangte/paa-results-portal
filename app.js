@@ -136,13 +136,11 @@ const els = {
   clearFirebaseResultBtn: document.querySelector("#clearFirebaseResultBtn"),
   marksheetBody: document.querySelector("#marksheetBody"),
   printMarksheetsBtn: document.querySelector("#printMarksheetsBtn"),
-  saveMarksheetsPdfBtn: document.querySelector("#saveMarksheetsPdfBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
   zoomInMarksheetBtn: document.querySelector("#zoomInMarksheetBtn"),
   printResultsBtn: document.querySelector("#printResultsBtn"),
-  saveResultsPdfBtn: document.querySelector("#saveResultsPdfBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -804,9 +802,7 @@ function init() {
   els.marksCsvInput.addEventListener("change", importMarksCsv);
   els.downloadMarksTemplateBtn.addEventListener("click", downloadMarksCsvTemplate);
   els.printMarksheetsBtn.addEventListener("click", printMarksheets);
-  els.saveMarksheetsPdfBtn.addEventListener("click", saveMarksheetsPdf);
   els.printResultsBtn.addEventListener("click", printResults);
-  els.saveResultsPdfBtn.addEventListener("click", saveResultsPdf);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetZoomInput.addEventListener("input", updateMarksheetZoom);

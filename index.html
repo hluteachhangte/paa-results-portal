@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pinehill Adventist Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,25 +28,6 @@
         </label>
         <button class="primary-button" type="submit">Login</button>
       </form>
-
-      <section class="login-card public-result-card" aria-label="Search student result">
-        <div>
-          <p class="eyebrow">STUDENT RESULT</p>
-          <h2>Search Result</h2>
-        </div>
-        <form id="publicFirebaseResultSearch" class="public-result-search">
-          <label>
-            Roll No.
-            <input id="publicFirebaseRollInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter roll no.">
-          </label>
-          <div class="inline-actions">
-            <button class="primary-button" type="submit">Search</button>
-            <button id="publicClearFirebaseResultBtn" class="ghost-button" type="button">Clear</button>
-          </div>
-          <span id="publicFirebaseResultStatus" class="firebase-result-status"></span>
-        </form>
-        <div id="publicFirebaseResultCard" class="firebase-result-card hidden"></div>
-      </section>
     </div>
   </section>
 
@@ -226,23 +207,10 @@
           </div>
           <div class="inline-actions print-controls">
             <button id="printResultsBtn" class="primary-button" type="button">Print Results</button>
-            <button id="saveResultsPdfBtn" class="ghost-button" type="button">Save PDF</button>
             <button id="unpublishBtn" class="ghost-button danger" type="button">Unpublish</button>
           </div>
         </div>
         <div id="resultSummary" class="result-summary"></div>
-
-        <form id="firebaseResultSearch" class="firebase-result-search" aria-label="Search published result from Firestore">
-          <label>
-            Search Firestore Result by Roll No.
-            <input id="firebaseRollInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter roll no.">
-          </label>
-          <button class="primary-button" type="submit">Search</button>
-          <button id="clearFirebaseResultBtn" class="ghost-button" type="button">Clear</button>
-          <span id="firebaseResultStatus" class="firebase-result-status"></span>
-        </form>
-        <div id="firebaseResultCard" class="firebase-result-card hidden"></div>
-
         <div class="table-wrap">
           <table class="results-table">
             <thead id="resultsHead"></thead>
@@ -262,7 +230,6 @@
               <button id="zoomInMarksheetBtn" class="ghost-button" type="button" title="Zoom in" aria-label="Zoom in">+</button>
             </div>
             <button id="printMarksheetsBtn" class="primary-button" type="button">Print Marksheets</button>
-            <button id="saveMarksheetsPdfBtn" class="ghost-button" type="button">Save PDF</button>
           </div>
         </div>
         <div id="marksheetBody" class="marksheet-list"></div>
