@@ -1,5 +1,6 @@
 const storageKey = "results-desk-state-v1";
 const authKey = "markhub-current-user-v1";
+const uiKey = "markhub-ui-state-v1";
 
 const users = {
   admin: { password: "admin123", role: "admin", name: "Admin" },
@@ -80,7 +81,7 @@ const defaultState = {
 };
 
 let state = loadState();
-let activeView = "entry";
+let activeView = loadSavedUiState().activeView || "entry";
 let currentUser = loadCurrentUser();
 let editingStudentRoll = null;
 let applyingRemoteState = false;
@@ -135,6 +136,7 @@ const els = {
   firebaseResultCard: document.querySelector("#firebaseResultCard"),
   clearFirebaseResultBtn: document.querySelector("#clearFirebaseResultBtn"),
   marksheetBody: document.querySelector("#marksheetBody"),
+  marksheetNameSearchInput: document.querySelector("#marksheetNameSearchInput"),
   printMarksheetsBtn: document.querySelector("#printMarksheetsBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
@@ -237,6 +239,37 @@ function saveState() {
   queueFirebaseStateSave();
 }
 
+function loadSavedUiState() {
+  const fallback = { activeView: "entry" };
+  const saved = localStorage.getItem(uiKey);
+  if (!saved) return fallback;
+
+  try {
+    const parsed = JSON.parse(saved);
+    const allowedViews = ["entry", "attendance", "results", "marksheet", "students"];
+    return {
+      ...parsed,
+      activeView: allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveUiState() {
+  if (!els.classSelect) return;
+  localStorage.setItem(uiKey, JSON.stringify({
+    activeView,
+    className: selectedClass(),
+    exam: selectedExam(),
+    subject: selectedSubject(),
+    studentsClass: els.studentsClassSelect?.value || selectedClass(),
+    attendanceClass: selectedAttendanceClass(),
+    attendanceTerm: selectedAttendanceTerm(),
+    marksheetNameSearch: els.marksheetNameSearchInput?.value || ""
+  }));
+}
+
 function queueFirebaseStateSave() {
   if (applyingRemoteState || !window.MarkHubFirebase?.saveAppState) return;
   clearTimeout(firebaseStateSaveTimer);
@@ -286,6 +319,7 @@ function captureUiState() {
     subject: selectedSubject(),
     attendanceClass: selectedAttendanceClass(),
     attendanceTerm: selectedAttendanceTerm(),
+    marksheetNameSearch: els.marksheetNameSearchInput?.value || "",
     focusedSelector: getFocusSelector(activeElement),
     selectionStart: activeElement instanceof HTMLInputElement ? activeElement.selectionStart : null,
     selectionEnd: activeElement instanceof HTMLInputElement ? activeElement.selectionEnd : null
@@ -327,6 +361,9 @@ function applyRemoteStateToCurrentView(uiState) {
   setSelectValueIfAvailable(els.examSelect, uiState.exam);
   updateSubjectSelect();
   setSelectValueIfAvailable(els.subjectSelect, uiState.subject);
+  if (els.marksheetNameSearchInput) {
+    els.marksheetNameSearchInput.value = uiState.marksheetNameSearch || "";
+  }
   updateAttendanceInputs();
 
   renderActiveViewOnly();
@@ -724,14 +761,25 @@ function populateSelect(select, options) {
 }
 
 function init() {
+  const savedUiState = loadSavedUiState();
+  activeView = savedUiState.activeView || activeView;
+
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
+  setSelectValueIfAvailable(els.classSelect, savedUiState.className);
   populateSelect(els.studentsClassSelect, Object.keys(state.classes));
-  els.studentsClassSelect.value = els.classSelect.value;
+  setSelectValueIfAvailable(els.studentsClassSelect, savedUiState.studentsClass || selectedClass());
   updateExamSelect();
+  setSelectValueIfAvailable(els.examSelect, savedUiState.exam);
   updateSubjectSelect();
+  setSelectValueIfAvailable(els.subjectSelect, savedUiState.subject);
   populateSelect(els.attendanceClassSelect, Object.keys(state.classes));
+  setSelectValueIfAvailable(els.attendanceClassSelect, savedUiState.attendanceClass || selectedClass());
   populateSelect(els.attendanceTermSelect, termExams);
+  setSelectValueIfAvailable(els.attendanceTermSelect, savedUiState.attendanceTerm);
+  if (els.marksheetNameSearchInput) {
+    els.marksheetNameSearchInput.value = savedUiState.marksheetNameSearch || "";
+  }
   updateAttendanceInputs();
 
   document.querySelectorAll(".nav-tab").forEach((tab) => {
@@ -743,6 +791,7 @@ function init() {
     cancelStudentEdit();
     updateExamSelect();
     updateSubjectSelect();
+    saveUiState();
     render();
   });
 
@@ -751,15 +800,18 @@ function init() {
     cancelStudentEdit();
     updateExamSelect();
     updateSubjectSelect();
+    saveUiState();
     render();
   });
 
   els.examSelect.addEventListener("change", () => {
     updateSubjectSelect();
+    saveUiState();
     render();
   });
 
   els.subjectSelect.addEventListener("change", () => {
+    saveUiState();
     render();
   });
 
@@ -778,9 +830,13 @@ function init() {
     renderMarksheets();
   });
 
-  els.attendanceClassSelect.addEventListener("change", renderAttendance);
+  els.attendanceClassSelect.addEventListener("change", () => {
+    saveUiState();
+    renderAttendance();
+  });
   els.attendanceTermSelect.addEventListener("change", () => {
     updateAttendanceInputs();
+    saveUiState();
     renderAttendance();
   });
 
@@ -805,12 +861,17 @@ function init() {
   els.printResultsBtn.addEventListener("click", printResults);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
+  els.marksheetNameSearchInput?.addEventListener("input", () => {
+    saveUiState();
+    renderMarksheets();
+  });
   els.marksheetZoomInput.addEventListener("input", updateMarksheetZoom);
   els.zoomOutMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(-10));
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
   document.addEventListener("keydown", handleEnterAsTab);
   updateMarksheetZoom();
   startFirebaseStateSync();
+  renderAuth();
 
   render();
 }
@@ -871,15 +932,20 @@ function handleEnterAsTab(event) {
 
 function switchView(view) {
   activeView = view;
-  document.body.classList.toggle("entry-active", view === "entry");
-  document.body.classList.toggle("attendance-active", view === "attendance");
-  document.body.classList.toggle("results-active", view === "results");
-  document.body.classList.toggle("students-active", view === "students");
-  document.body.classList.toggle("marksheet-active", view === "marksheet");
   updateExamSelect();
   updateSubjectSelect();
-  document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
-  document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${view}View`));
+  saveUiState();
+  render();
+}
+
+function renderActiveViewChrome() {
+  document.body.classList.toggle("entry-active", activeView === "entry");
+  document.body.classList.toggle("attendance-active", activeView === "attendance");
+  document.body.classList.toggle("results-active", activeView === "results");
+  document.body.classList.toggle("students-active", activeView === "students");
+  document.body.classList.toggle("marksheet-active", activeView === "marksheet");
+  document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
+  document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
   const titles = {
     entry: "Marks Entry",
     attendance: "Attendance and Physical Measurement",
@@ -887,8 +953,7 @@ function switchView(view) {
     marksheet: "Marksheets",
     students: "Students"
   };
-  els.viewTitle.textContent = titles[view];
-  render();
+  els.viewTitle.textContent = titles[activeView] || "Marks Entry";
 }
 
 function render() {
@@ -902,11 +967,7 @@ function render() {
 }
 
 function renderViewFilters() {
-  document.body.classList.toggle("entry-active", activeView === "entry");
-  document.body.classList.toggle("attendance-active", activeView === "attendance");
-  document.body.classList.toggle("results-active", activeView === "results");
-  document.body.classList.toggle("students-active", activeView === "students");
-  document.body.classList.toggle("marksheet-active", activeView === "marksheet");
+  renderActiveViewChrome();
   syncStudentsClassSelect();
   const showMainFilters = activeView !== "attendance" && activeView !== "students";
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
@@ -1746,8 +1807,15 @@ function formatAcademicSession(session) {
   return String(session).replace(/(\d{4})\s*-\s*(\d{2})(\d{2})/, "$1 - $3");
 }
 
+function filteredMarksheetStudents(students) {
+  const query = (els.marksheetNameSearchInput?.value || "").trim().toLowerCase();
+  if (!query) return students;
+  return students.filter((student) => String(student.name || "").toLowerCase().includes(query));
+}
+
 function renderMarksheets() {
-  const students = sortedStudents();
+  const allStudents = sortedStudents();
+  const students = filteredMarksheetStudents(allStudents);
   const subjects = currentSubjects();
   const subjectsForMarks = markSubjects();
   const structuredTerm = isStructuredMarksheet();
@@ -1763,6 +1831,17 @@ function renderMarksheets() {
       <div class="table-wrap">
         <table>
           <tbody><tr><td>No published marksheets for ${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())}.</td></tr></tbody>
+        </table>
+      </div>
+    `;
+    return;
+  }
+
+  if (!students.length) {
+    els.marksheetBody.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <tbody><tr><td>No marksheets found for the selected class and name.</td></tr></tbody>
         </table>
       </div>
     `;
@@ -1864,7 +1943,7 @@ function renderMarksheets() {
         ${termSkillDevelopment.length ? renderMarksheetGradedSubjects(termSkillDevelopment, "term-skill-development") : ""}
         ${term
           ? `<div class="marksheet-measurements">
-              ${studentDetail("Class Strength", students.length)}
+              ${studentDetail("Class Strength", allStudents.length)}
               ${studentDetail("Attendance", attendance === "" ? "" : `${attendance}/${workingDays}`)}
               ${studentDetail("Height (in cm)", measurement.height)}
               ${studentDetail("Weight (in kg)", measurement.weight)}
@@ -2764,6 +2843,11 @@ function moveStudentRecords(oldRoll, newRoll) {
 }
 
 function removeStudent(roll) {
+  const student = (state.classes[selectedClass()] || []).find((entry) => entry.roll === roll);
+  const studentLabel = student ? `${student.name} (Roll No. ${student.roll})` : `Roll No. ${roll}`;
+  const confirmed = window.confirm(`Remove ${studentLabel}? This will also delete this student's marks, attendance, and measurements for ${selectedClass()}.`);
+  if (!confirmed) return;
+
   state.classes[selectedClass()] = state.classes[selectedClass()].filter((student) => student.roll !== roll);
   Object.keys(state.marks).forEach((key) => {
     if (key.startsWith(`${selectedClass()}::`)) {

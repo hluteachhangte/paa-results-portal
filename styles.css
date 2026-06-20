@@ -305,6 +305,17 @@ body.marksheet-active #printMarksheetsBtn {
   gap: 6px;
 }
 
+.marksheet-search {
+  width: min(260px, 100%);
+}
+
+.marksheet-search input {
+  min-height: 32px;
+  margin-top: 3px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
 .marksheet-zoom-control {
   padding: 3px 5px;
   border: 1px solid var(--line);
@@ -940,6 +951,47 @@ th:first-child {
   color: #111;
 }
 
+.results-table {
+  --results-roll-sticky-width: 80px;
+}
+
+#resultsView > .table-wrap {
+  position: relative;
+}
+
+.results-table thead tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+}
+
+.results-table thead tr:first-child th:first-child,
+.results-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: white;
+}
+
+.results-table thead tr:first-child th:nth-child(2),
+.results-table td:nth-child(2) {
+  position: sticky;
+  left: var(--results-roll-sticky-width);
+  z-index: 4;
+  background: white;
+}
+
+.results-table thead tr:first-child th:first-child,
+.results-table thead tr:first-child th:nth-child(2) {
+  z-index: 9;
+  background: #edf3f6;
+}
+
+.results-table tbody tr:nth-child(even) td:first-child,
+.results-table tbody tr:nth-child(even) td:nth-child(2) {
+  background: #f4f7f8;
+}
+
 .results-table .failed-mark,
 .results-table .status-pill.fail {
   color: var(--bad);
@@ -963,6 +1015,7 @@ th:first-child {
 }
 
 .results-table.structured-results {
+  --results-roll-sticky-width: 54px;
   table-layout: auto;
 }
 
@@ -2278,6 +2331,12 @@ th:first-child {
   body.print-results .results-table {
     min-width: 0;
     font-size: 9pt;
+  }
+
+  body.print-results .results-table thead tr:first-child th,
+  body.print-results .results-table td:first-child,
+  body.print-results .results-table td:nth-child(2) {
+    position: static;
   }
 
   body.print-results .results-table.structured-results {
