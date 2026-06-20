@@ -1943,6 +1943,33 @@ th:first-child {
     grid-template-columns: 1fr;
   }
 
+  body.entry-active #mainFilters {
+    grid-template-columns: minmax(64px, 0.75fr) minmax(64px, 0.75fr) minmax(86px, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  body.attendance-active .attendance-filters {
+    grid-template-columns: minmax(68px, 0.8fr) minmax(70px, 0.8fr) minmax(78px, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  body.entry-active #mainFilters label,
+  body.attendance-active .attendance-filters label {
+    padding: 4px 5px;
+    font-size: 0.58rem;
+  }
+
+  body.entry-active #mainFilters select,
+  body.attendance-active .attendance-filters select,
+  body.attendance-active .attendance-filters input {
+    min-height: 30px;
+    margin-top: 2px;
+    padding: 2px 4px;
+    font-size: 0.68rem;
+  }
+
   .students-class-filter {
     width: 100%;
   }
@@ -1957,13 +1984,27 @@ th:first-child {
 
   .summary-grid,
   body.entry-active .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 5px;
   }
 
   .metric-card,
   body.entry-active .metric-card {
-    min-height: 62px;
-    padding: 10px;
+    min-height: 38px;
+    padding: 5px 4px;
+  }
+
+  body.entry-active .metric-card span,
+  .metric-card span {
+    font-size: 0.48rem;
+    letter-spacing: 0.02em;
+  }
+
+  body.entry-active .metric-card strong,
+  .metric-card strong {
+    margin-top: 3px;
+    font-size: 0.78rem;
   }
 
   .table-wrap {
@@ -1979,8 +2020,27 @@ th:first-child {
     touch-action: pan-x pan-y;
   }
 
+  #entryView > .table-wrap,
+  #attendanceView > .table-wrap,
+  body.students-active #studentsView > .table-wrap {
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
+  }
+
   table {
     min-width: 680px;
+  }
+
+  #entryView table {
+    min-width: 500px;
+  }
+
+  #attendanceView table {
+    min-width: 540px;
   }
 
   th,
@@ -1993,34 +2053,66 @@ th:first-child {
   #entryView td,
   #attendanceView th,
   #attendanceView td {
-    padding: 8px;
+    padding: 5px 6px;
+    font-size: 0.68rem;
+    line-height: 1.1;
   }
 
   #entryView th:first-child,
   #entryView td:first-child,
   #attendanceView th:first-child,
   #attendanceView td:first-child {
-    min-width: 56px;
-    width: 56px;
+    min-width: 44px;
+    width: 44px;
   }
 
   #entryView th:nth-child(2),
   #entryView td:nth-child(2),
   #attendanceView th:nth-child(2),
   #attendanceView td:nth-child(2) {
-    min-width: 150px;
+    min-width: 118px;
+  }
+
+  #entryView th:nth-child(3),
+  #entryView td:nth-child(3) {
+    width: 92px;
+    min-width: 92px;
+  }
+
+  #entryView th:nth-child(4),
+  #entryView td:nth-child(4),
+  #entryView th:nth-child(5),
+  #entryView td:nth-child(5),
+  #entryView th:nth-child(6),
+  #entryView td:nth-child(6),
+  #attendanceView th:nth-child(3),
+  #attendanceView td:nth-child(3),
+  #attendanceView th:nth-child(4),
+  #attendanceView td:nth-child(4),
+  #attendanceView th:nth-child(5),
+  #attendanceView td:nth-child(5),
+  #attendanceView th:nth-child(6),
+  #attendanceView td:nth-child(6) {
+    width: 72px;
+    min-width: 72px;
   }
 
   #entryView .mark-input,
   #attendanceView .mark-input {
-    width: 86px;
-    min-width: 78px;
+    width: 64px;
+    min-width: 60px;
+    min-height: 30px;
+    padding: 2px 4px;
+    font-size: 0.74rem;
   }
 
   .activity-project-input,
   #entryView .activity-project-input {
-    width: 100px;
-    min-width: 92px;
+    width: 76px;
+    min-width: 72px;
+    min-height: 30px;
+    padding: 2px 4px;
+    font-size: 0.74rem;
   }
 
   .result-summary {
@@ -2045,9 +2137,16 @@ th:first-child {
     gap: 16px;
   }
 
+  body.marksheet-active #marksheetBody {
+    overflow: visible;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
+  }
+
   .marksheet {
     padding: 16px;
     font-size: 0.82rem;
+    touch-action: pan-y;
   }
 
   .student-details {
@@ -2167,6 +2266,49 @@ th:first-child {
     grid-template-columns: 1fr;
   }
 
+  body.entry-active #mainFilters {
+    grid-template-columns: minmax(56px, 0.72fr) minmax(56px, 0.72fr) minmax(78px, 1fr);
+    gap: 3px;
+  }
+
+  body.attendance-active .attendance-filters {
+    grid-template-columns: minmax(58px, 0.75fr) minmax(62px, 0.75fr) minmax(72px, 1fr);
+    gap: 3px;
+  }
+
+  body.entry-active #mainFilters label,
+  body.attendance-active .attendance-filters label {
+    padding: 3px 4px;
+    font-size: 0.52rem;
+  }
+
+  body.entry-active #mainFilters select,
+  body.attendance-active .attendance-filters select,
+  body.attendance-active .attendance-filters input {
+    min-height: 28px;
+    padding: 2px 3px;
+    font-size: 0.62rem;
+  }
+
+  body.entry-active .summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  body.entry-active .metric-card {
+    min-height: 34px;
+    padding: 4px 3px;
+  }
+
+  body.entry-active .metric-card span {
+    font-size: 0.42rem;
+    letter-spacing: 0;
+  }
+
+  body.entry-active .metric-card strong {
+    font-size: 0.7rem;
+  }
+
   .metric-card strong {
     font-size: 1.12rem;
   }
@@ -2176,7 +2318,32 @@ th:first-child {
   }
 
   #studentsView table {
-    min-width: 980px;
+    min-width: 780px;
+  }
+
+  #studentsView th,
+  #studentsView td {
+    padding: 5px 6px;
+    font-size: 0.62rem;
+    line-height: 1.1;
+  }
+
+  #studentsView th:nth-child(2),
+  #studentsView td:nth-child(2),
+  #studentsView th:nth-child(4),
+  #studentsView td:nth-child(4) {
+    width: 90px;
+    min-width: 90px;
+  }
+
+  #studentsView .row-actions {
+    gap: 4px;
+  }
+
+  #studentsView .ghost-button {
+    min-height: 28px;
+    padding: 0 6px;
+    font-size: 0.62rem;
   }
 
   .results-table.structured-results th,
