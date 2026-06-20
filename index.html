@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pinehill Adventist Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <section id="loginScreen" class="login-screen" aria-label="Login">
+    <div class="login-stack">
+      <form id="loginForm" class="login-card">
+        <img class="brand-logo login-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
+        <div>
+          <p class="eyebrow">RESULTS PUBLICATION</p>
+          <h1>Pinehill Adventist Academy</h1>
+        </div>
+        <label>
+          Username
+          <input id="usernameInput" type="text" autocomplete="username" required>
+        </label>
+        <label>
+          Password
+          <input id="passwordInput" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="primary-button" type="submit">Login</button>
+      </form>
+
+      <section class="login-card public-result-card" aria-label="Search student result">
+        <div>
+          <p class="eyebrow">STUDENT RESULT</p>
+          <h2>Search Result</h2>
+        </div>
+        <form id="publicFirebaseResultSearch" class="public-result-search">
+          <label>
+            Roll No.
+            <input id="publicFirebaseRollInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter roll no.">
+          </label>
+          <div class="inline-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <button id="publicClearFirebaseResultBtn" class="ghost-button" type="button">Clear</button>
+          </div>
+          <span id="publicFirebaseResultStatus" class="firebase-result-status"></span>
+        </form>
+        <div id="publicFirebaseResultCard" class="firebase-result-card hidden"></div>
+      </section>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" aria-label="Application navigation">
+      <div class="brand-block">
+        <img class="brand-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
+        <div>
+          <h1>Pinehill Adventist Academy</h1>
+          <p>RESULTS PUBLICATION</p>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" aria-label="Views">
+        <button class="nav-tab active" data-view="entry" type="button" title="Marks entry">
+          <span aria-hidden="true">✎</span>
+          Marks Entry
+        </button>
+        <button class="nav-tab" data-view="attendance" type="button" title="Attendance and physical measurement">
+          <span aria-hidden="true">◎</span>
+          Attendance and Physical Measurement
+        </button>
+        <button class="nav-tab" data-view="results" type="button" title="Published results">
+          <span aria-hidden="true">▦</span>
+          Results
+        </button>
+        <button class="nav-tab" data-view="marksheet" type="button" title="Student marksheets">
+          <span aria-hidden="true">▤</span>
+          Marksheets
+        </button>
+        <button class="nav-tab" data-view="students" type="button" title="Student list">
+          <span aria-hidden="true">＋</span>
+          Students
+        </button>
+      </nav>
+
+      <section class="publish-panel" aria-label="Publish status">
+        <span class="panel-label">Current Result</span>
+        <strong id="publishStatus">Not published</strong>
+        <p id="publishMeta">Save marks, then publish for the selected class and exam.</p>
+        <button id="publishBtn" class="primary-button" type="button">Publish Result</button>
+      </section>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <label class="academic-session">
+            Academic Session :
+            <input id="academicSessionInput" type="text" value="2026 - 2027" aria-label="Academic session">
+          </label>
+          <h2 id="viewTitle">Marks Entry</h2>
+        </div>
+        <div class="top-actions">
+          <span id="userBadge" class="user-badge">Not signed in</span>
+          <button id="exportBtn" class="ghost-button" type="button" title="Download CSV">
+            <span aria-hidden="true">⇩</span>
+            Export CSV
+          </button>
+          <button id="logoutBtn" class="ghost-button" type="button" title="Logout">Logout</button>
+          <button id="resetBtn" class="ghost-button danger" type="button" title="Reset demo data">
+            <span aria-hidden="true">↺</span>
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <section id="mainFilters" class="filters" aria-label="Result filters">
+        <label id="classField">
+          Class
+          <select id="classSelect"></select>
+        </label>
+        <label id="examField">
+          Exam
+          <select id="examSelect"></select>
+        </label>
+        <label id="subjectField">
+          Subject
+          <select id="subjectSelect"></select>
+        </label>
+      </section>
+
+      <section id="entryView" class="view active" aria-label="Marks entry">
+        <div class="summary-grid" aria-label="Class summary">
+          <article class="metric-card">
+            <span>Students</span>
+            <strong id="studentCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Entered</span>
+            <strong id="enteredCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Average</span>
+            <strong id="averageMarks">0%</strong>
+          </article>
+          <article class="metric-card">
+            <span>Highest</span>
+            <strong id="highestMarks">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Lowest</span>
+            <strong id="lowestMarks">0</strong>
+          </article>
+        </div>
+
+        <div class="section-head">
+          <div>
+            <h3>Enter Subject Marks</h3>
+            <p>Marks save automatically as teachers type.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="downloadMarksTemplateBtn" class="ghost-button" type="button">Download Marks Template</button>
+            <button id="importMarksBtn" class="ghost-button" type="button">Import Marks CSV</button>
+            <input id="marksCsvInput" class="hidden" type="file" accept=".csv,text/csv">
+            <button id="clearMarksBtn" class="ghost-button danger" type="button">Clear Subject</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr id="marksHead">
+                <th>Roll No.</th>
+                <th>Student Name</th>
+                <th>Marks / Grade</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="marksBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="attendanceView" class="view" aria-label="Attendance and physical measurement">
+        <div class="attendance-filters">
+          <label>
+            Class
+            <select id="attendanceClassSelect"></select>
+          </label>
+          <label>
+            Term
+            <select id="attendanceTermSelect"></select>
+          </label>
+          <label>
+            No. of Working Days
+            <input id="workingDaysInput" type="number" min="0" max="300" step="1">
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>Student Name</th>
+                <th>Attendance</th>
+                <th>Attendance Marks</th>
+                <th>Height (in cm)</th>
+                <th>Weight (in kg)</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="resultsView" class="view" aria-label="Published results">
+        <div class="print-results-header">
+          <h3>PINEHILL ADVENTIST ACADEMY</h3>
+          <p id="printResultsTitle"></p>
+        </div>
+        <div class="section-head">
+          <div>
+            <h3>Class Result Sheet</h3>
+            <p id="resultNotice">Publish the selected class and exam to show final results.</p>
+          </div>
+          <div class="inline-actions print-controls">
+            <button id="printResultsBtn" class="primary-button" type="button">Print Results</button>
+            <button id="unpublishBtn" class="ghost-button danger" type="button">Unpublish</button>
+          </div>
+        </div>
+        <div id="resultSummary" class="result-summary"></div>
+
+        <form id="firebaseResultSearch" class="firebase-result-search" aria-label="Search published result from Firestore">
+          <label>
+            Search Firestore Result by Roll No.
+            <input id="firebaseRollInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter roll no.">
+          </label>
+          <button class="primary-button" type="submit">Search</button>
+          <button id="clearFirebaseResultBtn" class="ghost-button" type="button">Clear</button>
+          <span id="firebaseResultStatus" class="firebase-result-status"></span>
+        </form>
+        <div id="firebaseResultCard" class="firebase-result-card hidden"></div>
+
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead id="resultsHead"></thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="marksheetView" class="view" aria-label="Student marksheets">
+        <div class="section-head print-controls">
+          <div></div>
+          <div class="marksheet-preview-controls">
+            <div class="marksheet-zoom-control" aria-label="Marksheet preview zoom">
+              <button id="zoomOutMarksheetBtn" class="ghost-button" type="button" title="Zoom out" aria-label="Zoom out">-</button>
+              <input id="marksheetZoomInput" type="range" min="50" max="150" step="10" value="100" aria-label="Marksheet zoom percentage">
+              <output id="marksheetZoomValue" for="marksheetZoomInput">100%</output>
+              <button id="zoomInMarksheetBtn" class="ghost-button" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            </div>
+            <button id="printMarksheetsBtn" class="primary-button" type="button">Print Marksheets</button>
+          </div>
+        </div>
+        <div id="marksheetBody" class="marksheet-list"></div>
+      </section>
+
+      <section id="studentsView" class="view" aria-label="Student management">
+        <div class="section-head">
+          <div>
+            <h3>Student List</h3>
+            <p>Add students individually or update the selected class from CSV.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="downloadStudentTemplateBtn" class="ghost-button" type="button">Download CSV Template</button>
+            <button id="importStudentsBtn" class="ghost-button" type="button">Import CSV</button>
+            <input id="studentCsvInput" class="hidden" type="file" accept=".csv,text/csv">
+          </div>
+        </div>
+
+        <form id="studentForm" class="student-form">
+          <label>
+            Roll No.
+            <input id="rollInput" type="number" min="1" required>
+          </label>
+          <label>
+            ID No.
+            <input id="idNoInput" type="text">
+          </label>
+          <label>
+            Student Name
+            <input id="nameInput" type="text" required>
+          </label>
+          <label>
+            Date of Birth
+            <input id="dobInput" type="date">
+          </label>
+          <label>
+            Father's Name
+            <input id="fatherNameInput" type="text">
+          </label>
+          <label>
+            Mother's Name
+            <input id="motherNameInput" type="text">
+          </label>
+          <label>
+            Address
+            <input id="addressInput" type="text">
+          </label>
+          <label>
+            PEN
+            <input id="penInput" type="text">
+          </label>
+          <label>
+            Aadhaar No.
+            <input id="aadhaarNoInput" type="text">
+          </label>
+          <button id="studentSubmitBtn" class="primary-button" type="submit">Add Student</button>
+          <button id="cancelStudentEditBtn" class="ghost-button hidden" type="button">Cancel Edit</button>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>ID No.</th>
+                <th>Student Name</th>
+                <th>Date of Birth</th>
+                <th>Father's Name</th>
+                <th>Mother's Name</th>
+                <th>Address</th>
+                <th>PEN</th>
+                <th>Aadhaar No.</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="studentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./firebase.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

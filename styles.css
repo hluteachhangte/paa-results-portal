@@ -1,0 +1,1846 @@
+:root {
+  --ink: #17202a;
+  --muted: #5e6b7a;
+  --line: #d8dee8;
+  --page: #f4f7fb;
+  --panel: #ffffff;
+  --primary: #146c63;
+  --primary-dark: #0c4f49;
+  --accent: #b84c2f;
+  --gold: #c58a12;
+  --good: #217a46;
+  --bad: #b42318;
+  --shadow: 0 18px 45px rgba(23, 32, 42, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(20, 108, 99, 0.07), transparent 310px),
+    var(--page);
+  color: var(--ink);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-stack {
+  width: min(900px, 100%);
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(320px, 420px);
+  align-items: start;
+  justify-content: center;
+  gap: 18px;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.login-card h1,
+.login-card p {
+  margin: 0;
+}
+
+.public-result-card h2 {
+  margin: 2px 0 0;
+  font-size: 1.35rem;
+}
+
+.public-result-search {
+  display: grid;
+  gap: 12px;
+}
+
+.public-result-search .inline-actions {
+  justify-content: flex-start;
+}
+
+.public-result-card .firebase-result-card {
+  margin: 0;
+}
+
+.login-help {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.user-badge {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #10231f;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 28px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand-block {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  display: block;
+  object-fit: contain;
+}
+
+.login-logo {
+  width: 112px;
+  height: 112px;
+  margin: 0 auto;
+}
+
+.brand-block h1,
+.brand-block p,
+.topbar h2,
+.topbar p,
+.section-head h3,
+.section-head p {
+  margin: 0;
+}
+
+.brand-block h1 {
+  font-size: 1.25rem;
+}
+
+.brand-block p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 3px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.nav-tabs {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-tab {
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.nav-tab span {
+  width: 22px;
+  text-align: center;
+}
+
+.nav-tab.active,
+.nav-tab:hover {
+  background: white;
+  color: #10231f;
+}
+
+.publish-panel {
+  margin-top: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.panel-label,
+.metric-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.publish-panel .panel-label {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.publish-panel strong {
+  display: block;
+  margin-top: 9px;
+  font-size: 1.24rem;
+}
+
+.publish-panel p {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.main-content {
+  min-width: 0;
+  padding: 28px;
+}
+
+body.marksheet-active {
+  overflow: hidden;
+}
+
+body.marksheet-active .app-shell {
+  height: 100vh;
+  min-height: 0;
+}
+
+body.marksheet-active .main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.marksheet-active .topbar,
+body.marksheet-active #mainFilters,
+body.marksheet-active #marksheetView > .section-head {
+  flex: 0 0 auto;
+}
+
+body.marksheet-active #marksheetView.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.marksheet-active #marksheetView > .section-head {
+  margin: 0 0 6px;
+  min-height: 32px;
+}
+
+body.marksheet-active #mainFilters {
+  grid-template-columns: repeat(2, minmax(120px, 190px));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body.marksheet-active #mainFilters label {
+  padding: 5px 8px;
+  font-size: 0.7rem;
+  box-shadow: none;
+}
+
+body.marksheet-active #mainFilters select {
+  min-height: 30px;
+  margin-top: 3px;
+  padding: 4px 7px;
+  font-size: 0.78rem;
+}
+
+body.marksheet-active #printMarksheetsBtn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.76rem;
+}
+
+.marksheet-preview-controls,
+.marksheet-zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.marksheet-zoom-control {
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.marksheet-zoom-control .ghost-button {
+  width: 28px;
+  min-height: 26px;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.marksheet-zoom-control input[type="range"] {
+  width: 110px;
+  min-height: 26px;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.marksheet-zoom-control output {
+  width: 38px;
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+body.marksheet-active #marksheetBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+body.entry-active #mainFilters {
+  grid-template-columns: repeat(3, minmax(120px, 180px));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+body.entry-active #mainFilters label {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+body.entry-active #mainFilters select {
+  min-height: 30px;
+  margin-top: 3px;
+  padding: 4px 7px;
+  font-size: 0.78rem;
+}
+
+body.entry-active .summary-grid {
+  grid-template-columns: repeat(5, minmax(76px, 105px));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body.entry-active .metric-card {
+  min-height: 50px;
+  padding: 7px 8px;
+}
+
+body.entry-active .metric-card span {
+  font-size: 0.62rem;
+}
+
+body.entry-active .metric-card strong {
+  margin-top: 4px;
+  font-size: 1rem;
+}
+
+body.entry-active #entryView .section-head {
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+
+body.entry-active #entryView .section-head h3 {
+  font-size: 1rem;
+}
+
+body.entry-active #entryView .section-head p {
+  margin-top: 2px;
+  font-size: 0.74rem;
+}
+
+body.entry-active #entryView .inline-actions {
+  gap: 6px;
+}
+
+body.entry-active #entryView .ghost-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.76rem;
+}
+
+body.results-active #mainFilters,
+body.students-active #mainFilters {
+  grid-template-columns: repeat(2, minmax(120px, 180px));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+body.results-active #mainFilters label,
+body.students-active #mainFilters label,
+body.attendance-active .attendance-filters label,
+body.students-active .student-form label {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+body.results-active #mainFilters select,
+body.students-active #mainFilters select,
+body.attendance-active .attendance-filters select,
+body.attendance-active .attendance-filters input,
+body.students-active .student-form input {
+  min-height: 30px;
+  margin-top: 3px;
+  padding: 4px 7px;
+  font-size: 0.78rem;
+}
+
+body.attendance-active .attendance-filters {
+  grid-template-columns: repeat(3, minmax(120px, 180px));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+body.results-active #resultsView .section-head,
+body.students-active #studentsView .section-head {
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+
+body.results-active #resultsView .section-head h3,
+body.students-active #studentsView .section-head h3 {
+  font-size: 1rem;
+}
+
+body.results-active #resultsView .section-head p,
+body.students-active #studentsView .section-head p {
+  margin-top: 2px;
+  font-size: 0.74rem;
+}
+
+body.results-active #resultsView .inline-actions,
+body.students-active #studentsView .inline-actions {
+  gap: 6px;
+}
+
+body.results-active #resultsView .primary-button,
+body.results-active #resultsView .ghost-button,
+body.students-active #studentsView .primary-button,
+body.students-active #studentsView .ghost-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.76rem;
+}
+
+body.results-active .result-summary {
+  margin-bottom: 8px;
+}
+
+body.results-active .result-summary div {
+  padding: 4px 6px;
+}
+
+body.results-active .result-summary span {
+  font-size: 0.55rem;
+}
+
+body.results-active .result-summary strong {
+  margin-top: 1px;
+  font-size: 0.74rem;
+}
+
+body.students-active .student-form {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.academic-session {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.academic-session input {
+  width: 130px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.topbar h2 {
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+.top-actions,
+.inline-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.filters,
+.attendance-filters,
+.summary-grid,
+.student-form {
+  display: grid;
+  gap: 14px;
+}
+
+.filters {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-bottom: 20px;
+}
+
+.attendance-filters {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  margin-bottom: 18px;
+}
+
+label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+select,
+input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  margin-top: 7px;
+  padding: 0 12px;
+}
+
+select:focus,
+input:focus {
+  border-color: var(--primary);
+  outline: 3px solid rgba(20, 108, 99, 0.14);
+}
+
+.view {
+  display: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.view.active {
+  display: block;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(5, minmax(90px, 130px));
+  margin-bottom: 14px;
+}
+
+.metric-card {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  margin: 24px 0 14px;
+}
+
+.section-head h3 {
+  font-size: 1.22rem;
+}
+
+.section-head p {
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.primary-button,
+.ghost-button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.primary-button {
+  background: var(--primary);
+  color: white;
+}
+
+.primary-button:hover {
+  background: var(--primary-dark);
+}
+
+.ghost-button {
+  background: white;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.ghost-button:hover {
+  border-color: #aeb8c6;
+}
+
+.danger {
+  color: var(--bad);
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  background: #edf3f6;
+  color: #344250;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td:first-child,
+th:first-child {
+  width: 80px;
+}
+
+.mark-input {
+  width: 150px;
+  max-width: 100%;
+  min-width: 120px;
+}
+
+.activity-project-input {
+  width: 110px;
+  min-width: 90px;
+}
+
+.calculated-mark {
+  display: inline-grid;
+  min-width: 44px;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f4f7f8;
+  font-weight: 800;
+}
+
+.remark-input {
+  min-width: 220px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  background: #eef2f5;
+  color: #566473;
+}
+
+.status-pill.pass {
+  background: #e7f5ec;
+  color: var(--good);
+}
+
+.status-pill.fail {
+  background: #fcebea;
+  color: var(--bad);
+}
+
+.status-pill.absent {
+  background: #fff5df;
+  color: #8a5a00;
+}
+
+.results-table th,
+.results-table td {
+  text-align: center;
+  color: #111;
+}
+
+.results-table .failed-mark,
+.results-table .status-pill.fail {
+  color: var(--bad);
+}
+
+.results-table .status-pill.absent {
+  color: #8a5a00;
+}
+
+.results-table th:nth-child(2),
+.results-table td:nth-child(2) {
+  text-align: left;
+}
+
+.results-table thead th:nth-child(2),
+.results-table.structured-results .student-name-column {
+  text-align: center;
+}
+
+.results-table.structured-results {
+  table-layout: fixed;
+}
+
+.results-table.structured-results th,
+.results-table.structured-results td {
+  padding: 5px 4px;
+  font-size: 0.64rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.results-table.structured-results .student-name-column,
+.results-table.structured-results tbody td:nth-child(2) {
+  width: 170px;
+  min-width: 170px;
+  max-width: 170px;
+}
+
+.results-table.structured-results .student-name-column {
+  text-align: center;
+  vertical-align: middle;
+  border-left: 1px solid #829b97;
+  border-right: 1px solid #829b97;
+}
+
+.results-table.structured-results tbody td:nth-child(2) {
+  text-align: left;
+  border-left: 1px solid #829b97;
+  border-right: 1px solid #829b97;
+}
+
+.results-table.structured-results .roll-column,
+.results-table.structured-results tbody td:first-child {
+  width: 54px;
+  min-width: 54px;
+  max-width: 54px;
+}
+
+.results-table.structured-results .roll-column {
+  white-space: normal;
+  text-align: center;
+}
+
+.results-table .subject-group {
+  background: #dce9e7;
+  width: 128px;
+  min-width: 128px;
+  max-width: 128px;
+  border-left: 1px solid #829b97;
+  border-right: 1px solid #829b97;
+}
+
+.results-table.high-third-term-results .subject-group {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+}
+
+.results-table .roll-column {
+  width: 54px;
+}
+
+.results-table .student-name-column {
+  width: 170px;
+}
+
+.results-table .component-column {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  height: 64px;
+  padding: 2px 1px;
+}
+
+.results-table .standalone-column {
+  width: 48px;
+  min-width: 48px;
+  max-width: 60px;
+  border-left: 1px solid #829b97;
+  border-right: 1px solid #829b97;
+}
+
+.results-table .outcome-column {
+  width: 46px;
+  min-width: 46px;
+  max-width: 58px;
+}
+
+.results-table .attendance-column {
+  width: 60px;
+  min-width: 60px;
+}
+
+.results-table .result-column {
+  width: 64px;
+  min-width: 64px;
+}
+
+.results-table .subject-total {
+  font-weight: 800;
+}
+
+.results-table.structured-results .subject-start {
+  border-left: 1px solid #829b97;
+}
+
+.results-table.structured-results .subject-end {
+  border-right: 1px solid #829b97;
+}
+
+.results-table.structured-results .standalone-value {
+  border-left: 1px solid #829b97;
+  border-right: 1px solid #829b97;
+}
+
+.results-table.structured-results .vertical-header {
+  position: relative;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  height: 80px;
+  padding: 3px 1px;
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.results-table.structured-results .vertical-header span {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  display: block;
+  writing-mode: vertical-rl;
+  transform: translateX(-50%) rotate(180deg);
+  transform-origin: center;
+  font-size: 0.54rem;
+  line-height: 1;
+}
+
+.results-table.high-third-term-results .skill-development-header {
+  height: 112px;
+}
+
+.results-table.high-third-term-results .skill-development-header span {
+  white-space: nowrap;
+}
+
+.results-table.structured-results .third-term-component-header {
+  height: 112px;
+  vertical-align: bottom;
+}
+
+.results-table.high-third-term-results .third-term-component-header {
+  height: 64px;
+}
+
+.results-table tbody tr:nth-child(even) {
+  background: #f4f7f8;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.result-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 1px;
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.result-summary:empty {
+  display: none;
+}
+
+.result-summary div {
+  background: white;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.result-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.result-summary strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.82rem;
+}
+
+.firebase-result-search {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) auto auto minmax(140px, 1fr);
+  align-items: end;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.firebase-result-search label {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+.firebase-result-search input {
+  min-height: 30px;
+  margin-top: 3px;
+  padding: 4px 7px;
+  font-size: 0.78rem;
+}
+
+.firebase-result-search .primary-button,
+.firebase-result-search .ghost-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.76rem;
+}
+
+.firebase-result-status {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.firebase-result-status.success {
+  color: #047857;
+}
+
+.firebase-result-status.error {
+  color: #b91c1c;
+}
+
+.firebase-result-card {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.firebase-result-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.firebase-result-card-head span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.firebase-result-card-head h4 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.firebase-result-card-head strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.firebase-result-table-wrap {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.firebase-result-table th {
+  width: 160px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.firebase-result-table td {
+  text-align: left;
+}
+
+.firebase-nested-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+.firebase-nested-table th,
+.firebase-nested-table td {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.firebase-value-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.print-results-header {
+  display: none;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.print-results-header h3,
+.print-results-header p {
+  margin: 0;
+}
+
+.print-results-header p {
+  margin-top: 5px;
+  font-weight: 700;
+}
+
+.failed-mark {
+  display: inline-grid;
+  min-width: 20px;
+  min-height: 20px;
+  place-items: center;
+  border: 1px solid var(--bad);
+  border-radius: 50%;
+  color: var(--bad);
+  font-weight: 800;
+  padding: 1px;
+}
+
+.student-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.marksheet-list {
+  display: grid;
+  gap: 24px;
+  zoom: var(--marksheet-zoom, 1);
+}
+
+.marksheet {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: white;
+  background-image: url("./marksheet-background.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #111;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.marksheet-title {
+  position: relative;
+  border-bottom: 2px solid #111;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  text-align: center;
+  color: #111;
+}
+
+.marksheet-title h3,
+.marksheet-title p {
+  margin: 0;
+}
+
+.marksheet-title p {
+  color: #111;
+  margin-top: 5px;
+}
+
+.marksheet-title .marksheet-location {
+  margin-top: 4px;
+  margin-bottom: 14px;
+  font-weight: 700;
+}
+
+.marksheet-title .marksheet-session {
+  font-weight: 800;
+}
+
+.marksheet .table-wrap,
+.marksheet table,
+.marksheet thead,
+.marksheet tbody,
+.marksheet tr,
+.marksheet th,
+.marksheet td {
+  background: transparent;
+  box-shadow: none;
+}
+
+.marksheet th {
+  color: #111;
+}
+
+.marksheet th,
+.marksheet td {
+  border-color: #7b8585;
+}
+
+.student-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 18px;
+  margin-bottom: 18px;
+}
+
+.student-details div {
+  color: #111;
+  font-size: 0.84rem;
+}
+
+.student-details strong {
+  display: block;
+  color: #111;
+  margin-top: 3px;
+}
+
+.marksheet-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 16px;
+  font-weight: 700;
+}
+
+.marksheet-graded-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+  color: #111;
+  font-size: 0.8rem;
+}
+
+.marksheet-graded-subjects.term-skill-development {
+  font-size: 0.88rem;
+}
+
+.marksheet-measurements {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--ink);
+  margin-top: 10px;
+  padding-top: 9px;
+}
+
+.marksheet-measurements div:last-child {
+  grid-column: 1 / -1;
+}
+
+.high-class-marksheet .marksheet-measurements {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.high-third-term-marksheet .marksheet-measurements {
+  grid-template-columns: 0.75fr 0.75fr 0.85fr 0.85fr 3fr;
+}
+
+.high-class-marksheet .marksheet-measurements div:last-child,
+.lower-class-marksheet .marksheet-measurements div:last-child {
+  grid-column: auto;
+}
+
+.lower-class-marksheet .marksheet-measurements {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.marksheet.class-one-eight-marksheet .marksheet-measurements {
+  grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
+}
+
+.marksheet.class-one-eight-marksheet .marksheet-measurements div:last-child {
+  grid-column: auto;
+}
+
+.marksheet.class-one-eight-marksheet .marksheet-measurements div {
+  font-size: 0.88rem;
+}
+
+.marksheet-measurements div {
+  color: #111;
+  font-size: 0.8rem;
+}
+
+.marksheet-measurements strong {
+  display: block;
+  color: #111;
+  margin-top: 3px;
+}
+
+.marksheet-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 54px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.marksheet-signatures span {
+  border-top: 1px solid var(--ink);
+  padding-top: 6px;
+}
+
+.structured-marksheet-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.structured-marksheet-table th,
+.structured-marksheet-table td {
+  width: calc(100% / 7);
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.structured-marksheet-table th {
+  text-transform: uppercase;
+}
+
+.structured-marksheet-table th:first-child,
+.structured-marksheet-table td:first-child {
+  text-align: left;
+}
+
+.high-class-marksheet-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.lower-class-marksheet-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.high-class-marksheet-table th,
+.high-class-marksheet-table td,
+.lower-class-marksheet-table th,
+.lower-class-marksheet-table td {
+  width: 25%;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.high-class-marksheet-table th,
+.lower-class-marksheet-table th {
+  color: #111;
+  text-transform: uppercase;
+}
+
+.high-class-marksheet-table th:first-child,
+.high-class-marksheet-table td:first-child,
+.lower-class-marksheet-table th:first-child,
+.lower-class-marksheet-table td:first-child {
+  text-align: left;
+}
+
+.structured-marksheet-table .grand-total-row td {
+  border-top: 2px solid var(--ink);
+  font-weight: 800;
+}
+
+.high-class-marksheet-table .grand-total-row td,
+.lower-class-marksheet-table .grand-total-row td {
+  border-top: 2px solid var(--ink);
+  font-weight: 800;
+}
+
+.structured-marksheet-table .grand-total-row td:first-child,
+.high-class-marksheet-table .grand-total-row td:first-child,
+.lower-class-marksheet-table .grand-total-row td:first-child {
+  text-align: left;
+}
+
+.toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  max-width: min(360px, calc(100vw - 44px));
+  transform: translateY(18px);
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 8px;
+  background: #17202a;
+  color: white;
+  padding: 13px 16px;
+  box-shadow: var(--shadow);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-stack {
+    grid-template-columns: minmax(0, 420px);
+  }
+
+  .sidebar {
+    min-height: auto;
+    position: static;
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .publish-panel {
+    margin-top: 0;
+  }
+
+  .filters,
+  .attendance-filters,
+  .firebase-result-search,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar,
+  .main-content {
+    padding: 18px;
+  }
+
+  .topbar,
+  .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .top-actions,
+  .inline-actions {
+    justify-content: flex-start;
+  }
+
+  .filters,
+  .attendance-filters,
+  .firebase-result-search,
+  .summary-grid,
+  .student-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  body.marksheet-active {
+    overflow: visible;
+  }
+
+  body.marksheet-active .app-shell,
+  body.marksheet-active .main-content {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  body.marksheet-active #marksheetView.active {
+    display: block;
+  }
+
+  body.marksheet-active #marksheetBody {
+    overflow: visible;
+    padding-right: 0;
+    zoom: 1;
+  }
+
+  .sidebar,
+  .topbar,
+  .filters,
+  .firebase-result-search,
+  .firebase-result-card,
+  .print-controls,
+  .toast {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block;
+  }
+
+  .main-content {
+    padding: 0;
+  }
+
+  body.print-marksheets .view:not(#marksheetView),
+  body.print-results .view:not(#resultsView) {
+    display: none !important;
+  }
+
+  body.print-marksheets #marksheetView,
+  body.print-results #resultsView {
+    display: block !important;
+  }
+
+  body.print-results #resultsView {
+    page: results-page;
+  }
+
+  body.print-marksheets #marksheetView {
+    page: marksheets-page;
+  }
+
+  body.print-results .print-results-header {
+    display: block;
+  }
+
+  body.print-results #resultsView .section-head {
+    display: none !important;
+  }
+
+  body.print-results .results-table {
+    min-width: 0;
+    font-size: 9pt;
+  }
+
+  body.print-results .results-table.structured-results {
+    font-size: 6.5pt;
+  }
+
+  body.print-results .results-table th,
+  body.print-results .results-table td {
+    padding: 5px 4px;
+  }
+
+  body.print-results .results-table.structured-results th,
+  body.print-results .results-table.structured-results td {
+    padding: 2px 1px;
+    font-size: 6.5pt;
+  }
+
+  body.print-results .results-table.structured-results .vertical-header {
+    height: 58px;
+    vertical-align: bottom;
+  }
+
+  body.print-results .results-table.structured-results .vertical-header span {
+    bottom: 4px;
+    font-size: 5.5pt;
+  }
+
+  body.print-results .results-table.structured-results .third-term-component-header {
+    height: 82px;
+    vertical-align: bottom;
+  }
+
+  body.print-results .results-table.high-third-term-results .third-term-component-header {
+    height: 48px;
+  }
+
+  body.print-results .results-table.high-third-term-results .skill-development-header {
+    height: 82px;
+  }
+
+  body.print-results .result-summary {
+    break-inside: avoid;
+    margin: 0 0 6px;
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  body.print-results .result-summary div {
+    padding: 3px 4px;
+  }
+
+  body.print-results .result-summary span {
+    font-size: 6pt;
+  }
+
+  body.print-results .result-summary strong {
+    margin-top: 1px;
+    font-size: 8pt;
+  }
+
+  .marksheet-list {
+    gap: 0;
+  }
+
+  .marksheet {
+    width: 200mm;
+    min-height: 138mm;
+    border: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+    padding: 4mm;
+    font-size: 8pt;
+    background-image: url("./marksheet-background.jpg") !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .marksheet-title {
+    padding-bottom: 5px;
+    margin-bottom: 7px;
+  }
+
+  .marksheet-title .marksheet-location {
+    margin-bottom: 7px;
+  }
+
+  .marksheet-title h3 {
+    font-size: 12pt;
+  }
+
+  .marksheet-title p,
+  .student-details div {
+    font-size: 7pt;
+  }
+
+  .student-details {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 8px;
+    margin-bottom: 7px;
+  }
+
+  .structured-marksheet-table th,
+  .structured-marksheet-table td,
+  .high-class-marksheet-table th,
+  .high-class-marksheet-table td,
+  .lower-class-marksheet-table th,
+  .lower-class-marksheet-table td {
+    padding: 3px 4px;
+    font-size: 7pt;
+    height: 7mm;
+    line-height: 1.15;
+    vertical-align: middle;
+  }
+
+  .structured-marksheet-table tr,
+  .high-class-marksheet-table tr,
+  .lower-class-marksheet-table tr {
+    height: 7mm;
+  }
+
+  .high-class-marksheet .student-details {
+    gap: 3px 7px;
+    margin-bottom: 5px;
+  }
+
+  .high-class-marksheet .marksheet-summary {
+    margin-top: 5px;
+  }
+
+  .high-class-marksheet .marksheet-measurements {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .high-third-term-marksheet .marksheet-measurements {
+    grid-template-columns: 0.65fr 0.65fr 0.75fr 0.75fr 3.5fr;
+  }
+
+  .marksheet.class-one-eight-marksheet .marksheet-measurements {
+    grid-template-columns: 0.8fr 0.85fr 0.9fr 0.9fr 3.55fr;
+  }
+
+  .marksheet.class-one-eight-marksheet .marksheet-measurements div {
+    font-size: 7.5pt;
+  }
+
+  .high-third-term-marksheet .marksheet-graded-subjects {
+    gap: 3px 12px;
+    margin-top: 4px;
+    padding-top: 4px;
+    font-size: 6.5pt;
+  }
+
+  .marksheet-graded-subjects.term-skill-development {
+    font-size: 7pt;
+  }
+
+  .lower-class-marksheet .marksheet-measurements {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .high-class-marksheet .marksheet-measurements div,
+  .lower-class-marksheet .marksheet-measurements div {
+    font-size: 5.5pt;
+  }
+
+  .high-class-marksheet .marksheet-signatures {
+    margin-top: 6mm;
+  }
+
+  .marksheet-summary {
+    gap: 4px 10px;
+    margin-top: 7px;
+    font-size: 7pt;
+  }
+
+  .marksheet-measurements {
+    gap: 5px;
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+
+  .marksheet-measurements div {
+    font-size: 6.5pt;
+  }
+
+  .marksheet-signatures {
+    gap: 10px;
+    margin-top: 7mm;
+    font-size: 6.5pt;
+  }
+
+  .marksheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .table-wrap {
+    overflow: visible;
+    box-shadow: none;
+  }
+
+  /* Preserve the on-screen marksheet design and scale the complete sheet to A5. */
+  body.print-marksheets .marksheet {
+    width: 266.667mm;
+    min-height: 0;
+    margin: 0 auto;
+    padding: 22px;
+    font-size: inherit;
+    zoom: 0.5175;
+  }
+
+  body.print-marksheets .marksheet-title {
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+
+  body.print-marksheets .marksheet-title .marksheet-location {
+    margin-bottom: 14px;
+  }
+
+  body.print-marksheets .marksheet-title h3 {
+    font-size: revert;
+  }
+
+  body.print-marksheets .marksheet-title p,
+  body.print-marksheets .student-details div {
+    font-size: 0.84rem;
+  }
+
+  body.print-marksheets .student-details {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px 18px;
+    margin-bottom: 18px;
+  }
+
+  body.print-marksheets .structured-marksheet-table th,
+  body.print-marksheets .structured-marksheet-table td,
+  body.print-marksheets .high-class-marksheet-table th,
+  body.print-marksheets .high-class-marksheet-table td,
+  body.print-marksheets .lower-class-marksheet-table th,
+  body.print-marksheets .lower-class-marksheet-table td {
+    height: auto;
+    padding: 9px 10px;
+    font-size: inherit;
+    line-height: normal;
+  }
+
+  body.print-marksheets .high-class-marksheet-table th,
+  body.print-marksheets .high-class-marksheet-table td,
+  body.print-marksheets .lower-class-marksheet-table th,
+  body.print-marksheets .lower-class-marksheet-table td {
+    padding: 8px 10px;
+  }
+
+  body.print-marksheets .structured-marksheet-table tr,
+  body.print-marksheets .high-class-marksheet-table tr,
+  body.print-marksheets .lower-class-marksheet-table tr {
+    height: auto;
+  }
+
+  body.print-marksheets .marksheet-summary {
+    gap: 12px 24px;
+    margin-top: 16px;
+    font-size: inherit;
+  }
+
+  body.print-marksheets .marksheet-measurements {
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+
+  body.print-marksheets .marksheet-measurements div,
+  body.print-marksheets .marksheet.class-one-eight-marksheet .marksheet-measurements div {
+    font-size: 0.88rem;
+  }
+
+  body.print-marksheets .high-third-term-marksheet .marksheet-measurements {
+    grid-template-columns: 0.75fr 0.75fr 0.85fr 0.85fr 3fr;
+  }
+
+  body.print-marksheets .marksheet.class-one-eight-marksheet .marksheet-measurements {
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
+  }
+
+  body.print-marksheets .marksheet-graded-subjects,
+  body.print-marksheets .high-third-term-marksheet .marksheet-graded-subjects {
+    gap: 6px 24px;
+    margin-top: 7px;
+    padding-top: 7px;
+    font-size: 0.8rem;
+  }
+
+  body.print-marksheets .marksheet-graded-subjects.term-skill-development {
+    font-size: 0.88rem;
+  }
+
+  body.print-marksheets .marksheet-signatures,
+  body.print-marksheets .high-class-marksheet .marksheet-signatures {
+    gap: 18px;
+    margin-top: 54px;
+    font-size: 0.78rem;
+  }
+}
+
+@page results-page {
+  size: landscape;
+  margin: 8mm;
+}
+
+@page marksheets-page {
+  size: A5 portrait;
+  margin: 5mm;
+}
