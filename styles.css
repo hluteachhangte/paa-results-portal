@@ -953,6 +953,7 @@ th:first-child {
 
 .results-table {
   --results-roll-sticky-width: 80px;
+  --results-header-row-height: 32px;
 }
 
 #resultsView > .table-wrap {
@@ -962,7 +963,15 @@ th:first-child {
 .results-table thead tr:first-child th {
   position: sticky;
   top: 0;
+  z-index: 8;
+  background: #edf3f6;
+}
+
+.results-table thead tr:nth-child(2) th {
+  position: sticky;
+  top: var(--results-header-row-height);
   z-index: 7;
+  background: #edf3f6;
 }
 
 .results-table thead tr:first-child th:first-child,
@@ -1153,6 +1162,16 @@ th:first-child {
   transform-origin: center;
   font-size: 0.54rem;
   line-height: 1;
+}
+
+.results-table.structured-results thead tr:first-child .vertical-header {
+  position: sticky;
+  top: 0;
+}
+
+.results-table.structured-results thead tr:nth-child(2) .vertical-header {
+  position: sticky;
+  top: var(--results-header-row-height);
 }
 
 .results-table.high-third-term-results .skill-development-header {
@@ -2348,7 +2367,7 @@ th:first-child {
     font-size: 9pt;
   }
 
-  body.print-results .results-table thead tr:first-child th,
+  body.print-results .results-table thead th,
   body.print-results .results-table td:first-child,
   body.print-results .results-table td:nth-child(2) {
     position: static;

@@ -1374,6 +1374,7 @@ function renderResults() {
       <th>Result</th>
     </tr>
   `;
+  updateResultStickyHeaderMetrics();
 
   if (!published) {
     els.resultsBody.innerHTML = `
@@ -1381,6 +1382,7 @@ function renderResults() {
         <td colspan="${subjects.length + 6 + (showGrade ? 1 : 0) + (term ? 1 : 0) + (showMeasurements ? 2 : 0)}">No published result for this class and exam yet.</td>
       </tr>
     `;
+    updateResultStickyHeaderMetrics();
     return;
   }
 
@@ -1437,6 +1439,7 @@ function renderResults() {
   if (["LKG", "UKG", "Class IX", "Class X"].includes(selectedClass())) {
     renderResultSummary(records, students.length);
   }
+  updateResultStickyHeaderMetrics();
 }
 
 function isStructuredTermResult(className = selectedClass(), exam = selectedExam()) {
@@ -1512,10 +1515,12 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
         : '<th class="component-column subject-start vertical-header"><span>Activities</span></th><th class="component-column vertical-header"><span>Unit Test</span></th><th class="component-column vertical-header"><span>Exam</span></th><th class="component-column subject-end vertical-header"><span>Total</span></th>').join("")}
     </tr>
   `;
+  updateResultStickyHeaderMetrics();
 
   if (!published) {
     els.resultsBody.innerHTML = `<tr><td colspan="${columnCount}">No published result for this class and exam yet.</td></tr>`;
     els.resultSummary.innerHTML = "";
+    updateResultStickyHeaderMetrics();
     return;
   }
 
@@ -1575,6 +1580,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
 
   const appearedRecords = records.filter((record) => record.appeared);
   renderResultSummary(appearedRecords.map((record) => ({ ...record, appeared: true })), students.length);
+  updateResultStickyHeaderMetrics();
 }
 
 function getStudentNameColumnWidth(students) {
@@ -1582,6 +1588,20 @@ function getStudentNameColumnWidth(students) {
     return Math.max(longest, String(student.name || "").length);
   }, "Student Name".length);
   return Math.max(170, Math.ceil(longestNameLength * 8.5) + 40);
+}
+
+function updateResultStickyHeaderMetrics() {
+  const firstHeaderRow = els.resultsHead?.querySelector("tr:first-child");
+  const firstHeaderCell = firstHeaderRow?.querySelector("th:first-child");
+  const headerHeight = Math.ceil(firstHeaderRow?.getBoundingClientRect().height || 0);
+  const rollWidth = Math.ceil(firstHeaderCell?.getBoundingClientRect().width || 0);
+
+  if (headerHeight) {
+    els.resultsTable.style.setProperty("--results-header-row-height", `${headerHeight}px`);
+  }
+  if (rollWidth) {
+    els.resultsTable.style.setProperty("--results-roll-sticky-width", `${rollWidth}px`);
+  }
 }
 
 function renderResultSummary(records, studentCount) {
