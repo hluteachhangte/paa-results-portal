@@ -1123,20 +1123,20 @@ th:first-child {
 }
 
 #studentsView table {
-  min-width: 1180px;
+  min-width: 1260px;
 }
 
 #studentsView th:nth-child(2),
 #studentsView td:nth-child(2) {
-  width: 96px;
-  min-width: 96px;
+  width: 140px;
+  min-width: 140px;
   white-space: nowrap;
 }
 
 #studentsView th:nth-child(4),
 #studentsView td:nth-child(4) {
-  width: 118px;
-  min-width: 118px;
+  width: 150px;
+  min-width: 150px;
   white-space: nowrap;
 }
 
