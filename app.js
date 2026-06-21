@@ -4,7 +4,7 @@ const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
 
 const users = {
-  admin: { password: "admin123", role: "admin", name: "Admin" },
+  admin: { password: "admin_#123", role: "admin", name: "Admin" },
   teacher: { password: "teacher123", role: "user", name: "Teacher" }
 };
 
@@ -54,10 +54,10 @@ const examGroups = {
 const subjectGroups = {
   lkg: ["Moral", "English", "Alphabets", "Numbers", "Conversation", "Rhymes", "A.E."],
   ukg: ["Moral", "English", "Science", "Numbers", "Mathematics", "A.E."],
-  lowerPrimaryRegular: ["Mizo", "English", "Mathematics", "E.V.S.", "Moral", "A.E."],
+  lowerPrimaryRegular: ["Mizo", "English", "Mathematics", "Moral", "A.E."],
   upperPrimaryRegular: ["Mizo", "English", "Hindi", "Mathematics", "E.V.S.", "Moral", "A.E."],
   middleRegular: ["Mizo", "English", "Hindi", "Mathematics", "Science", "Social Science", "Moral", "W.E."],
-  lowerPrimaryTerm: activityExamSubjects(["Mizo", "English", "Mathematics", "E.V.S.", "Moral"], "A.E."),
+  lowerPrimaryTerm: activityExamSubjects(["Mizo", "English", "Mathematics", "Moral"], "A.E."),
   upperPrimaryTerm: activityExamSubjects(["Mizo", "English", "Hindi", "Mathematics", "E.V.S.", "Moral"], "A.E."),
   middleTerm: activityExamSubjects(["Mizo", "English", "Hindi", "Mathematics", "Science", "Social Science", "Moral"], "W.E."),
   highContinuous: ["English", "Mizo", "Mathematics", "Science", "Social Science"],
@@ -70,15 +70,11 @@ const highContinuousTests = ["CT1", "CT2", "CT3", "CT4"];
 
 const defaultState = {
   academicSession: "2026 - 2027",
-  classes: createEmptyClasses(),
   exams: examNames,
   maxMarks: createExamMarks(100),
   passMarks: createExamMarks(33),
-  workingDays: createTermMarks(0),
-  attendance: {},
-  measurements: {},
-  marks: {},
-  published: {}
+  ...createEmptySessionData(),
+  sessions: {}
 };
 
 let state = loadState();
@@ -176,16 +172,96 @@ function loadState() {
 
 function normalizeState(existingState = {}) {
   const parsed = { ...structuredClone(defaultState), ...(existingState || {}) };
-  parsed.classes = normalizeClasses(parsed.classes);
+  parsed.academicSession = currentSessionKey(parsed.academicSession);
   parsed.exams = examNames;
   parsed.maxMarks = normalizeExamMarks(parsed.maxMarks, 100);
   parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
-  parsed.workingDays = normalizeTermMarks(parsed.workingDays, 0);
-  parsed.attendance = parsed.attendance || {};
-  parsed.measurements = parsed.measurements || {};
-  parsed.marks = parsed.marks || {};
-  parsed.published = parsed.published || {};
+  parsed.sessions = normalizeSessions(parsed.sessions);
+
+  const migratedActiveData = normalizeSessionData({
+    classes: existingState.classes ?? parsed.classes,
+    workingDays: existingState.workingDays ?? parsed.workingDays,
+    attendance: existingState.attendance ?? parsed.attendance,
+    measurements: existingState.measurements ?? parsed.measurements,
+    marks: existingState.marks ?? parsed.marks,
+    published: existingState.published ?? parsed.published
+  });
+  if (!parsed.sessions[parsed.academicSession]) {
+    parsed.sessions[parsed.academicSession] = migratedActiveData;
+  }
+  setActiveSessionData(parsed, parsed.sessions[parsed.academicSession]);
   return parsed;
+}
+
+function currentSessionKey(session = defaultState?.academicSession || "2026 - 2027") {
+  return String(session || "2026 - 2027").trim() || "2026 - 2027";
+}
+
+function createEmptySessionData() {
+  return {
+    classes: createEmptyClasses(),
+    workingDays: createTermMarks(0),
+    attendance: {},
+    measurements: {},
+    marks: {},
+    published: {}
+  };
+}
+
+function normalizeSessionData(data = {}) {
+  return {
+    classes: normalizeClasses(data.classes),
+    workingDays: normalizeTermMarks(data.workingDays, 0),
+    attendance: data.attendance || {},
+    measurements: data.measurements || {},
+    marks: data.marks || {},
+    published: data.published || {}
+  };
+}
+
+function normalizeSessions(sessions = {}) {
+  return Object.fromEntries(
+    Object.entries(sessions || {}).map(([session, data]) => [currentSessionKey(session), normalizeSessionData(data)])
+  );
+}
+
+function getActiveSessionData() {
+  return normalizeSessionData({
+    classes: state.classes,
+    workingDays: state.workingDays,
+    attendance: state.attendance,
+    measurements: state.measurements,
+    marks: state.marks,
+    published: state.published
+  });
+}
+
+function setActiveSessionData(targetState, data) {
+  const normalizedData = normalizeSessionData(data);
+  targetState.classes = normalizedData.classes;
+  targetState.workingDays = normalizedData.workingDays;
+  targetState.attendance = normalizedData.attendance;
+  targetState.measurements = normalizedData.measurements;
+  targetState.marks = normalizedData.marks;
+  targetState.published = normalizedData.published;
+}
+
+function syncActiveSessionData() {
+  state.sessions = state.sessions || {};
+  state.academicSession = currentSessionKey(state.academicSession);
+  state.sessions[state.academicSession] = getActiveSessionData();
+}
+
+function switchAcademicSession(nextSession) {
+  const previousSession = currentSessionKey(state.academicSession);
+  const session = currentSessionKey(nextSession);
+  state.sessions = state.sessions || {};
+  state.sessions[previousSession] = getActiveSessionData();
+  state.academicSession = session;
+  if (!state.sessions[session]) {
+    state.sessions[session] = createEmptySessionData();
+  }
+  setActiveSessionData(state, state.sessions[session]);
 }
 
 function createEmptyClasses() {
@@ -237,6 +313,7 @@ function activityExamSubjects(subjects, finalSubject) {
 }
 
 function saveState() {
+  syncActiveSessionData();
   localStorage.setItem(storageKey, JSON.stringify(state));
   queueFirebaseStateSave();
 }
@@ -840,10 +917,11 @@ function init() {
 
   els.academicSessionInput.addEventListener("change", () => {
     if (!isAdmin()) return;
-    state.academicSession = els.academicSessionInput.value.trim() || "2026 - 2027";
+    switchAcademicSession(els.academicSessionInput.value);
     els.academicSessionInput.value = state.academicSession;
     saveState();
-    renderMarksheets();
+    cancelStudentEdit();
+    render();
   });
 
   els.attendanceClassSelect.addEventListener("change", () => {
