@@ -2616,6 +2616,26 @@ th:first-child {
 }
 
 @media (max-width: 768px) {
+  body.results-active #mainFilters {
+    grid-template-columns: minmax(58px, 0.75fr) minmax(58px, 0.75fr);
+    gap: 3px;
+    margin-bottom: 4px;
+  }
+
+  body.results-active #mainFilters label {
+    padding: 3px 4px;
+    border-radius: 6px;
+    font-size: 0.52rem;
+  }
+
+  body.results-active #mainFilters select {
+    min-height: 26px;
+    margin-top: 2px;
+    padding: 2px 3px;
+    border-radius: 6px;
+    font-size: 0.62rem;
+  }
+
   body.students-active .student-form {
     grid-template-columns: 64px 54px 66px minmax(92px, 1fr);
     gap: 4px;
@@ -2665,6 +2685,19 @@ th:first-child {
   body.students-active #studentSubmitBtn,
   body.students-active #cancelStudentEditBtn {
     grid-column: span 2;
+  }
+
+  body.students-active #studentsView .section-head .inline-actions {
+    gap: 4px;
+  }
+
+  body.students-active #downloadStudentTemplateBtn,
+  body.students-active #importStudentsBtn {
+    min-height: 24px;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 0.54rem;
+    line-height: 1;
   }
 
   #studentsView table {
@@ -2795,6 +2828,9 @@ th:first-child {
 
   body.print-results .print-results-header {
     display: block;
+    width: 100%;
+    text-align: center;
+    margin: 0 auto 10px;
   }
 
   body.print-results #resultsView .section-head {
@@ -3125,8 +3161,8 @@ th:first-child {
 }
 
 @page results-page {
-  size: landscape;
-  margin: 8mm;
+  size: A3 landscape;
+  margin: 5mm;
 }
 
 @page marksheets-page {

@@ -114,6 +114,7 @@ const els = {
   examField: document.querySelector("#examField"),
   subjectField: document.querySelector("#subjectField"),
   workingDaysInput: document.querySelector("#workingDaysInput"),
+  clearAttendanceBtn: document.querySelector("#clearAttendanceBtn"),
   attendanceClassSelect: document.querySelector("#attendanceClassSelect"),
   attendanceTermSelect: document.querySelector("#attendanceTermSelect"),
   attendanceBody: document.querySelector("#attendanceBody"),
@@ -835,6 +836,7 @@ function init() {
     saveState();
     renderAttendance();
   });
+  els.clearAttendanceBtn.addEventListener("click", clearAttendanceData);
 
   els.academicSessionInput.addEventListener("change", () => {
     if (!isAdmin()) return;
@@ -1206,6 +1208,18 @@ function renderAttendance() {
       setStudentMeasurement(input.dataset.weightRoll, { weight: input.value }, className, term);
     });
   });
+}
+
+function clearAttendanceData() {
+  const className = selectedAttendanceClass();
+  const term = selectedAttendanceTerm();
+  if (!window.confirm(`Clear attendance, height, and weight data for ${className} ${term}?`)) return;
+  const key = attendanceKey(className, term);
+  delete state.attendance[key];
+  delete state.measurements[key];
+  saveState();
+  renderAttendance();
+  showToast(`${className} ${term} attendance data cleared.`);
 }
 
 function getPreviousTerm(term) {
