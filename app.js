@@ -941,7 +941,34 @@ function handleEnterAsTab(event) {
   if (currentIndex === -1) return;
 
   event.preventDefault();
-  fields[Math.min(currentIndex + 1, fields.length - 1)]?.focus();
+  const nextField = fields[Math.min(currentIndex + 1, fields.length - 1)];
+  const restoreSelector = getInputRestoreSelector(nextField);
+  target.dispatchEvent(new Event("change", { bubbles: true }));
+  setTimeout(() => {
+    const field = restoreSelector ? document.querySelector(restoreSelector) : nextField;
+    if (field instanceof HTMLInputElement) {
+      field.focus({ preventScroll: true });
+      field.select?.();
+    }
+  }, 0);
+}
+
+function getInputRestoreSelector(input) {
+  if (!(input instanceof HTMLInputElement)) return "";
+  const dataKeys = [
+    "roll",
+    "projectRoll",
+    "gradeRoll",
+    "attendanceRoll",
+    "heightRoll",
+    "weightRoll"
+  ];
+  const key = dataKeys.find((name) => input.dataset[name] !== undefined);
+  if (key) {
+    const attr = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+    return `[data-${attr}="${CSS.escape(input.dataset[key])}"]`;
+  }
+  return input.id ? `#${CSS.escape(input.id)}` : "";
 }
 
 function switchView(view) {
@@ -1046,7 +1073,7 @@ function renderEntry() {
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
         ${activitiesSubject
-          ? `<td><input class="mark-input activity-project-input" type="number" min="0" max="15" step="1"
+          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="15" step="1"
                 value="${escapeAttr(mark.project ?? "")}" data-project-roll="${student.roll}"
                 aria-label="Project, assignment, and book maintenance marks for ${escapeAttr(student.name)}"></td>
             <td><strong>${mark.attendanceMarks}</strong></td>
@@ -1054,7 +1081,7 @@ function renderEntry() {
           : `<td>
           ${gradeSubject
             ? `<input class="mark-input" type="text" maxlength="1" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
-            : `<input class="mark-input" type="number" min="0" max="${maxMarks}" step="1"
+            : `<input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${maxMarks}" step="1"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
         <td><span class="status-pill ${status.className}">${status.label}</span></td>
@@ -1139,12 +1166,12 @@ function renderAttendance() {
       <tr>
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
-        <td><input class="mark-input" type="number" min="0" max="${workingDays}" step="1"
+        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1"
           value="${attendance}" data-attendance-roll="${student.roll}" aria-label="Attendance for ${escapeAttr(student.name)}"></td>
         <td><strong>${attendanceMarks}</strong></td>
-        <td><input class="mark-input" type="number" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1"
           value="${measurement.height}" data-height-roll="${student.roll}" aria-label="Height for ${escapeAttr(student.name)}"></td>
-        <td><input class="mark-input" type="number" min="0" step="0.1"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1"
           value="${measurement.weight}" data-weight-roll="${student.roll}" aria-label="Weight for ${escapeAttr(student.name)}"></td>
       </tr>
     `;

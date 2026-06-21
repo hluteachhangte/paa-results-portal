@@ -1879,8 +1879,8 @@ th:first-child {
   }
 
   .login-logo {
-    width: min(224px, 70vw);
-    height: min(224px, 70vw);
+    width: min(300px, 86vw);
+    height: min(300px, 86vw);
   }
 
   .topbar,
@@ -2064,6 +2064,21 @@ th:first-child {
   #attendanceView td:first-child {
     min-width: 44px;
     width: 44px;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: white;
+  }
+
+  #entryView th:first-child,
+  #attendanceView th:first-child {
+    z-index: 5;
+    background: #edf3f6;
+  }
+
+  #entryView tbody tr:nth-child(even) td:first-child,
+  #attendanceView tbody tr:nth-child(even) td:first-child {
+    background: #f4f7f8;
   }
 
   #entryView th:nth-child(2),
@@ -2116,7 +2131,22 @@ th:first-child {
   }
 
   .result-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+    gap: 1px;
+  }
+
+  .result-summary div {
+    padding: 3px 5px;
+    text-align: left;
+  }
+
+  .result-summary span {
+    font-size: 0.48rem;
+  }
+
+  .result-summary strong {
+    margin-top: 1px;
+    font-size: 0.66rem;
   }
 
   .marksheet-preview-controls {
@@ -2195,8 +2225,8 @@ th:first-child {
   }
 
   .login-logo {
-    width: min(224px, 70vw);
-    height: min(224px, 70vw);
+    width: min(300px, 86vw);
+    height: min(300px, 86vw);
   }
 
   .brand-block {
@@ -2263,7 +2293,11 @@ th:first-child {
   .summary-grid,
   body.entry-active .summary-grid,
   .result-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-summary div {
+    text-align: left;
   }
 
   body.entry-active #mainFilters {
