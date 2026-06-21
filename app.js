@@ -862,7 +862,7 @@ function init() {
   els.unpublishBtn.addEventListener("click", unpublishCurrentResult);
   document.querySelector("#exportBtn").addEventListener("click", exportCsv);
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
-  document.querySelector("#clearMarksBtn").addEventListener("click", clearSubject);
+  document.querySelector("#clearMarksBtn").addEventListener("click", clearMarks);
   document.querySelector("#studentForm").addEventListener("submit", addStudent);
   document.querySelector("#cancelStudentEditBtn").addEventListener("click", cancelStudentEdit);
   els.importStudentsBtn.addEventListener("click", () => els.studentCsvInput.click());
@@ -1619,10 +1619,19 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
 }
 
 function getStudentNameColumnWidth(students) {
-  const longestNameLength = students.reduce((longest, student) => {
-    return Math.max(longest, String(student.name || "").length);
-  }, "Student Name".length);
-  return Math.max(170, Math.ceil(longestNameLength * 8.5) + 40);
+  const names = students.map((student) => String(student.name || "").trim()).filter(Boolean);
+  const longestNameLength = names.reduce((longest, name) => Math.max(longest, name.length), 0);
+  const estimatedWidth = longestNameLength * 7.2;
+  let measuredWidth = 0;
+  if (names.length && typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.font = getComputedStyle(els.resultsTable || document.body).font || "12px Inter, sans-serif";
+      measuredWidth = names.reduce((widest, name) => Math.max(widest, context.measureText(name).width), 0);
+    }
+  }
+  return Math.max(72, Math.ceil(Math.max(estimatedWidth, measuredWidth)) + 14);
 }
 
 function updateResultStickyHeaderMetrics() {
@@ -1923,6 +1932,12 @@ function renderMarksheets() {
     const highThirdTermGrades = highThirdTermMarksheet
       ? subjects.filter((subject) => isGradeSubject(subject)).map((subject) => ({ subject, value: getStudentMark(student, subject).value }))
       : [];
+    const highClassGrades = isHighClass() && !highThirdTermMarksheet
+      ? subjects.filter((subject) => isGradeSubject(subject)).map((subject) => ({ subject, value: getStudentMark(student, subject).value }))
+      : [];
+    const highClassNumericSubjects = isHighClass()
+      ? subjects.filter((subject) => !isGradeSubject(subject))
+      : subjects;
     const numbers = markValues.map(Number).filter((value) => !Number.isNaN(value));
     const total = highThirdTermMarksheet
       ? Math.ceil(highThirdTermResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0))
@@ -1983,17 +1998,17 @@ function renderMarksheets() {
             : highThirdTermMarksheet
               ? renderHighThirdTermMarksheetTable(highThirdTermSubjects, highThirdTermResults)
             : isHighClass()
-              ? renderHighClassMarksheetTable(student, subjects, passMarks, maxMarks)
+              ? renderHighClassMarksheetTable(student, highClassNumericSubjects, passMarks, maxMarks)
               : renderLowerClassMarksheetTable(student, subjects, passMarks)
             }
         </div>
         <div class="marksheet-summary">
-          ${isClassOneToEight() ? "" : `<span>Grand Total: ${total}/${maximumTotal}</span>`}
           <span>Percentage: ${percentage}%</span>
           <span>Division: ${outcome.division}</span>
           <span>Result: ${outcome.result}</span>
         </div>
         ${highThirdTermMarksheet ? renderMarksheetGradedSubjects(highThirdTermGrades) : ""}
+        ${highClassGrades.length ? renderMarksheetGradedSubjects(highClassGrades) : ""}
         ${termSkillDevelopment.length ? renderMarksheetGradedSubjects(termSkillDevelopment, "term-skill-development") : ""}
         ${term
           ? `<div class="marksheet-measurements">
@@ -2819,12 +2834,17 @@ function resetDemo() {
   showToast("Demo data reset.");
 }
 
-function clearSubject() {
-  if (!window.confirm(`Clear all ${selectedSubject()} marks for ${selectedClass()} ${selectedExam()}?`)) return;
-  delete state.marks[markKey()];
+function clearMarks() {
+  const subject = selectedSubject();
+  const className = selectedClass();
+  const exam = selectedExam();
+  const key = markKey(className, exam, subject);
+  if (!window.confirm(`Clear all ${subject} marks for ${className} ${exam}?`)) return;
+  state.marks[key] = {};
+  delete state.marks[key];
   saveState();
   render();
-  showToast(`${selectedSubject()} marks cleared.`);
+  showToast(`${subject} marks cleared.`);
 }
 
 function addStudent(event) {

@@ -1013,7 +1013,7 @@ th:first-child {
 .results-table th:nth-child(2),
 .results-table td:nth-child(2) {
   width: var(--student-name-width, auto);
-  min-width: var(--student-name-width, 170px);
+  min-width: var(--student-name-width, 72px);
   text-align: left;
   white-space: nowrap;
 }
@@ -1038,8 +1038,8 @@ th:first-child {
 
 .results-table.structured-results .student-name-column,
 .results-table.structured-results tbody td:nth-child(2) {
-  width: var(--student-name-width, 170px);
-  min-width: var(--student-name-width, 170px);
+  width: var(--student-name-width, 72px);
+  min-width: var(--student-name-width, 72px);
   max-width: none;
   white-space: nowrap;
 }
@@ -1049,6 +1049,7 @@ th:first-child {
   vertical-align: middle;
   border-left: 1px solid #829b97;
   border-right: 1px solid #829b97;
+  white-space: normal;
 }
 
 .results-table.structured-results tbody td:nth-child(2) {
@@ -1526,11 +1527,11 @@ th:first-child {
 }
 
 .high-class-marksheet .marksheet-measurements {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
 }
 
 .high-third-term-marksheet .marksheet-measurements {
-  grid-template-columns: 0.75fr 0.75fr 0.85fr 0.85fr 3fr;
+  grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
 }
 
 .high-class-marksheet .marksheet-measurements div:last-child,
@@ -2849,12 +2850,12 @@ th:first-child {
   }
 
   .high-class-marksheet .marksheet-measurements {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
     gap: 3px;
   }
 
   .high-third-term-marksheet .marksheet-measurements {
-    grid-template-columns: 0.65fr 0.65fr 0.75fr 0.75fr 3.5fr;
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
   }
 
   .marksheet.class-one-eight-marksheet .marksheet-measurements {
@@ -2999,7 +3000,11 @@ th:first-child {
   }
 
   body.print-marksheets .high-third-term-marksheet .marksheet-measurements {
-    grid-template-columns: 0.75fr 0.75fr 0.85fr 0.85fr 3fr;
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
+  }
+
+  body.print-marksheets .high-class-marksheet .marksheet-measurements {
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
   }
 
   body.print-marksheets .marksheet.class-one-eight-marksheet .marksheet-measurements {

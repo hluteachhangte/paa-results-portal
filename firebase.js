@@ -42,7 +42,7 @@ window.MarkHubFirebase = {
     return setDoc(appStateRef, {
       state,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
   }
 };
 
