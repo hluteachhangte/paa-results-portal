@@ -1386,6 +1386,7 @@ function renderResults() {
   els.resultsTable.style.width = "";
   els.resultsTable.style.removeProperty("--student-name-width");
   els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);
+  els.resultsTable.style.setProperty("--mobile-student-name-width", `${getMobileStudentNameColumnWidth(students)}px`);
   els.printResultsTitle.textContent = `${selectedClass()} ${selectedExam()} Result : ${formatAcademicSession(state.academicSession)}`;
 
   els.resultNotice.textContent = published
@@ -1520,9 +1521,11 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
   const finalColumns = 5;
   const columnCount = 2 + (structure.groups.length * componentsPerSubject) + structure.standalone.length + finalColumns;
   const studentNameColumnWidth = getStudentNameColumnWidth(students);
+  const mobileStudentNameColumnWidth = getMobileStudentNameColumnWidth(students);
   const tableWidth = 54 + studentNameColumnWidth + (structure.groups.length * (componentsPerSubject * 32))
     + (structure.standalone.length * 48) + 220;
   els.resultsTable.style.setProperty("--student-name-width", `${studentNameColumnWidth}px`);
+  els.resultsTable.style.setProperty("--mobile-student-name-width", `${mobileStudentNameColumnWidth}px`);
   els.resultsTable.style.width = `${tableWidth}px`;
 
   els.resultsHead.innerHTML = `
@@ -1632,6 +1635,12 @@ function getStudentNameColumnWidth(students) {
     }
   }
   return Math.max(72, Math.ceil(Math.max(estimatedWidth, measuredWidth)) + 14);
+}
+
+function getMobileStudentNameColumnWidth(students) {
+  const names = students.map((student) => String(student.name || "").trim()).filter(Boolean);
+  const longestNameLength = names.reduce((longest, name) => Math.max(longest, name.length), 0);
+  return Math.max(54, Math.ceil(longestNameLength * 5.8) + 12);
 }
 
 function updateResultStickyHeaderMetrics() {

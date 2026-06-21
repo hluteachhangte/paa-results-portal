@@ -2390,6 +2390,15 @@ th:first-child {
     font-size: 0.5rem;
   }
 
+  .results-table th:nth-child(2),
+  .results-table td:nth-child(2),
+  .results-table.structured-results .student-name-column,
+  .results-table.structured-results tbody td:nth-child(2) {
+    width: var(--mobile-student-name-width, var(--student-name-width, 72px));
+    min-width: var(--mobile-student-name-width, var(--student-name-width, 72px));
+    max-width: var(--mobile-student-name-width, var(--student-name-width, 72px));
+  }
+
   .toast {
     right: 14px;
     bottom: 14px;
@@ -2603,6 +2612,90 @@ th:first-child {
     height: calc(100dvh - 118px);
     min-height: 180px;
     max-height: calc(100dvh - 118px);
+  }
+}
+
+@media (max-width: 768px) {
+  body.students-active .student-form {
+    grid-template-columns: 64px 54px 66px minmax(92px, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  body.students-active .student-form label {
+    min-width: 0;
+    padding: 4px 5px;
+    border-radius: 6px;
+    font-size: 0.58rem;
+    line-height: 1.05;
+  }
+
+  body.students-active .student-form label:nth-child(5) {
+    grid-column: span 2;
+  }
+
+  body.students-active .student-form label:nth-child(n + 6) {
+    grid-column: span 2;
+  }
+
+  body.students-active .student-form input,
+  body.students-active .student-form select {
+    min-height: 26px;
+    margin-top: 2px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    font-size: 0.62rem;
+  }
+
+  body.students-active .students-class-filter {
+    width: auto;
+  }
+
+  body.students-active .student-form .form-actions {
+    grid-column: span 2;
+  }
+
+  body.students-active .student-form > button {
+    min-height: 26px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 0.58rem;
+  }
+
+  body.students-active #studentSubmitBtn,
+  body.students-active #cancelStudentEditBtn {
+    grid-column: span 2;
+  }
+
+  #studentsView table {
+    min-width: 650px;
+  }
+
+  #studentsView th,
+  #studentsView td {
+    padding: 4px 4px;
+    font-size: 0.58rem;
+  }
+
+  #studentsView th:nth-child(1),
+  #studentsView td:nth-child(1) {
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+  }
+
+  #studentsView th:nth-child(2),
+  #studentsView td:nth-child(2) {
+    width: 58px;
+    min-width: 58px;
+    max-width: 58px;
+  }
+
+  #studentsView th:nth-child(4),
+  #studentsView td:nth-child(4) {
+    width: 74px;
+    min-width: 74px;
+    max-width: 74px;
   }
 }
 
