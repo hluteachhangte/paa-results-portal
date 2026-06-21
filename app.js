@@ -1680,9 +1680,7 @@ function renderResults() {
     `;
   }).join("");
 
-  if (["LKG", "UKG", "Class IX", "Class X"].includes(selectedClass())) {
-    renderResultSummary(records, students.length);
-  }
+  renderResultSummary(records, students.length);
   updateResultStickyHeaderMetrics();
 }
 
