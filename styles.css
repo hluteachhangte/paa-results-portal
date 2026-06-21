@@ -1879,8 +1879,8 @@ th:first-child {
   }
 
   .login-logo {
-    width: 96px;
-    height: 96px;
+    width: min(224px, 70vw);
+    height: min(224px, 70vw);
   }
 
   .topbar,
@@ -2195,8 +2195,8 @@ th:first-child {
   }
 
   .login-logo {
-    width: 82px;
-    height: 82px;
+    width: min(224px, 70vw);
+    height: min(224px, 70vw);
   }
 
   .brand-block {
