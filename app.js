@@ -1399,7 +1399,6 @@ function renderResults() {
 
   els.resultSummary.innerHTML = "";
   const showMeasurements = term && !isHighClass();
-  const showGrade = !isHighClass();
   const totalHeading = isHighClass() ? "Grand Total" : "Total";
   els.resultsHead.innerHTML = `
     <tr>
@@ -1411,7 +1410,6 @@ function renderResults() {
       <th>${totalHeading}</th>
       <th>Percentage</th>
       <th>Division</th>
-      ${showGrade ? "<th>Grade</th>" : ""}
       <th>Result</th>
     </tr>
   `;
@@ -1420,7 +1418,7 @@ function renderResults() {
   if (!published) {
     els.resultsBody.innerHTML = `
       <tr>
-        <td colspan="${subjects.length + 6 + (showGrade ? 1 : 0) + (term ? 1 : 0) + (showMeasurements ? 2 : 0)}">No published result for this class and exam yet.</td>
+        <td colspan="${subjects.length + 6 + (term ? 1 : 0) + (showMeasurements ? 2 : 0)}">No published result for this class and exam yet.</td>
       </tr>
     `;
     updateResultStickyHeaderMetrics();
@@ -1471,7 +1469,6 @@ function renderResults() {
         <td>${record.total}/${record.maximumTotal}</td>
         <td>${record.percent}%</td>
         <td>${record.outcome.division}</td>
-        ${showGrade ? `<td>${record.outcome.grade}</td>` : ""}
         <td>${formatResultStatus(record.outcome.result)}</td>
       </tr>
     `;
@@ -1520,8 +1517,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
   const thirdTermSheet = selectedExam() === "Third Term";
   const highThirdTermSheet = isHighThirdTermResult();
   const componentsPerSubject = highThirdTermSheet ? 3 : 4;
-  const showGrade = !highThirdTermSheet;
-  const finalColumns = showGrade ? 6 : 5;
+  const finalColumns = 5;
   const columnCount = 2 + (structure.groups.length * componentsPerSubject) + structure.standalone.length + finalColumns;
   const studentNameColumnWidth = getStudentNameColumnWidth(students);
   const tableWidth = 54 + studentNameColumnWidth + (structure.groups.length * (componentsPerSubject * 32))
@@ -1545,7 +1541,6 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       <th rowspan="2" class="outcome-column">Grand<br>Total</th>
       <th rowspan="2" class="outcome-column">%</th>
       <th rowspan="2" class="outcome-column vertical-header"><span>Division</span></th>
-      ${showGrade ? '<th rowspan="2" class="outcome-column vertical-header"><span>Grade</span></th>' : ""}
       <th rowspan="2" class="result-column vertical-header"><span>Result</span></th>
     </tr>
     <tr>
@@ -1614,7 +1609,6 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       <td><strong>${record.total}/${record.maximumTotal}</strong></td>
       <td>${record.percentage}%</td>
       <td>${record.outcome.division}</td>
-      ${showGrade ? `<td>${record.outcome.grade}</td>` : ""}
       <td>${formatResultStatus(record.outcome.result)}</td>
     </tr>
   `).join("");
@@ -1997,7 +1991,6 @@ function renderMarksheets() {
           ${isClassOneToEight() ? "" : `<span>Grand Total: ${total}/${maximumTotal}</span>`}
           <span>Percentage: ${percentage}%</span>
           <span>Division: ${outcome.division}</span>
-          <span>Grade: ${outcome.grade}</span>
           <span>Result: ${outcome.result}</span>
         </div>
         ${highThirdTermMarksheet ? renderMarksheetGradedSubjects(highThirdTermGrades) : ""}
@@ -2484,7 +2477,7 @@ function exportCsv() {
   const showMeasurements = term && !isHighClass();
   const workingDays = getWorkingDays();
   const rows = [
-    ["Roll No.", "Student Name", ...subjects, ...(term ? ["Attendance"] : []), ...(showMeasurements ? ["Height (in cm)", "Weight (in kg)"] : []), isHighClass() ? "Grand Total" : "Total", "Percentage", "Division", "Grade", "Result"]
+    ["Roll No.", "Student Name", ...subjects, ...(term ? ["Attendance"] : []), ...(showMeasurements ? ["Height (in cm)", "Weight (in kg)"] : []), isHighClass() ? "Grand Total" : "Total", "Percentage", "Division", "Result"]
   ];
 
   students.forEach((student) => {
@@ -2509,7 +2502,6 @@ function exportCsv() {
       total,
       `${percent}%`,
       outcome.division,
-      outcome.grade,
       outcome.result
     ]);
   });

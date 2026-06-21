@@ -1404,7 +1404,6 @@ th:first-child {
 .marksheet-list {
   display: grid;
   gap: 24px;
-  zoom: var(--marksheet-zoom, 1);
 }
 
 .marksheet {
@@ -1420,6 +1419,7 @@ th:first-child {
   box-shadow: var(--shadow);
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
+  zoom: var(--marksheet-zoom, 1);
 }
 
 .marksheet-title {
