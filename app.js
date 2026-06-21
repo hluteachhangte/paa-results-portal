@@ -445,6 +445,12 @@ function applyRemoteStateToCurrentView(uiState) {
   }
   updateAttendanceInputs();
 
+  if (isFocusedEntryMarkInput()) {
+    renderPublishStatus();
+    syncEntryInputsFromState();
+    return;
+  }
+
   renderActiveViewOnly();
   restoreFocus(uiState);
 }
@@ -1022,6 +1028,15 @@ function handleEnterAsTab(event) {
 
   event.preventDefault();
   const nextField = fields[Math.min(currentIndex + 1, fields.length - 1)];
+  if (isEntryMarkInput(target)) {
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    if (nextField instanceof HTMLInputElement) {
+      nextField.focus({ preventScroll: true });
+      nextField.select?.();
+    }
+    return;
+  }
+
   const restoreSelector = getInputRestoreSelector(nextField);
   target.dispatchEvent(new Event("change", { bubbles: true }));
   setTimeout(() => {
@@ -1153,7 +1168,7 @@ function renderEntry() {
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
         ${activitiesSubject
-          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="15" step="1"
+          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="1"
                 value="${escapeAttr(mark.project ?? "")}" data-project-roll="${student.roll}"
                 aria-label="Project, assignment, and book maintenance marks for ${escapeAttr(student.name)}"></td>
             <td><strong>${mark.attendanceMarks}</strong></td>
@@ -1161,7 +1176,7 @@ function renderEntry() {
           : `<td>
           ${gradeSubject
             ? `<input class="mark-input" type="text" maxlength="1" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
-            : `<input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${maxMarks}" step="1"
+            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="1"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
         <td><span class="status-pill ${status.className}">${status.label}</span></td>
@@ -1176,57 +1191,155 @@ function renderEntry() {
   els.lowestMarks.textContent = gradeSubject ? "-" : entered ? `${lowest}/${maxMarks}` : "0";
 
   document.querySelectorAll("[data-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const enteredValue = Number(input.value);
-      const limit = getMarkWarningLimit();
-      if (input.value !== "" && enteredValue > limit) {
-        showToast(`${selectedSubject()} marks cannot be more than ${limit}.`);
-        input.value = getStudentMark({ roll: input.dataset.roll }).value ?? "";
-        return;
-      }
-      const value = input.value === "" ? "" : clamp(enteredValue, 0, getSubjectMaxMarks());
-      input.value = value;
-      setStudentMark(input.dataset.roll, { value });
-      renderEntry();
-    });
+    input.addEventListener("input", () => saveEntryInputInPlace(input));
+    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
   });
 
   document.querySelectorAll("[data-project-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const enteredValue = Number(input.value);
-      if (input.value !== "" && enteredValue > 15) {
-        showToast("Project, Assign., Book Maintenance marks cannot be more than 15.");
-        input.value = getStudentMark({ roll: input.dataset.projectRoll }).project ?? "";
-        return;
-      }
-      const project = input.value === "" ? "" : clamp(Number(input.value), 0, 15);
-      const student = { roll: input.dataset.projectRoll };
-      const attendanceMarks = getAttendanceMarks(
-        getStudentAttendance(student),
-        getWorkingDays(),
-        selectedClass()
-      );
-      setStudentMark(input.dataset.projectRoll, {
-        project,
-        value: project === "" ? "" : Number(project) + attendanceMarks
-      });
-      renderEntry();
-    });
+    input.addEventListener("input", () => saveEntryInputInPlace(input));
+    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
   });
 
   document.querySelectorAll("[data-grade-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const value = input.value.trim().toUpperCase();
-      if (value && !["A", "B", "C", "D", "E"].includes(value)) {
-        showToast("Enter grade A, B, C, D, or E.");
-        input.value = getStudentMark({ roll: input.dataset.gradeRoll }).value ?? "";
-        return;
-      }
-      setStudentMark(input.dataset.gradeRoll, { value });
-      renderEntry();
-    });
+    input.addEventListener("input", () => saveEntryInputInPlace(input));
+    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
   });
 
+}
+
+function isEntryMarkInput(input) {
+  return input instanceof HTMLInputElement
+    && Boolean(input.closest("#entryView.active"))
+    && (input.dataset.roll !== undefined || input.dataset.projectRoll !== undefined || input.dataset.gradeRoll !== undefined);
+}
+
+function isFocusedEntryMarkInput() {
+  return isEntryMarkInput(document.activeElement);
+}
+
+function normalizeNumberInputValue(input, limit, showWarning, message) {
+  if (input.value === "") return "";
+  const numericValue = Number(input.value);
+  if (!Number.isFinite(numericValue)) return "";
+  if (numericValue > limit) {
+    if (showWarning || input.dataset.warnedLimit !== String(limit)) {
+      showToast(message);
+      input.dataset.warnedLimit = String(limit);
+    }
+    input.value = limit;
+    return limit;
+  }
+  delete input.dataset.warnedLimit;
+  const value = clamp(numericValue, 0, limit);
+  input.value = value;
+  return value;
+}
+
+function saveEntryInputInPlace(input, options = {}) {
+  const { showWarning = false } = options;
+  if (input.dataset.roll !== undefined) {
+    const limit = getMarkWarningLimit();
+    const value = normalizeNumberInputValue(input, limit, showWarning, `${selectedSubject()} marks cannot be more than ${limit}.`);
+    setStudentMark(input.dataset.roll, { value });
+    updateEntryRow(input);
+    return;
+  }
+
+  if (input.dataset.projectRoll !== undefined) {
+    const project = normalizeNumberInputValue(input, 15, showWarning, "Project, Assign., Book Maintenance marks cannot be more than 15.");
+    const student = { roll: input.dataset.projectRoll };
+    const attendanceMarks = getAttendanceMarks(
+      getStudentAttendance(student),
+      getWorkingDays(),
+      selectedClass()
+    );
+    setStudentMark(input.dataset.projectRoll, {
+      project,
+      value: project === "" ? "" : Number(project) + attendanceMarks
+    });
+    updateEntryRow(input);
+    return;
+  }
+
+  if (input.dataset.gradeRoll !== undefined) {
+    const value = input.value.trim().toUpperCase().slice(0, 1);
+    if (value && !["A", "B", "C", "D", "E"].includes(value)) {
+      if (showWarning) showToast("Enter grade A, B, C, D, or E.");
+      input.value = "";
+      setStudentMark(input.dataset.gradeRoll, { value: "" });
+    } else {
+      input.value = value;
+      setStudentMark(input.dataset.gradeRoll, { value });
+    }
+    updateEntryRow(input);
+  }
+}
+
+function updateEntryRow(input) {
+  const row = input.closest("tr");
+  if (!row) return;
+  const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.gradeRoll;
+  const mark = getStudentMark({ roll });
+  const value = mark.value ?? "";
+  const gradeSubject = isGradeSubject();
+  const noPassMark = isNoPassMarkSubject();
+  const passMarks = getPassMarks();
+  const status = gradeSubject
+    ? getGradeStatus(value)
+    : noPassMark
+      ? { label: value === "" ? "Pending" : "Entered", className: value === "" ? "" : "pass" }
+      : getStatus(value, passMarks);
+  const statusPill = row.querySelector(".status-pill");
+  if (statusPill) {
+    statusPill.className = `status-pill ${status.className}`.trim();
+    statusPill.textContent = status.label;
+  }
+  const calculatedMark = row.querySelector(".calculated-mark");
+  if (calculatedMark) calculatedMark.textContent = value === "" ? "-" : value;
+  updateEntrySummaryFromState();
+}
+
+function updateEntrySummaryFromState() {
+  const students = sortedStudents();
+  const maxMarks = getSubjectMaxMarks();
+  const gradeSubject = isGradeSubject();
+  let entered = 0;
+  let total = 0;
+  let highest = 0;
+  let lowest = Infinity;
+
+  students.forEach((student) => {
+    const value = getStudentMark(student).value ?? "";
+    const numericValue = Number(value);
+    if (!gradeSubject && value !== "" && !Number.isNaN(numericValue)) {
+      entered += 1;
+      total += numericValue;
+      highest = Math.max(highest, numericValue);
+      lowest = Math.min(lowest, numericValue);
+    } else if (gradeSubject && value !== "") {
+      entered += 1;
+    }
+  });
+
+  els.enteredCount.textContent = entered;
+  els.averageMarks.textContent = gradeSubject ? "Grade" : entered ? `${Math.round((total / (entered * maxMarks)) * 100)}%` : "0%";
+  els.highestMarks.textContent = gradeSubject ? "-" : entered ? `${highest}/${maxMarks}` : "0";
+  els.lowestMarks.textContent = gradeSubject ? "-" : entered ? `${lowest}/${maxMarks}` : "0";
+}
+
+function syncEntryInputsFromState() {
+  document.querySelectorAll("#entryView [data-roll], #entryView [data-project-roll], #entryView [data-grade-roll]").forEach((input) => {
+    if (!(input instanceof HTMLInputElement) || input === document.activeElement) return;
+    const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.gradeRoll;
+    const mark = getStudentMark({ roll });
+    if (input.dataset.projectRoll !== undefined) {
+      input.value = mark.project ?? "";
+    } else {
+      input.value = mark.value ?? "";
+    }
+    updateEntryRow(input);
+  });
+  updateEntrySummaryFromState();
 }
 
 function renderAttendance() {
