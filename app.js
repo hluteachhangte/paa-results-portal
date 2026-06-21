@@ -2522,7 +2522,7 @@ function renderStudents() {
       <td>${student.roll}</td>
       <td>${escapeHtml(student.idNo || "-")}</td>
       <td>${escapeHtml(student.name)}</td>
-      <td>${escapeHtml(student.dateOfBirth || "-")}</td>
+      <td>${escapeHtml(formatDisplayDate(student.dateOfBirth) || "-")}</td>
       <td>${escapeHtml(student.fatherName || "-")}</td>
       <td>${escapeHtml(student.motherName || "-")}</td>
       <td>${escapeHtml(student.address || "-")}</td>
@@ -3026,6 +3026,13 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function formatDisplayDate(value) {
+  const text = String(value || "").trim();
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!isoMatch) return text;
+  return `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}`;
 }
 
 function resetDemo() {
