@@ -3253,6 +3253,12 @@ th:first-child {
   text-align: center;
 }
 
+.attendance-empty-state {
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center !important;
+}
+
 @media (max-width: 980px) {
   .attendance-honor-page .app-shell {
     grid-template-columns: 1fr;
