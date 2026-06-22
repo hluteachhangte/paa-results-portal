@@ -3061,7 +3061,7 @@ function mergeStudentsFromCsv(rows) {
       roll,
       idNo: csvValue(row, idNoIndex),
       name,
-      dateOfBirth: csvValue(row, dobIndex),
+      dateOfBirth: formatDateForInput(csvValue(row, dobIndex)) || csvValue(row, dobIndex),
       fatherName: csvValue(row, fatherIndex),
       motherName: csvValue(row, motherIndex),
       address: csvValue(row, addressIndex),
@@ -3173,6 +3173,15 @@ function formatDisplayDate(value) {
   return `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}`;
 }
 
+function formatDateForInput(value) {
+  const text = String(value || "").trim();
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) return text;
+  const displayMatch = text.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (displayMatch) return `${displayMatch[3]}-${displayMatch[2]}-${displayMatch[1]}`;
+  return "";
+}
+
 function resetDemo() {
   if (!isAdmin()) {
     showToast("Only admin can reset data.");
@@ -3211,7 +3220,7 @@ function addStudent(event) {
   const roll = Number(document.querySelector("#rollInput").value);
   const idNo = document.querySelector("#idNoInput").value.trim();
   const name = document.querySelector("#nameInput").value.trim();
-  const dateOfBirth = document.querySelector("#dobInput").value;
+  let dateOfBirth = document.querySelector("#dobInput").value;
   const fatherName = document.querySelector("#fatherNameInput").value.trim();
   const motherName = document.querySelector("#motherNameInput").value.trim();
   const address = document.querySelector("#addressInput").value.trim();
@@ -3227,6 +3236,9 @@ function addStudent(event) {
 
   if (editingStudentRoll !== null) {
     const index = students.findIndex((student) => student.roll === editingStudentRoll);
+    if (index !== -1 && dateOfBirth === "" && students[index].dateOfBirth) {
+      dateOfBirth = students[index].dateOfBirth;
+    }
     if (index !== -1) students[index] = { roll, idNo, name, dateOfBirth, fatherName, motherName, address, pen, aadhaarNo };
     if (roll !== editingStudentRoll) moveStudentRecords(editingStudentRoll, roll);
   } else {
@@ -3246,7 +3258,7 @@ function editStudent(roll) {
   document.querySelector("#rollInput").value = student.roll;
   document.querySelector("#idNoInput").value = student.idNo;
   document.querySelector("#nameInput").value = student.name;
-  document.querySelector("#dobInput").value = student.dateOfBirth;
+  document.querySelector("#dobInput").value = formatDateForInput(student.dateOfBirth);
   document.querySelector("#fatherNameInput").value = student.fatherName;
   document.querySelector("#motherNameInput").value = student.motherName;
   document.querySelector("#addressInput").value = student.address;
