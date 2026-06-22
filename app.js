@@ -67,6 +67,7 @@ const subjectGroups = {
 const termExams = ["First Term", "Second Term", "Third Term"];
 const primaryUnitTests = ["FT Unit Test 1", "FT Unit Test 2", "ST Unit Test 1", "ST Unit Test 2"];
 const highContinuousTests = ["CT1", "CT2", "CT3", "CT4"];
+const highSplitPartSubjects = ["English", "Mathematics", "Social Science"];
 
 const defaultState = {
   academicSession: "2026 - 2027",
@@ -684,6 +685,16 @@ function isGradeSubject(subject = selectedSubject(), className = selectedClass()
     || (["Class VI", "Class VII", "Class VIII", "Class IX", "Class X"].includes(className) && subject === "Skill Development");
 }
 
+function baseSubjectName(subject = selectedSubject()) {
+  return String(subject).replace(/\s+\((Exam|Assignment)\)$/, "");
+}
+
+function isSplitPartSubject(subject = selectedSubject(), className = selectedClass()) {
+  return isHighClass(className)
+    && !String(subject).endsWith(" (Assignment)")
+    && highSplitPartSubjects.includes(baseSubjectName(subject));
+}
+
 function currentSubjects(className = selectedClass(), exam = selectedExam()) {
   const activityExamTerm = exam === "First Term" || exam === "Second Term";
 
@@ -790,7 +801,8 @@ function getActivityProjectMark(mark, attendanceMarks) {
 
 function getStoredStudentMark(student, className, exam, subject) {
   const subjectMarks = state.marks[markKey(className, exam, subject)] || {};
-  return subjectMarks[String(student.roll)] || { value: "" };
+  const stored = subjectMarks[String(student.roll)] || { value: "" };
+  return normalizeSplitPartMark(stored, className, subject);
 }
 
 function setStudentMark(roll, patch) {
@@ -798,6 +810,24 @@ function setStudentMark(roll, patch) {
   state.marks[key] = state.marks[key] || {};
   state.marks[key][String(roll)] = { ...(state.marks[key][String(roll)] || {}), ...patch };
   saveState();
+}
+
+function normalizeSplitPartMark(mark, className = selectedClass(), subject = selectedSubject()) {
+  if (!isSplitPartSubject(subject, className)) return mark;
+  const partA = mark.partA ?? "";
+  const partB = mark.partB ?? "";
+  const hasPartMarks = partA !== "" || partB !== "";
+  if (!hasPartMarks) return { ...mark, partA, partB, value: mark.value ?? "" };
+  return {
+    ...mark,
+    partA,
+    partB,
+    value: roundMarkTotal(numericMark(partA) + numericMark(partB))
+  };
+}
+
+function roundMarkTotal(value) {
+  return Math.round(Number(value) * 100) / 100;
 }
 
 function attendanceKey(className = selectedClass(), exam = selectedExam()) {
@@ -1128,6 +1158,7 @@ function renderEntry() {
   const passMarks = getPassMarks();
   const gradeSubject = isGradeSubject();
   const activitiesSubject = isActivitiesSubject();
+  const splitPartSubject = isSplitPartSubject();
   const noPassMark = isNoPassMarkSubject();
   let entered = 0;
   let total = 0;
@@ -1141,6 +1172,13 @@ function renderEntry() {
       <th>Attendance Marks</th>
       <th>Marks / Grade</th>
       <th>Status</th>`
+    : splitPartSubject
+      ? `<th>Roll No.</th>
+        <th>Student Name</th>
+        <th>Part A</th>
+        <th>Part B</th>
+        <th>Marks / Grade</th>
+        <th>Status</th>`
     : `<th>Roll No.</th><th>Student Name</th><th>Marks / Grade</th><th>Status</th>`;
 
   els.marksBody.innerHTML = students.map((student) => {
@@ -1168,15 +1206,23 @@ function renderEntry() {
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
         ${activitiesSubject
-          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="1"
+          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="0.01"
                 value="${escapeAttr(mark.project ?? "")}" data-project-roll="${student.roll}"
                 aria-label="Project, assignment, and book maintenance marks for ${escapeAttr(student.name)}"></td>
             <td><strong>${mark.attendanceMarks}</strong></td>
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
+          : splitPartSubject
+            ? `<td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
+                value="${escapeAttr(mark.partA ?? "")}" data-part-roll="${student.roll}" data-part-key="partA"
+                aria-label="Part A marks for ${escapeAttr(student.name)}"></td>
+            <td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
+                value="${escapeAttr(mark.partB ?? "")}" data-part-roll="${student.roll}" data-part-key="partB"
+                aria-label="Part B marks for ${escapeAttr(student.name)}"></td>
+            <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : `<td>
           ${gradeSubject
             ? `<input class="mark-input" type="text" maxlength="1" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
-            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="1"
+            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
         <td><span class="status-pill ${status.className}">${status.label}</span></td>
@@ -1200,6 +1246,11 @@ function renderEntry() {
     input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
   });
 
+  document.querySelectorAll("[data-part-roll]").forEach((input) => {
+    input.addEventListener("input", () => saveEntryInputInPlace(input));
+    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
+  });
+
   document.querySelectorAll("[data-grade-roll]").forEach((input) => {
     input.addEventListener("input", () => saveEntryInputInPlace(input));
     input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
@@ -1210,7 +1261,10 @@ function renderEntry() {
 function isEntryMarkInput(input) {
   return input instanceof HTMLInputElement
     && Boolean(input.closest("#entryView.active"))
-    && (input.dataset.roll !== undefined || input.dataset.projectRoll !== undefined || input.dataset.gradeRoll !== undefined);
+    && (input.dataset.roll !== undefined
+      || input.dataset.projectRoll !== undefined
+      || input.dataset.partRoll !== undefined
+      || input.dataset.gradeRoll !== undefined);
 }
 
 function isFocusedEntryMarkInput() {
@@ -1218,8 +1272,9 @@ function isFocusedEntryMarkInput() {
 }
 
 function normalizeNumberInputValue(input, limit, showWarning, message) {
-  if (input.value === "") return "";
-  const numericValue = Number(input.value);
+  const rawValue = input.value.trim();
+  if (rawValue === "") return "";
+  const numericValue = Number(rawValue);
   if (!Number.isFinite(numericValue)) return "";
   if (numericValue > limit) {
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
@@ -1231,6 +1286,7 @@ function normalizeNumberInputValue(input, limit, showWarning, message) {
   }
   delete input.dataset.warnedLimit;
   const value = clamp(numericValue, 0, limit);
+  if (!showWarning) return rawValue;
   input.value = value;
   return value;
 }
@@ -1261,6 +1317,12 @@ function saveEntryInputInPlace(input, options = {}) {
     return;
   }
 
+  if (input.dataset.partRoll !== undefined) {
+    saveSplitPartInput(input, showWarning);
+    updateEntryRow(input);
+    return;
+  }
+
   if (input.dataset.gradeRoll !== undefined) {
     const value = input.value.trim().toUpperCase().slice(0, 1);
     if (value && !["A", "B", "C", "D", "E"].includes(value)) {
@@ -1275,10 +1337,53 @@ function saveEntryInputInPlace(input, options = {}) {
   }
 }
 
+function saveSplitPartInput(input, showWarning = false) {
+  const row = input.closest("tr");
+  const partKey = input.dataset.partKey;
+  const otherKey = partKey === "partA" ? "partB" : "partA";
+  const otherInput = row?.querySelector(`[data-part-key="${otherKey}"]`);
+  const limit = getMarkWarningLimit();
+  let partA = partKey === "partA" ? input.value.trim() : otherInput?.value.trim() || "";
+  let partB = partKey === "partB" ? input.value.trim() : otherInput?.value.trim() || "";
+
+  const currentValue = partKey === "partA" ? partA : partB;
+  const currentNumber = Number(currentValue);
+  const otherValue = partKey === "partA" ? partB : partA;
+  const otherNumber = numericMark(otherValue);
+
+  if (currentValue !== "" && !Number.isFinite(currentNumber)) return;
+
+  if (currentNumber < 0) {
+    input.value = "0";
+    if (partKey === "partA") partA = "0";
+    if (partKey === "partB") partB = "0";
+  }
+
+  if (currentValue !== "" && currentNumber + otherNumber > limit) {
+    const allowedValue = roundMarkTotal(Math.max(0, limit - otherNumber));
+    if (showWarning || input.dataset.warnedLimit !== String(limit)) {
+      showToast(`${selectedSubject()} Part A and Part B total cannot be more than ${limit}.`);
+      input.dataset.warnedLimit = String(limit);
+    }
+    input.value = allowedValue;
+    if (partKey === "partA") partA = String(allowedValue);
+    if (partKey === "partB") partB = String(allowedValue);
+  } else {
+    delete input.dataset.warnedLimit;
+  }
+
+  const hasPartMarks = partA !== "" || partB !== "";
+  setStudentMark(input.dataset.partRoll, {
+    partA,
+    partB,
+    value: hasPartMarks ? roundMarkTotal(numericMark(partA) + numericMark(partB)) : ""
+  });
+}
+
 function updateEntryRow(input) {
   const row = input.closest("tr");
   if (!row) return;
-  const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.gradeRoll;
+  const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.partRoll || input.dataset.gradeRoll;
   const mark = getStudentMark({ roll });
   const value = mark.value ?? "";
   const gradeSubject = isGradeSubject();
@@ -1328,12 +1433,14 @@ function updateEntrySummaryFromState() {
 }
 
 function syncEntryInputsFromState() {
-  document.querySelectorAll("#entryView [data-roll], #entryView [data-project-roll], #entryView [data-grade-roll]").forEach((input) => {
+  document.querySelectorAll("#entryView [data-roll], #entryView [data-project-roll], #entryView [data-part-roll], #entryView [data-grade-roll]").forEach((input) => {
     if (!(input instanceof HTMLInputElement) || input === document.activeElement) return;
-    const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.gradeRoll;
+    const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.partRoll || input.dataset.gradeRoll;
     const mark = getStudentMark({ roll });
     if (input.dataset.projectRoll !== undefined) {
       input.value = mark.project ?? "";
+    } else if (input.dataset.partRoll !== undefined) {
+      input.value = mark[input.dataset.partKey] ?? "";
     } else {
       input.value = mark.value ?? "";
     }
@@ -1637,7 +1744,7 @@ function renderResults() {
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
     const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
-    const total = Math.ceil(numbers.reduce((sum, value) => sum + value, 0));
+    const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
     const maximumTotal = marksMaximum(subjectsForMarks);
     const percent = roundUpPercentage(total, maximumTotal);
     const appeared = subjectValues.some((value) => value !== "");
@@ -1777,7 +1884,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       }))
       : subjectResults.map((subjectResult) => subjectResult.total);
     const gradeValues = standaloneResults.filter((subjectResult) => subjectResult.graded).map((subjectResult) => subjectResult.value);
-    const total = Math.ceil(subjectResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0)
+    const total = Math.round(subjectResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0)
       + standaloneResults.filter((subjectResult) => subjectResult.countsForTotal)
         .reduce((sum, subjectResult) => sum + numericMark(subjectResult.value), 0));
     const maximumTotal = (subjectResults.length * 100)
@@ -1909,7 +2016,7 @@ function getStructuredSubjectResult(student, group) {
       unitTest: "",
       exam: thirdTermValue,
       hasMark,
-      total: hasMark ? roundUpToTwoDecimals(numericMark(formativeAssessment) + numericMark(thirdTermValue)) : ""
+      total: hasMark ? Math.round(numericMark(formativeAssessment) + numericMark(thirdTermValue)) : ""
     };
   }
 
@@ -1925,9 +2032,7 @@ function getStructuredSubjectResult(student, group) {
       unitTest: secondTerm,
       exam,
       hasMark,
-      total: hasMark
-        ? Number((numericMark(firstTerm) + numericMark(secondTerm) + numericMark(exam)).toFixed(2))
-        : ""
+      total: hasMark ? Math.round(numericMark(firstTerm) + numericMark(secondTerm) + numericMark(exam)) : ""
     };
   }
 
@@ -1940,7 +2045,7 @@ function getStructuredSubjectResult(student, group) {
     unitTest,
     exam,
     hasMark,
-    total: hasMark ? numericMark(activities) + numericMark(unitTest) + numericMark(exam) : ""
+    total: hasMark ? Math.round(numericMark(activities) + numericMark(unitTest) + numericMark(exam)) : ""
   };
 }
 
@@ -2152,12 +2257,12 @@ function renderMarksheets() {
       : subjects;
     const numbers = markValues.map(Number).filter((value) => !Number.isNaN(value));
     const total = highThirdTermMarksheet
-      ? Math.ceil(highThirdTermResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0))
+      ? Math.round(highThirdTermResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0))
       : structuredTerm
-      ? Math.ceil(structuredSubjects.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0)
+      ? Math.round(structuredSubjects.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0)
         + structuredStandalone.filter((subjectResult) => subjectResult.countsForTotal)
-          .reduce((sum, subjectResult) => sum + numericMark(subjectResult.value), 0))
-      : Math.ceil(numbers.reduce((sum, value) => sum + value, 0));
+        .reduce((sum, subjectResult) => sum + numericMark(subjectResult.value), 0))
+      : Math.round(numbers.reduce((sum, value) => sum + value, 0));
     const maximumTotal = highThirdTermMarksheet
       ? highThirdTermResults.length * 100
       : structuredTerm
@@ -2713,7 +2818,7 @@ function exportCsv() {
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
     const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
-    const total = Math.ceil(numbers.reduce((sum, value) => sum + value, 0));
+    const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
     const percent = roundUpPercentage(total, marksMaximum(subjectsForMarks));
     const appeared = values.some((value) => value !== "");
     const calculatedOutcome = calculateOutcome(resultMarkValues, passMarks, Number(percent), selectedClass(), selectedExam(), gradeValues);
@@ -2760,15 +2865,20 @@ function downloadMarksCsvTemplate() {
     showToast("Only admin can download marks CSV templates.");
     return;
   }
+  const splitPartSubject = isSplitPartSubject();
   const valueHeader = isGradeSubject()
     ? "Grade"
     : isActivitiesSubject()
       ? "Project, Assign., Book Maintenance"
+      : splitPartSubject
+        ? "Marks"
       : "Marks";
+  const headers = splitPartSubject ? ["Roll No.", "Name", "Part A", "Part B", valueHeader] : ["Roll No.", "Name", valueHeader];
   const rows = [
-    ["Roll No.", "Name", valueHeader],
+    headers,
     ...sortedStudents().map((student) => {
       const mark = getStudentMark(student);
+      if (splitPartSubject) return [student.roll, student.name, mark.partA ?? "", mark.partB ?? "", mark.value];
       return [student.roll, student.name, isActivitiesSubject() ? mark.project : mark.value];
     })
   ];
@@ -2804,10 +2914,13 @@ function mergeMarksFromCsv(rows) {
 
   const headers = rows[0].map(normalizeCsvHeader);
   const rollIndex = headers.findIndex((header) => header === "roll" || header === "rollno" || header === "rollnumber");
+  const partAIndex = headers.findIndex((header) => header === "parta");
+  const partBIndex = headers.findIndex((header) => header === "partb");
   const valueIndex = headers.findIndex((header) => header === "marks" || header === "mark" || header === "grade"
     || header === "projectassignbookmaintenance");
+  const splitPartSubject = isSplitPartSubject();
 
-  if (rollIndex === -1 || valueIndex === -1) {
+  if (rollIndex === -1 || (!splitPartSubject && valueIndex === -1) || (splitPartSubject && partAIndex === -1 && partBIndex === -1 && valueIndex === -1)) {
     throw new Error('CSV headers must include "Roll No." and "Marks" or "Grade".');
   }
 
@@ -2824,7 +2937,11 @@ function mergeMarksFromCsv(rows) {
     const roll = Number(String(row[rollIndex] ?? "").trim());
     const rawValue = String(row[valueIndex] ?? "").trim();
 
-    if (!Number.isInteger(roll) || !studentsByRoll.has(roll) || rawValue === "") {
+    const hasSplitPartCsvValue = splitPartSubject
+      && ((partAIndex !== -1 && String(row[partAIndex] ?? "").trim() !== "")
+        || (partBIndex !== -1 && String(row[partBIndex] ?? "").trim() !== ""));
+
+    if (!Number.isInteger(roll) || !studentsByRoll.has(roll) || (!hasSplitPartCsvValue && rawValue === "")) {
       skipped += 1;
       return;
     }
@@ -2836,6 +2953,29 @@ function mergeMarksFromCsv(rows) {
         return;
       }
       setStudentMark(roll, { value: grade });
+      updated += 1;
+      return;
+    }
+
+    if (splitPartSubject) {
+      const rawPartA = partAIndex === -1 ? "" : String(row[partAIndex] ?? "").trim();
+      const rawPartB = partBIndex === -1 ? "" : String(row[partBIndex] ?? "").trim();
+      const hasParts = rawPartA !== "" || rawPartB !== "";
+      const partA = rawPartA === "" ? "" : Number(rawPartA);
+      const partB = rawPartB === "" ? "" : Number(rawPartB);
+      const directValue = rawValue === "" ? "" : Number(rawValue);
+      const value = hasParts ? roundMarkTotal(numericMark(partA) + numericMark(partB)) : directValue;
+      if ((rawPartA !== "" && (!Number.isFinite(partA) || partA < 0))
+        || (rawPartB !== "" && (!Number.isFinite(partB) || partB < 0))
+        || value === "" || !Number.isFinite(value) || value < 0 || value > maxMarks) {
+        skipped += 1;
+        return;
+      }
+      setStudentMark(roll, {
+        partA: rawPartA === "" ? "" : partA,
+        partB: rawPartB === "" ? "" : partB,
+        value
+      });
       updated += 1;
       return;
     }
