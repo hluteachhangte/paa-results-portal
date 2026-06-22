@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store">
   <title>Pinehill Adventist Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=student-name-width-20260622">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -90,6 +91,9 @@
             <span aria-hidden="true">⇩</span>
             Export CSV
           </button>
+          <button id="exportExcelBtn" class="ghost-button hidden" type="button" title="Export to Excel">
+            Export to Excel
+          </button>
           <button id="logoutBtn" class="ghost-button" type="button" title="Logout">Logout</button>
           <button id="resetBtn" class="ghost-button danger" type="button" title="Reset demo data">
             <span aria-hidden="true">↺</span>
@@ -140,9 +144,10 @@
         <div class="section-head">
           <div>
             <h3>Enter Subject Marks</h3>
-            <p>Marks save automatically as teachers type.</p>
+            <p id="entrySaveHint">Enter marks, then click Save All Marks.</p>
           </div>
           <div class="inline-actions">
+            <button id="saveMarksBtn" class="primary-button" type="button">Save All Marks</button>
             <button id="downloadMarksTemplateBtn" class="ghost-button" type="button">Download Marks Template</button>
             <button id="importMarksBtn" class="ghost-button" type="button">Import Marks CSV</button>
             <input id="marksCsvInput" class="hidden" type="file" accept=".csv,text/csv">
@@ -269,12 +274,12 @@
             <input id="idNoInput" type="text">
           </label>
           <label>
-            Student Name
-            <input id="nameInput" type="text" required>
-          </label>
-          <label>
             Date of Birth
             <input id="dobInput" type="date">
+          </label>
+          <label>
+            Student Name
+            <input id="nameInput" type="text" required>
           </label>
           <label>
             Father's Name
@@ -324,7 +329,8 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./firebase.js"></script>
-  <script src="./app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="./firebase.js?v=excel-export-20260623"></script>
+  <script src="./app.js?v=excel-export-20260623"></script>
 </body>
 </html>

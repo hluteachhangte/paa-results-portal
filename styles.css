@@ -2645,7 +2645,7 @@ th:first-child {
   }
 
   body.students-active .student-form {
-    grid-template-columns: 64px 54px 66px minmax(92px, 1fr);
+    grid-template-columns: 72px 50px 62px minmax(86px, 1fr);
     gap: 4px;
     margin-bottom: 6px;
   }
@@ -2659,7 +2659,7 @@ th:first-child {
   }
 
   body.students-active .student-form label:nth-child(5) {
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }
 
   body.students-active .student-form label:nth-child(n + 6) {
@@ -3310,19 +3310,37 @@ th:first-child {
 
 @media (max-width: 420px) {
   .attendance-honor-page .sidebar {
-    padding: 14px;
+    gap: 10px;
+    padding: 10px 14px;
   }
 
   .attendance-honor-page .brand-block {
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .attendance-honor-page .brand-logo {
+    width: 34px;
+    height: 34px;
   }
 
   .attendance-honor-page .brand-block h1 {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .attendance-honor-page .brand-block p {
+    font-size: 0.68rem;
+  }
+
+  .attendance-honor-page .portal-link {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 0.72rem;
   }
 
   .attendance-honor-page .nav-tabs {
     grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .attendance-honor-table {

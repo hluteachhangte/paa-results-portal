@@ -85,7 +85,15 @@ let editingStudentRoll = null;
 let applyingRemoteState = false;
 let firebaseStateSyncStarted = false;
 let firebaseStateSaveTimer = null;
+let firebaseStateSaveRetryTimer = null;
 let firebaseStateUnsubscribe = null;
+let firebaseStateWriteInFlight = false;
+let pendingFirebaseStateJson = "";
+let lastSyncedFirebaseStateJson = "";
+const firebaseStateSaveDelay = 900;
+const unsavedMarkChanges = new Map();
+let marksSaveInProgress = false;
+let deferredFullStateSaveAfterMarks = false;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -122,6 +130,8 @@ const els = {
   marksCsvInput: document.querySelector("#marksCsvInput"),
   importMarksBtn: document.querySelector("#importMarksBtn"),
   downloadMarksTemplateBtn: document.querySelector("#downloadMarksTemplateBtn"),
+  saveMarksBtn: document.querySelector("#saveMarksBtn"),
+  entrySaveHint: document.querySelector("#entrySaveHint"),
   marksHead: document.querySelector("#marksHead"),
   marksBody: document.querySelector("#marksBody"),
   studentsBody: document.querySelector("#studentsBody"),
@@ -148,6 +158,7 @@ const els = {
   publishMeta: document.querySelector("#publishMeta"),
   publishBtn: document.querySelector("#publishBtn"),
   unpublishBtn: document.querySelector("#unpublishBtn"),
+  exportExcelBtn: document.querySelector("#exportExcelBtn"),
   logoutBtn: document.querySelector("#logoutBtn"),
   userBadge: document.querySelector("#userBadge"),
   resetBtn: document.querySelector("#resetBtn"),
@@ -316,7 +327,141 @@ function activityExamSubjects(subjects, finalSubject) {
 function saveState() {
   syncActiveSessionData();
   localStorage.setItem(storageKey, JSON.stringify(state));
+  if (hasUnsavedMarkChanges()) {
+    deferredFullStateSaveAfterMarks = true;
+    console.log("[Firestore] App state save deferred until unsaved marks are saved.");
+    return;
+  }
   queueFirebaseStateSave();
+}
+
+function hasUnsavedMarkChanges() {
+  return unsavedMarkChanges.size > 0;
+}
+
+function unsavedMarkChangeId(className, exam, subject, roll = "*subject*") {
+  return `${className}::${exam}::${subject}::${roll}`;
+}
+
+function trackUnsavedMarkChange(className = selectedClass(), exam = selectedExam(), subject = selectedSubject(), roll = null) {
+  const key = markKey(className, exam, subject);
+  unsavedMarkChanges.set(unsavedMarkChangeId(className, exam, subject, roll), {
+    type: "mark",
+    session: currentSessionKey(state.academicSession),
+    className,
+    exam,
+    subject,
+    markKey: key,
+    roll: String(roll)
+  });
+  syncActiveSessionData();
+  refreshMarksSaveControls();
+}
+
+function trackSubjectMarksCleared(className = selectedClass(), exam = selectedExam(), subject = selectedSubject()) {
+  const key = markKey(className, exam, subject);
+  [...unsavedMarkChanges.keys()].forEach((changeId) => {
+    if (changeId.startsWith(`${className}::${exam}::${subject}::`)) {
+      unsavedMarkChanges.delete(changeId);
+    }
+  });
+  unsavedMarkChanges.set(unsavedMarkChangeId(className, exam, subject), {
+    type: "deleteSubject",
+    session: currentSessionKey(state.academicSession),
+    className,
+    exam,
+    subject,
+    markKey: key
+  });
+  syncActiveSessionData();
+  refreshMarksSaveControls();
+}
+
+function refreshMarksSaveControls() {
+  if (!els.saveMarksBtn) return;
+  const changedCount = unsavedMarkChanges.size;
+  els.saveMarksBtn.disabled = marksSaveInProgress || changedCount === 0;
+  els.saveMarksBtn.textContent = marksSaveInProgress ? "Saving..." : "Save All Marks";
+  if (els.entrySaveHint) {
+    els.entrySaveHint.textContent = changedCount
+      ? `${changedCount} unsaved mark ${changedCount === 1 ? "change" : "changes"}. Click Save All Marks.`
+      : "Enter marks, then click Save All Marks.";
+  }
+}
+
+function buildUnsavedMarkFieldUpdates() {
+  const deletes = new Set(
+    [...unsavedMarkChanges.values()]
+      .filter((change) => change.type === "deleteSubject")
+      .map((change) => `${change.session}::${change.markKey}`)
+  );
+  const updates = [];
+  const deleteValue = window.MarkHubFirebase?.deleteFieldValue;
+
+  unsavedMarkChanges.forEach((change) => {
+    if (change.type === "deleteSubject") {
+      if (!deleteValue) return;
+      updates.push(
+        { path: ["state", "marks", change.markKey], value: deleteValue() },
+        { path: ["state", "sessions", change.session, "marks", change.markKey], value: deleteValue() }
+      );
+      return;
+    }
+
+    if (deletes.has(`${change.session}::${change.markKey}`)) return;
+    const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
+    updates.push(
+      { path: ["state", "marks", change.markKey, change.roll], value },
+      { path: ["state", "sessions", change.session, "marks", change.markKey, change.roll], value }
+    );
+  });
+
+  return updates;
+}
+
+async function saveAllMarks() {
+  if (marksSaveInProgress) return;
+  if (!hasUnsavedMarkChanges()) {
+    showToast("No mark changes to save.");
+    return;
+  }
+
+  marksSaveInProgress = true;
+  refreshMarksSaveControls();
+
+  try {
+    syncActiveSessionData();
+    const stateJson = JSON.stringify(state);
+    const fieldUpdates = buildUnsavedMarkFieldUpdates();
+    const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
+      || deferredFullStateSaveAfterMarks;
+
+    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
+    } else if (window.MarkHubFirebase?.saveAppState) {
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+    } else {
+      throw new Error("Firebase is not ready.");
+    }
+
+    localStorage.setItem(storageKey, stateJson);
+    if (hadPendingFullStateSave && pendingFirebaseStateJson !== stateJson) {
+      deferredFullStateSaveAfterMarks = false;
+      queueFirebaseStateSave();
+    } else {
+      deferredFullStateSaveAfterMarks = false;
+      lastSyncedFirebaseStateJson = stateJson;
+      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
+    }
+    unsavedMarkChanges.clear();
+    showToast("Marks saved successfully.");
+  } catch (error) {
+    console.error("[Firestore] Save All Marks failed", error);
+    showToast("Could not save marks. Please try again.");
+  } finally {
+    marksSaveInProgress = false;
+    refreshMarksSaveControls();
+  }
 }
 
 function loadSavedUiState() {
@@ -351,14 +496,64 @@ function saveUiState() {
 }
 
 function queueFirebaseStateSave() {
-  if (applyingRemoteState || !window.MarkHubFirebase?.saveAppState) return;
+  if (applyingRemoteState) return;
+  const stateJson = JSON.stringify(state);
+  if (stateJson === lastSyncedFirebaseStateJson && !pendingFirebaseStateJson) return;
+  pendingFirebaseStateJson = stateJson;
   clearTimeout(firebaseStateSaveTimer);
-  firebaseStateSaveTimer = setTimeout(() => {
-    window.MarkHubFirebase.saveAppState(structuredClone(state)).catch((error) => {
-      console.error(error);
+  firebaseStateSaveTimer = setTimeout(flushFirebaseStateSave, firebaseStateSaveDelay);
+}
+
+function flushFirebaseStateSave(force = false) {
+  if (applyingRemoteState) return;
+
+  clearTimeout(firebaseStateSaveTimer);
+  if (!pendingFirebaseStateJson) return;
+  if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) {
+    pendingFirebaseStateJson = "";
+    return;
+  }
+  if (firebaseStateWriteInFlight && !force) return;
+
+  if (!window.MarkHubFirebase?.saveAppState) {
+    clearTimeout(firebaseStateSaveRetryTimer);
+    firebaseStateSaveRetryTimer = setTimeout(flushFirebaseStateSave, 1000);
+    return;
+  }
+
+  clearTimeout(firebaseStateSaveRetryTimer);
+  const stateJson = pendingFirebaseStateJson;
+  let statePayload;
+  try {
+    statePayload = JSON.parse(stateJson);
+  } catch (error) {
+    console.error("[Firestore] Could not serialize app state for sync", error);
+    return;
+  }
+
+  firebaseStateWriteInFlight = true;
+  window.MarkHubFirebase.saveAppState(statePayload)
+    .then(() => {
+      lastSyncedFirebaseStateJson = stateJson;
+      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
+      console.log("[Firestore] App state write completed from MarkHub UI.");
+    })
+    .catch((error) => {
+      console.error("[Firestore] App state write failed", error);
       showToast("Could not sync live data to Firestore.");
+    })
+    .finally(() => {
+      firebaseStateWriteInFlight = false;
+      if (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson) {
+        firebaseStateSaveTimer = setTimeout(flushFirebaseStateSave, 300);
+      }
     });
-  }, 250);
+}
+
+function stopFirebaseStateSync() {
+  if (typeof firebaseStateUnsubscribe === "function") firebaseStateUnsubscribe();
+  firebaseStateUnsubscribe = null;
+  firebaseStateSyncStarted = false;
 }
 
 function startFirebaseStateSync(attempt = 0) {
@@ -373,6 +568,11 @@ function startFirebaseStateSync(attempt = 0) {
 
   firebaseStateSyncStarted = true;
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
+    console.log("[Firestore] MarkHub UI received appState update.");
+    if (hasUnsavedMarkChanges()) {
+      console.log("[Firestore] App state update held because marks have unsaved local changes.");
+      return;
+    }
     if (!remoteState) {
       queueFirebaseStateSave();
       return;
@@ -381,7 +581,10 @@ function startFirebaseStateSync(attempt = 0) {
     const uiState = captureUiState();
     applyingRemoteState = true;
     state = normalizeState(remoteState);
-    localStorage.setItem(storageKey, JSON.stringify(state));
+    const remoteStateJson = JSON.stringify(state);
+    lastSyncedFirebaseStateJson = remoteStateJson;
+    if (pendingFirebaseStateJson === remoteStateJson) pendingFirebaseStateJson = "";
+    localStorage.setItem(storageKey, remoteStateJson);
     applyRemoteStateToCurrentView(uiState);
     applyingRemoteState = false;
   }, (error) => {
@@ -528,12 +731,18 @@ function renderAuth() {
   els.loginScreen.classList.toggle("hidden", signedIn);
   els.appShell.classList.toggle("hidden", !signedIn);
 
-  if (!signedIn) return;
+  if (!signedIn) {
+    stopFirebaseStateSync();
+    return;
+  }
+
+  startFirebaseStateSync();
 
   els.userBadge.textContent = `You logged in as ${currentUser.role === "admin" ? "Admin" : "Teacher"}`;
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
   els.resetBtn.classList.toggle("hidden", !isAdmin());
+  els.exportExcelBtn?.classList.toggle("hidden", !isAdmin());
   els.importMarksBtn.classList.toggle("hidden", !isAdmin());
   els.downloadMarksTemplateBtn.classList.toggle("hidden", !isAdmin());
   els.academicSessionInput.disabled = !isAdmin();
@@ -558,6 +767,12 @@ function handleLogin(event) {
 }
 
 function logout() {
+  if (hasUnsavedMarkChanges() && !window.confirm("You have unsaved marks. Leave without saving?")) return;
+  flushFirebaseStateSave(true);
+  stopFirebaseStateSync();
+  unsavedMarkChanges.clear();
+  deferredFullStateSaveAfterMarks = false;
+  refreshMarksSaveControls();
   saveCurrentUser(null);
   showToast("Logged out.");
 }
@@ -805,10 +1020,17 @@ function getStoredStudentMark(student, className, exam, subject) {
   return normalizeSplitPartMark(stored, className, subject);
 }
 
-function setStudentMark(roll, patch) {
+function setStudentMark(roll, patch, options = {}) {
+  const className = selectedClass();
+  const exam = selectedExam();
+  const subject = selectedSubject();
   const key = markKey();
   state.marks[key] = state.marks[key] || {};
   state.marks[key][String(roll)] = { ...(state.marks[key][String(roll)] || {}), ...patch };
+  if (options.save === false) {
+    trackUnsavedMarkChange(className, exam, subject, roll);
+    return;
+  }
   saveState();
 }
 
@@ -882,6 +1104,10 @@ function setStudentMeasurement(roll, patch, className = selectedClass(), exam = 
 
 function isPublished() {
   return Boolean(state.published[examKey()]);
+}
+
+function canViewResult() {
+  return isPublished() || isAdmin();
 }
 
 function populateSelect(select, options) {
@@ -977,8 +1203,10 @@ function init() {
   els.publishBtn.addEventListener("click", publishCurrentResult);
   els.unpublishBtn.addEventListener("click", unpublishCurrentResult);
   document.querySelector("#exportBtn").addEventListener("click", exportCsv);
+  els.exportExcelBtn?.addEventListener("click", exportExcelFromFirestore);
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
   document.querySelector("#clearMarksBtn").addEventListener("click", clearMarks);
+  els.saveMarksBtn?.addEventListener("click", saveAllMarks);
   document.querySelector("#studentForm").addEventListener("submit", addStudent);
   document.querySelector("#cancelStudentEditBtn").addEventListener("click", cancelStudentEdit);
   els.importStudentsBtn.addEventListener("click", () => els.studentCsvInput.click());
@@ -999,8 +1227,24 @@ function init() {
   els.zoomOutMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(-10));
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
   document.addEventListener("keydown", handleEnterAsTab);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      flushFirebaseStateSave(true);
+      stopFirebaseStateSync();
+    } else if (currentUser) {
+      startFirebaseStateSync();
+    }
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (hasUnsavedMarkChanges()) {
+      event.preventDefault();
+      event.returnValue = "";
+      return "";
+    }
+    flushFirebaseStateSave(true);
+    return undefined;
+  });
   updateMarksheetZoom();
-  startFirebaseStateSync();
   renderAuth();
 
   render();
@@ -1144,9 +1388,11 @@ function renderViewFilters() {
 
 function renderPublishStatus() {
   const status = isPublished();
-  els.publishStatus.textContent = status ? "Published" : "Not published";
+  els.publishStatus.textContent = status ? "Published" : isAdmin() ? "Admin preview" : "Not published";
   els.publishMeta.textContent = isAdmin()
-    ? `${selectedClass()} - ${selectedExam()}`
+    ? status
+      ? `${selectedClass()} - ${selectedExam()}`
+      : `${selectedClass()} - ${selectedExam()} | Visible to admin only`
     : `${selectedClass()} - ${selectedExam()} | Admin only`;
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
@@ -1235,6 +1481,7 @@ function renderEntry() {
   els.averageMarks.textContent = gradeSubject ? "Grade" : entered ? `${Math.round((total / (entered * maxMarks)) * 100)}%` : "0%";
   els.highestMarks.textContent = gradeSubject ? "-" : entered ? `${highest}/${maxMarks}` : "0";
   els.lowestMarks.textContent = gradeSubject ? "-" : entered ? `${lowest}/${maxMarks}` : "0";
+  refreshMarksSaveControls();
 
   document.querySelectorAll("[data-roll]").forEach((input) => {
     input.addEventListener("input", () => saveEntryInputInPlace(input));
@@ -1296,7 +1543,7 @@ function saveEntryInputInPlace(input, options = {}) {
   if (input.dataset.roll !== undefined) {
     const limit = getMarkWarningLimit();
     const value = normalizeNumberInputValue(input, limit, showWarning, `${selectedSubject()} marks cannot be more than ${limit}.`);
-    setStudentMark(input.dataset.roll, { value });
+    setStudentMark(input.dataset.roll, { value }, { save: false });
     updateEntryRow(input);
     return;
   }
@@ -1312,7 +1559,7 @@ function saveEntryInputInPlace(input, options = {}) {
     setStudentMark(input.dataset.projectRoll, {
       project,
       value: project === "" ? "" : Number(project) + attendanceMarks
-    });
+    }, { save: false });
     updateEntryRow(input);
     return;
   }
@@ -1328,10 +1575,10 @@ function saveEntryInputInPlace(input, options = {}) {
     if (value && !["A", "B", "C", "D", "E"].includes(value)) {
       if (showWarning) showToast("Enter grade A, B, C, D, or E.");
       input.value = "";
-      setStudentMark(input.dataset.gradeRoll, { value: "" });
+      setStudentMark(input.dataset.gradeRoll, { value: "" }, { save: false });
     } else {
       input.value = value;
-      setStudentMark(input.dataset.gradeRoll, { value });
+      setStudentMark(input.dataset.gradeRoll, { value }, { save: false });
     }
     updateEntryRow(input);
   }
@@ -1377,7 +1624,7 @@ function saveSplitPartInput(input, showWarning = false) {
     partA,
     partB,
     value: hasPartMarks ? roundMarkTotal(numericMark(partA) + numericMark(partB)) : ""
-  });
+  }, { save: false });
 }
 
 function updateEntryRow(input) {
@@ -1687,6 +1934,7 @@ function formatFirebaseValue(value) {
 function renderResults() {
   const students = sortedStudents();
   const published = isPublished();
+  const viewable = canViewResult();
   const maxMarks = getMaxMarks();
   const passMarks = getPassMarks();
   const subjects = currentSubjects();
@@ -1703,10 +1951,12 @@ function renderResults() {
 
   els.resultNotice.textContent = published
     ? `${selectedClass()} ${selectedExam()} is published.`
-    : `Publish ${selectedClass()} ${selectedExam()} to show final results.`;
+    : isAdmin()
+      ? `${selectedClass()} ${selectedExam()} is in admin preview. Publish when ready for other users.`
+      : `Publish ${selectedClass()} ${selectedExam()} to show final results.`;
 
   if (isStructuredResultSheet()) {
-    renderStructuredTermResults(students, published, subjects, subjectsForMarks, maxMarks, passMarks, workingDays);
+    renderStructuredTermResults(students, viewable, subjects, subjectsForMarks, maxMarks, passMarks, workingDays);
     return;
   }
 
@@ -1728,7 +1978,7 @@ function renderResults() {
   `;
   updateResultStickyHeaderMetrics();
 
-  if (!published) {
+  if (!viewable) {
     els.resultsBody.innerHTML = `
       <tr>
         <td colspan="${subjects.length + 6 + (term ? 1 : 0) + (showMeasurements ? 2 : 0)}">No published result for this class and exam yet.</td>
@@ -2207,7 +2457,7 @@ function renderMarksheets() {
   const term = isTermExam();
   const workingDays = getWorkingDays();
 
-  if (!isPublished()) {
+  if (!canViewResult()) {
     els.marksheetBody.innerHTML = `
       <div class="table-wrap">
         <table>
@@ -2579,7 +2829,7 @@ function formatResultMark(subject, value, passMarks) {
 }
 
 function printResults() {
-  if (!isPublished()) {
+  if (!canViewResult()) {
     showToast("Publish the result before printing results.");
     return;
   }
@@ -2587,7 +2837,7 @@ function printResults() {
 }
 
 function saveResultsPdf() {
-  if (!isPublished()) {
+  if (!canViewResult()) {
     showToast("Publish the result before saving PDF.");
     return;
   }
@@ -2596,7 +2846,7 @@ function saveResultsPdf() {
 }
 
 function printMarksheets() {
-  if (!isPublished()) {
+  if (!canViewResult()) {
     showToast("Publish the result before printing marksheets.");
     return;
   }
@@ -2604,7 +2854,7 @@ function printMarksheets() {
 }
 
 function saveMarksheetsPdf() {
-  if (!isPublished()) {
+  if (!canViewResult()) {
     showToast("Publish the result before saving PDF.");
     return;
   }
@@ -2778,6 +3028,10 @@ function publishCurrentResult() {
     showToast("Only admin can publish results.");
     return;
   }
+  if (hasUnsavedMarkChanges()) {
+    showToast("Save marks before publishing results.");
+    return;
+  }
 
   state.published[examKey()] = {
     publishedAt: new Date().toISOString()
@@ -2790,6 +3044,10 @@ function publishCurrentResult() {
 function unpublishCurrentResult() {
   if (!isAdmin()) {
     showToast("Only admin can unpublish results.");
+    return;
+  }
+  if (hasUnsavedMarkChanges()) {
+    showToast("Save marks before unpublishing results.");
     return;
   }
 
@@ -2852,6 +3110,265 @@ function csvCell(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+async function exportExcelFromFirestore() {
+  if (!isAdmin()) {
+    showToast("Only admin can export Excel files.");
+    return;
+  }
+  if (hasUnsavedMarkChanges()) {
+    showToast("Save marks before exporting to Excel.");
+    return;
+  }
+  if (!window.XLSX) {
+    showToast("Excel export library is still loading. Please try again.");
+    return;
+  }
+  if (!window.MarkHubFirebase?.getAppStateOnce) {
+    showToast("Firestore is not ready for Excel export.");
+    return;
+  }
+
+  const button = els.exportExcelBtn;
+  const previousLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Exporting...";
+  }
+
+  const previousState = state;
+  const uiState = captureUiState();
+
+  try {
+    const remoteState = await window.MarkHubFirebase.getAppStateOnce();
+    let exportPackage = null;
+
+    if (remoteState) {
+      state = normalizeState(remoteState);
+      exportPackage = buildExcelExportFromAppState();
+    } else if (window.MarkHubFirebase?.getAllResultsOnce) {
+      const resultDocs = await window.MarkHubFirebase.getAllResultsOnce();
+      exportPackage = buildExcelExportFromResultDocs(resultDocs);
+    }
+
+    if (!exportPackage || exportPackage.rows.length === 0) {
+      showToast("No Firestore result data found to export.");
+      return;
+    }
+
+    downloadExcelWorkbook(exportPackage.rows, exportPackage.headers);
+    showToast("Excel file exported successfully.");
+  } catch (error) {
+    console.error("[Firestore] Excel export failed", error);
+    showToast("Could not export Excel file. Please try again.");
+  } finally {
+    state = previousState;
+    applyRemoteStateToCurrentView(uiState);
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel || "Export to Excel";
+    }
+  }
+}
+
+function buildExcelExportFromAppState() {
+  const headers = [
+    "Academic Session",
+    "Exam",
+    "Roll Number",
+    "Name",
+    "Class",
+    "Percentage",
+    "Division",
+    "Result",
+    "Total",
+    "Full Marks"
+  ];
+  const rows = [];
+
+  Object.keys(state.classes || {}).forEach((className) => {
+    currentExams(className).forEach((exam) => {
+      runWithExportSelection(className, exam, () => {
+        const students = [...(state.classes[className] || [])].sort((a, b) => a.roll - b.roll);
+        students.forEach((student) => {
+          const record = calculateExcelResultRecord(student);
+          const row = {
+            "Academic Session": state.academicSession,
+            Exam: exam,
+            "Roll Number": student.roll,
+            Name: student.name,
+            Class: className,
+            Percentage: record.percentage === "-" ? "-" : `${record.percentage}%`,
+            Division: record.outcome.division,
+            Result: record.outcome.result,
+            Total: record.total,
+            "Full Marks": record.maximumTotal
+          };
+          addExcelSubjectMarks(row, headers, student, record);
+          rows.push(row);
+        });
+      });
+    });
+  });
+
+  return { headers, rows };
+}
+
+function buildExcelExportFromResultDocs(resultDocs) {
+  const headers = ["Roll Number"];
+  const rows = resultDocs.map((result) => {
+    const row = { "Roll Number": result.id || "" };
+    Object.entries(result).forEach(([key, value]) => {
+      if (key === "id") return;
+      addExcelHeader(headers, key);
+      row[key] = value ?? "";
+    });
+    return row;
+  });
+  return { headers, rows };
+}
+
+function runWithExportSelection(className, exam, callback) {
+  const previousClass = els.classSelect.value;
+  const previousExam = els.examSelect.value;
+  const previousSubject = els.subjectSelect.value;
+
+  els.classSelect.value = className;
+  updateExamSelect();
+  setSelectValueIfAvailable(els.examSelect, exam);
+  updateSubjectSelect();
+
+  try {
+    return callback();
+  } finally {
+    setSelectValueIfAvailable(els.classSelect, previousClass);
+    updateExamSelect();
+    setSelectValueIfAvailable(els.examSelect, previousExam);
+    updateSubjectSelect();
+    setSelectValueIfAvailable(els.subjectSelect, previousSubject);
+  }
+}
+
+function calculateExcelResultRecord(student) {
+  if (isStructuredResultSheet()) return calculateStructuredExcelRecord(student);
+
+  const subjects = currentSubjects();
+  const subjectsForMarks = markSubjects();
+  const values = subjects.map((subject) => getStudentMark(student, subject).value);
+  const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
+  const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
+  const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
+  const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+  const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
+  const maximumTotal = marksMaximum(subjectsForMarks);
+  const percentage = roundUpPercentage(total, maximumTotal);
+  const appeared = values.some((value) => value !== "");
+  const calculatedOutcome = calculateOutcome(resultMarkValues, getPassMarks(), Number(percentage), selectedClass(), selectedExam(), gradeValues);
+
+  return {
+    total,
+    maximumTotal,
+    percentage,
+    outcome: appeared ? calculatedOutcome : emptyResultOutcome(),
+    appeared,
+    structured: false
+  };
+}
+
+function calculateStructuredExcelRecord(student) {
+  const subjects = currentSubjects();
+  const structure = getTermSubjectStructure(subjects);
+  const highThirdTermSheet = isHighThirdTermResult();
+  const subjectResults = structure.groups.map((group) => getStructuredSubjectResult(student, group));
+  const standaloneResults = structure.standalone.map((subject) => getStructuredStandaloneResult(student, subject));
+  const resultSubjects = highThirdTermSheet
+    ? subjectResults.map((subjectResult) => ({
+      value: subjectResult.total,
+      failed: subjectResult.activities === "" || numericMark(subjectResult.activities) < 7
+        || subjectResult.exam === "" || numericMark(subjectResult.exam) < 26
+    }))
+    : subjectResults.map((subjectResult) => subjectResult.total);
+  const gradeValues = standaloneResults.filter((subjectResult) => subjectResult.graded).map((subjectResult) => subjectResult.value);
+  const total = Math.round(subjectResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0)
+    + standaloneResults.filter((subjectResult) => subjectResult.countsForTotal)
+      .reduce((sum, subjectResult) => sum + numericMark(subjectResult.value), 0));
+  const maximumTotal = (subjectResults.length * 100)
+    + standaloneResults.filter((subjectResult) => subjectResult.countsForTotal)
+      .reduce((sum, subjectResult) => sum + subjectResult.maxMarks, 0);
+  const percentage = roundUpPercentage(total, maximumTotal);
+  const appeared = subjectResults.some((subjectResult) => subjectResult.hasMark)
+    || standaloneResults.some((subjectResult) => subjectResult.value !== "");
+
+  return {
+    total,
+    maximumTotal,
+    percentage,
+    outcome: appeared ? calculateStructuredTermOutcome(resultSubjects, Number(percentage), gradeValues) : emptyResultOutcome(),
+    appeared,
+    structured: true,
+    structure,
+    subjectResults,
+    standaloneResults
+  };
+}
+
+function addExcelSubjectMarks(row, headers, student, record) {
+  marksEntrySubjects(selectedClass(), selectedExam()).forEach((subject) => {
+    const mark = getStudentMark(student, subject);
+    addExcelHeader(headers, subject);
+    row[subject] = mark.value ?? "";
+
+    if (mark.partA !== undefined || mark.partB !== undefined) {
+      addExcelHeader(headers, `${subject} Part A`);
+      addExcelHeader(headers, `${subject} Part B`);
+      row[`${subject} Part A`] = mark.partA ?? "";
+      row[`${subject} Part B`] = mark.partB ?? "";
+    }
+  });
+
+  if (!record.structured) return;
+
+  record.structure.groups.forEach((group, index) => {
+    const subjectResult = record.subjectResults[index];
+    const prefix = group.name;
+    const componentNames = isHighThirdTermResult()
+      ? ["F.A.", "S.A.", "Total"]
+      : selectedExam() === "Third Term"
+        ? ["First Term (30%)", "Second Term (30%)", "Third Term (40%)", "Total"]
+        : ["Activities", "Unit Test", "Exam", "Total"];
+    const componentValues = isHighThirdTermResult()
+      ? [subjectResult.activities, subjectResult.exam, subjectResult.total]
+      : [subjectResult.activities, subjectResult.unitTest, subjectResult.exam, subjectResult.total];
+
+    componentNames.forEach((componentName, componentIndex) => {
+      const header = `${prefix} ${componentName}`;
+      addExcelHeader(headers, header);
+      row[header] = componentValues[componentIndex] ?? "";
+    });
+  });
+}
+
+function addExcelHeader(headers, header) {
+  if (!headers.includes(header)) headers.push(header);
+}
+
+function downloadExcelWorkbook(rows, headers) {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+  worksheet["!cols"] = headers.map((header) => ({
+    wch: Math.max(12, Math.min(32, String(header).length + 3))
+  }));
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+  XLSX.writeFile(workbook, `Results_${todayStamp()}.xlsx`);
+}
+
+function todayStamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function downloadStudentCsvTemplate() {
   const rows = [
     ["Roll No.", "ID No.", "Name", "Date of Birth", "Father's Name", "Mother's Name", "Address", "PEN", "Aadhaar No."],
@@ -2897,9 +3414,8 @@ async function importMarksCsv(event) {
   try {
     const rows = parseCsv(await file.text());
     const result = mergeMarksFromCsv(rows);
-    saveState();
     render();
-    showToast(`${result.updated} marks updated, ${result.skipped} rows skipped.`);
+    showToast(`${result.updated} marks imported, ${result.skipped} rows skipped. Click Save All Marks to save.`);
   } catch (error) {
     showToast(error.message || "Could not import marks CSV.");
   } finally {
@@ -2952,7 +3468,7 @@ function mergeMarksFromCsv(rows) {
         skipped += 1;
         return;
       }
-      setStudentMark(roll, { value: grade });
+      setStudentMark(roll, { value: grade }, { save: false });
       updated += 1;
       return;
     }
@@ -2975,7 +3491,7 @@ function mergeMarksFromCsv(rows) {
         partA: rawPartA === "" ? "" : partA,
         partB: rawPartB === "" ? "" : partB,
         value
-      });
+      }, { save: false });
       updated += 1;
       return;
     }
@@ -2993,9 +3509,9 @@ function mergeMarksFromCsv(rows) {
         getWorkingDays(),
         selectedClass()
       );
-      setStudentMark(roll, { project: mark, value: mark + attendanceMarks });
+      setStudentMark(roll, { project: mark, value: mark + attendanceMarks }, { save: false });
     } else {
-      setStudentMark(roll, { value: mark });
+      setStudentMark(roll, { value: mark }, { save: false });
     }
     updated += 1;
   });
@@ -3187,6 +3703,9 @@ function resetDemo() {
     showToast("Only admin can reset data.");
     return;
   }
+  if (hasUnsavedMarkChanges() && !window.confirm("You have unsaved marks. Reset without saving?")) return;
+  unsavedMarkChanges.clear();
+  deferredFullStateSaveAfterMarks = false;
   state = structuredClone(defaultState);
   saveState();
   els.academicSessionInput.value = state.academicSession;
@@ -3210,9 +3729,9 @@ function clearMarks() {
   if (!window.confirm(`Clear all ${subject} marks for ${className} ${exam}?`)) return;
   state.marks[key] = {};
   delete state.marks[key];
-  saveState();
+  trackSubjectMarksCleared(className, exam, subject);
   render();
-  showToast(`${subject} marks cleared.`);
+  showToast(`${subject} marks cleared. Click Save All Marks to save.`);
 }
 
 function addStudent(event) {

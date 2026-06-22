@@ -3,6 +3,7 @@
   const terms = ["First Term", "Second Term", "Third Term"];
   const fallbackSession = "2026 - 2027";
   const tableBody = document.querySelector("#perfectAttendanceBody");
+  let unsubscribeAppState = null;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -92,7 +93,61 @@
     }
   }
 
+  function renderPerfectAttendanceFromState(state) {
+    if (!tableBody) return;
+
+    try {
+      const data = getActiveSessionData(state || {});
+      localStorage.setItem(storageKey, JSON.stringify(state || {}));
+      renderStudents(getPerfectAttendanceStudents(data));
+    } catch {
+      renderEmpty("Could not read attendance data from Firestore.");
+    }
+  }
+
+  function startFirestoreAttendanceListener(attempt = 0) {
+    if (unsubscribeAppState) return;
+
+    if (!window.MarkHubFirebase?.listenAppState) {
+      if (attempt < 80) {
+        setTimeout(() => startFirestoreAttendanceListener(attempt + 1), 250);
+      } else {
+        console.warn("[Firestore] 100% Attendance page could not start live listener; using local data only.");
+      }
+      return;
+    }
+
+    unsubscribeAppState = window.MarkHubFirebase.listenAppState(
+      (remoteState) => {
+        console.log("[Firestore] 100% Attendance page received live appState update.");
+        if (remoteState) {
+          renderPerfectAttendanceFromState(remoteState);
+        } else {
+          renderPerfectAttendance();
+        }
+      },
+      (error) => {
+        console.error("[Firestore] 100% Attendance listener error", error);
+        renderPerfectAttendance();
+      }
+    );
+  }
+
+  function stopFirestoreAttendanceListener() {
+    if (typeof unsubscribeAppState === "function") unsubscribeAppState();
+    unsubscribeAppState = null;
+  }
+
   renderPerfectAttendance();
+  startFirestoreAttendanceListener();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      stopFirestoreAttendanceListener();
+    } else {
+      renderPerfectAttendance();
+      startFirestoreAttendanceListener();
+    }
+  });
   window.addEventListener("storage", (event) => {
     if (event.key === storageKey) renderPerfectAttendance();
   });
