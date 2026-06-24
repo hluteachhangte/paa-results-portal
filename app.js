@@ -1352,10 +1352,11 @@ function syncStudentsClassSelect() {
 }
 
 function handleEnterAsTab(event) {
-  if (event.key !== "Enter" || event.isComposing) return;
+  if (!["Enter", "Tab"].includes(event.key) || event.isComposing) return;
   const target = event.target;
   if (!(target instanceof HTMLInputElement) || target.type === "hidden") return;
   if (!target.closest("#entryView.active, #attendanceView.active, #studentsView.active")) return;
+  const direction = event.shiftKey ? -1 : 1;
 
   const fields = [...document.querySelectorAll(
     "#entryView.active input:not([type='hidden']), #attendanceView.active input:not([type='hidden']), #studentsView.active input:not([type='hidden'])"
@@ -1364,8 +1365,8 @@ function handleEnterAsTab(event) {
   if (currentIndex === -1) return;
 
   event.preventDefault();
-  const verticalField = getVerticalEnterTarget(target);
-  const nextField = verticalField || fields[Math.min(currentIndex + 1, fields.length - 1)];
+  const verticalField = getVerticalEnterTarget(target, direction);
+  const nextField = verticalField || fields[clamp(currentIndex + direction, 0, fields.length - 1)];
   if (isEntryMarkInput(target)) {
     target.dispatchEvent(new Event("input", { bubbles: true }));
     if (nextField instanceof HTMLInputElement) {
@@ -1386,13 +1387,13 @@ function handleEnterAsTab(event) {
   }, 0);
 }
 
-function getVerticalEnterTarget(input) {
+function getVerticalEnterTarget(input, direction = 1) {
   const selector = getVerticalEnterSelector(input);
   if (!selector) return null;
   const fields = [...document.querySelectorAll(selector)]
     .filter((field) => field instanceof HTMLInputElement && !field.disabled && !field.readOnly && field.offsetParent !== null);
   const currentIndex = fields.indexOf(input);
-  return currentIndex === -1 ? null : fields[Math.min(currentIndex + 1, fields.length - 1)] || null;
+  return currentIndex === -1 ? null : fields[clamp(currentIndex + direction, 0, fields.length - 1)] || null;
 }
 
 function getVerticalEnterSelector(input) {
@@ -2639,7 +2640,7 @@ function renderMarksheets() {
           ${studentDetail("Name", student.name)}
           ${studentDetail("Roll No.", student.roll)}
           ${studentDetail("ID No.", student.idNo)}
-          ${studentDetail("D.O.B.", student.dateOfBirth)}
+          ${studentDetail("D.O.B.", formatDisplayDate(student.dateOfBirth))}
           ${studentDetail("Father's Name", student.fatherName)}
           ${studentDetail("Mother's Name", student.motherName)}
           ${studentDetail("Address", student.address)}

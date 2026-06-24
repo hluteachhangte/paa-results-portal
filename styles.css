@@ -102,6 +102,10 @@ svg {
   white-space: nowrap;
 }
 
+#exportExcelBtn {
+  font-size: 0.85rem;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -416,6 +420,18 @@ body.entry-active #entryView .ghost-button {
   min-height: 32px;
   padding: 0 10px;
   font-size: 0.76rem;
+}
+
+#saveMarksBtn,
+#clearMarksBtn,
+#saveAttendanceBtn,
+#clearAttendanceBtn {
+  min-width: 58px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 0.74rem;
+  line-height: 1;
 }
 
 body.results-active #mainFilters,
@@ -1970,6 +1986,18 @@ th:first-child {
     margin-top: 2px;
     padding: 2px 4px;
     font-size: 0.68rem;
+  }
+
+  body.entry-active #saveMarksBtn,
+  body.entry-active #clearMarksBtn,
+  body.attendance-active #saveAttendanceBtn,
+  body.attendance-active #clearAttendanceBtn {
+    flex: 0 0 auto;
+    min-width: 48px;
+    min-height: 28px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 0.58rem;
   }
 
   .students-class-filter {
