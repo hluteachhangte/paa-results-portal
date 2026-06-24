@@ -93,6 +93,8 @@ let lastSyncedFirebaseStateJson = "";
 const firebaseStateSaveDelay = 900;
 const unsavedMarkChanges = new Map();
 let marksSaveInProgress = false;
+let unsavedAttendanceChanges = false;
+let attendanceSaveInProgress = false;
 let deferredFullStateSaveAfterMarks = false;
 const firebaseResultListeners = {
   app: null,
@@ -119,6 +121,7 @@ const els = {
   examField: document.querySelector("#examField"),
   subjectField: document.querySelector("#subjectField"),
   workingDaysInput: document.querySelector("#workingDaysInput"),
+  saveAttendanceBtn: document.querySelector("#saveAttendanceBtn"),
   clearAttendanceBtn: document.querySelector("#clearAttendanceBtn"),
   attendanceClassSelect: document.querySelector("#attendanceClassSelect"),
   attendanceTermSelect: document.querySelector("#attendanceTermSelect"),
@@ -327,9 +330,9 @@ function activityExamSubjects(subjects, finalSubject) {
 function saveState() {
   syncActiveSessionData();
   localStorage.setItem(storageKey, JSON.stringify(state));
-  if (hasUnsavedMarkChanges()) {
+  if (hasUnsavedLocalChanges()) {
     deferredFullStateSaveAfterMarks = true;
-    console.log("[Firestore] App state save deferred until unsaved marks are saved.");
+    console.log("[Firestore] App state save deferred until unsaved local changes are saved.");
     return;
   }
   queueFirebaseStateSave();
@@ -381,11 +384,60 @@ function refreshMarksSaveControls() {
   if (!els.saveMarksBtn) return;
   const changedCount = unsavedMarkChanges.size;
   els.saveMarksBtn.disabled = marksSaveInProgress || changedCount === 0;
-  els.saveMarksBtn.textContent = marksSaveInProgress ? "Saving..." : "Save All Marks";
+  els.saveMarksBtn.textContent = marksSaveInProgress ? "Saving..." : "Save";
   if (els.entrySaveHint) {
     els.entrySaveHint.textContent = changedCount
-      ? `${changedCount} unsaved mark ${changedCount === 1 ? "change" : "changes"}. Click Save All Marks.`
-      : "Enter marks, then click Save All Marks.";
+      ? `${changedCount} unsaved mark ${changedCount === 1 ? "change" : "changes"}. Click Save.`
+      : "Enter marks, then click Save.";
+  }
+}
+
+function hasUnsavedAttendanceChanges() {
+  return unsavedAttendanceChanges;
+}
+
+function hasUnsavedLocalChanges() {
+  return hasUnsavedMarkChanges() || hasUnsavedAttendanceChanges();
+}
+
+function trackUnsavedAttendanceChange() {
+  unsavedAttendanceChanges = true;
+  syncActiveSessionData();
+  refreshAttendanceSaveControls();
+}
+
+function refreshAttendanceSaveControls() {
+  if (!els.saveAttendanceBtn) return;
+  els.saveAttendanceBtn.disabled = attendanceSaveInProgress || !unsavedAttendanceChanges;
+  els.saveAttendanceBtn.textContent = attendanceSaveInProgress ? "Saving..." : "Save";
+}
+
+async function saveAttendanceData() {
+  if (attendanceSaveInProgress) return;
+  if (hasUnsavedMarkChanges()) {
+    showToast("Save marks before saving attendance.");
+    return;
+  }
+  if (!unsavedAttendanceChanges) {
+    showToast("No attendance changes to save.");
+    return;
+  }
+
+  attendanceSaveInProgress = true;
+  refreshAttendanceSaveControls();
+
+  try {
+    syncActiveSessionData();
+    unsavedAttendanceChanges = false;
+    saveState();
+    showToast("Attendance saved successfully.");
+  } catch (error) {
+    unsavedAttendanceChanges = true;
+    console.error("[Firestore] Save attendance failed", error);
+    showToast("Could not save attendance. Please try again.");
+  } finally {
+    attendanceSaveInProgress = false;
+    refreshAttendanceSaveControls();
   }
 }
 
@@ -456,7 +508,7 @@ async function saveAllMarks() {
     unsavedMarkChanges.clear();
     showToast("Marks saved successfully.");
   } catch (error) {
-    console.error("[Firestore] Save All Marks failed", error);
+    console.error("[Firestore] Save marks failed", error);
     showToast("Could not save marks. Please try again.");
   } finally {
     marksSaveInProgress = false;
@@ -569,8 +621,8 @@ function startFirebaseStateSync(attempt = 0) {
   firebaseStateSyncStarted = true;
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
-    if (hasUnsavedMarkChanges()) {
-      console.log("[Firestore] App state update held because marks have unsaved local changes.");
+    if (hasUnsavedLocalChanges()) {
+      console.log("[Firestore] App state update held because the page has unsaved local changes.");
       return;
     }
     if (!remoteState) {
@@ -767,12 +819,14 @@ function handleLogin(event) {
 }
 
 function logout() {
-  if (hasUnsavedMarkChanges() && !window.confirm("You have unsaved marks. Leave without saving?")) return;
+  if (hasUnsavedLocalChanges() && !window.confirm("You have unsaved changes. Leave without saving?")) return;
   flushFirebaseStateSave(true);
   stopFirebaseStateSync();
   unsavedMarkChanges.clear();
+  unsavedAttendanceChanges = false;
   deferredFullStateSaveAfterMarks = false;
   refreshMarksSaveControls();
+  refreshAttendanceSaveControls();
   saveCurrentUser(null);
   showToast("Logged out.");
 }
@@ -1061,10 +1115,14 @@ function getStudentAttendance(student, className = selectedClass(), exam = selec
   return classAttendance[String(student.roll)] ?? "";
 }
 
-function setStudentAttendance(roll, value, className = selectedClass(), exam = selectedExam()) {
+function setStudentAttendance(roll, value, className = selectedClass(), exam = selectedExam(), options = {}) {
   const key = attendanceKey(className, exam);
   state.attendance[key] = state.attendance[key] || {};
   state.attendance[key][String(roll)] = value;
+  if (options.save === false) {
+    trackUnsavedAttendanceChange();
+    return;
+  }
   saveState();
 }
 
@@ -1092,13 +1150,17 @@ function getStudentMeasurement(student, className = selectedClass(), exam = sele
   return classMeasurements[String(student.roll)] || { height: "", weight: "" };
 }
 
-function setStudentMeasurement(roll, patch, className = selectedClass(), exam = selectedExam()) {
+function setStudentMeasurement(roll, patch, className = selectedClass(), exam = selectedExam(), options = {}) {
   const key = attendanceKey(className, exam);
   state.measurements[key] = state.measurements[key] || {};
   state.measurements[key][String(roll)] = {
     ...(state.measurements[key][String(roll)] || {}),
     ...patch
   };
+  if (options.save === false) {
+    trackUnsavedAttendanceChange();
+    return;
+  }
   saveState();
 }
 
@@ -1172,9 +1234,10 @@ function init() {
   els.workingDaysInput.addEventListener("change", () => {
     const value = Number(els.workingDaysInput.value);
     state.workingDays[selectedAttendanceTerm()] = Number.isFinite(value) && value >= 0 ? value : 0;
-    saveState();
+    trackUnsavedAttendanceChange();
     renderAttendance();
   });
+  els.saveAttendanceBtn?.addEventListener("click", saveAttendanceData);
   els.clearAttendanceBtn.addEventListener("click", clearAttendanceData);
 
   els.academicSessionInput.addEventListener("change", () => {
@@ -1236,7 +1299,7 @@ function init() {
     }
   });
   window.addEventListener("beforeunload", (event) => {
-    if (hasUnsavedMarkChanges()) {
+    if (hasUnsavedLocalChanges()) {
       event.preventDefault();
       event.returnValue = "";
       return "";
@@ -1301,7 +1364,8 @@ function handleEnterAsTab(event) {
   if (currentIndex === -1) return;
 
   event.preventDefault();
-  const nextField = fields[Math.min(currentIndex + 1, fields.length - 1)];
+  const verticalField = getVerticalEnterTarget(target);
+  const nextField = verticalField || fields[Math.min(currentIndex + 1, fields.length - 1)];
   if (isEntryMarkInput(target)) {
     target.dispatchEvent(new Event("input", { bubbles: true }));
     if (nextField instanceof HTMLInputElement) {
@@ -1322,8 +1386,30 @@ function handleEnterAsTab(event) {
   }, 0);
 }
 
+function getVerticalEnterTarget(input) {
+  const selector = getVerticalEnterSelector(input);
+  if (!selector) return null;
+  const fields = [...document.querySelectorAll(selector)]
+    .filter((field) => field instanceof HTMLInputElement && !field.disabled && !field.readOnly && field.offsetParent !== null);
+  const currentIndex = fields.indexOf(input);
+  return currentIndex === -1 ? null : fields[Math.min(currentIndex + 1, fields.length - 1)] || null;
+}
+
+function getVerticalEnterSelector(input) {
+  if (input.dataset.partRoll !== undefined) {
+    return `#entryView.active [data-part-key="${CSS.escape(input.dataset.partKey || "")}"]`;
+  }
+  if (input.dataset.attendanceRoll !== undefined) return "#attendanceView.active [data-attendance-roll]";
+  if (input.dataset.heightRoll !== undefined) return "#attendanceView.active [data-height-roll]";
+  if (input.dataset.weightRoll !== undefined) return "#attendanceView.active [data-weight-roll]";
+  return "";
+}
+
 function getInputRestoreSelector(input) {
   if (!(input instanceof HTMLInputElement)) return "";
+  if (input.dataset.partRoll !== undefined) {
+    return `[data-part-roll="${CSS.escape(input.dataset.partRoll)}"][data-part-key="${CSS.escape(input.dataset.partKey || "")}"]`;
+  }
   const dataKeys = [
     "roll",
     "projectRoll",
@@ -1528,8 +1614,8 @@ function normalizeNumberInputValue(input, limit, showWarning, message) {
       showToast(message);
       input.dataset.warnedLimit = String(limit);
     }
-    input.value = limit;
-    return limit;
+    input.value = "";
+    return "";
   }
   delete input.dataset.warnedLimit;
   const value = clamp(numericValue, 0, limit);
@@ -1542,14 +1628,14 @@ function saveEntryInputInPlace(input, options = {}) {
   const { showWarning = false } = options;
   if (input.dataset.roll !== undefined) {
     const limit = getMarkWarningLimit();
-    const value = normalizeNumberInputValue(input, limit, showWarning, `${selectedSubject()} marks cannot be more than ${limit}.`);
+    const value = normalizeNumberInputValue(input, limit, showWarning, `Entry value is higher than the limit of ${limit} for ${selectedSubject()}.`);
     setStudentMark(input.dataset.roll, { value }, { save: false });
     updateEntryRow(input);
     return;
   }
 
   if (input.dataset.projectRoll !== undefined) {
-    const project = normalizeNumberInputValue(input, 15, showWarning, "Project, Assign., Book Maintenance marks cannot be more than 15.");
+    const project = normalizeNumberInputValue(input, 15, showWarning, "Entry value is higher than the limit of 15 for Project, Assign., Book Maintenance.");
     const student = { roll: input.dataset.projectRoll };
     const attendanceMarks = getAttendanceMarks(
       getStudentAttendance(student),
@@ -1607,14 +1693,13 @@ function saveSplitPartInput(input, showWarning = false) {
   }
 
   if (currentValue !== "" && currentNumber + otherNumber > limit) {
-    const allowedValue = roundMarkTotal(Math.max(0, limit - otherNumber));
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
-      showToast(`${selectedSubject()} Part A and Part B total cannot be more than ${limit}.`);
+      showToast(`Entry value is higher than the limit of ${limit} for ${selectedSubject()}.`);
       input.dataset.warnedLimit = String(limit);
     }
-    input.value = allowedValue;
-    if (partKey === "partA") partA = String(allowedValue);
-    if (partKey === "partB") partB = String(allowedValue);
+    input.value = "";
+    if (partKey === "partA") partA = "";
+    if (partKey === "partB") partB = "";
   } else {
     delete input.dataset.warnedLimit;
   }
@@ -1728,7 +1813,7 @@ function renderAttendance() {
     input.addEventListener("change", () => {
       const value = input.value === "" ? "" : clamp(Number(input.value), 0, getWorkingDays(term));
       input.value = value;
-      setStudentAttendance(input.dataset.attendanceRoll, value, className, term);
+      setStudentAttendance(input.dataset.attendanceRoll, value, className, term, { save: false });
       renderAttendance();
     });
   });
@@ -1744,15 +1829,17 @@ function renderAttendance() {
         input.value = getStudentMeasurement({ roll: input.dataset.heightRoll }, className, term).height;
         return;
       }
-      setStudentMeasurement(input.dataset.heightRoll, { height: input.value }, className, term);
+      setStudentMeasurement(input.dataset.heightRoll, { height: input.value }, className, term, { save: false });
     });
   });
 
   document.querySelectorAll("[data-weight-roll]").forEach((input) => {
     input.addEventListener("change", () => {
-      setStudentMeasurement(input.dataset.weightRoll, { weight: input.value }, className, term);
+      setStudentMeasurement(input.dataset.weightRoll, { weight: input.value }, className, term, { save: false });
     });
   });
+
+  refreshAttendanceSaveControls();
 }
 
 function clearAttendanceData() {
@@ -1762,9 +1849,9 @@ function clearAttendanceData() {
   const key = attendanceKey(className, term);
   delete state.attendance[key];
   delete state.measurements[key];
-  saveState();
+  trackUnsavedAttendanceChange();
   renderAttendance();
-  showToast(`${className} ${term} attendance data cleared.`);
+  showToast(`${className} ${term} attendance data cleared. Click Save to save.`);
 }
 
 function getPreviousTerm(term) {
@@ -2870,6 +2957,7 @@ function printView(view) {
 }
 
 function renderStudents() {
+  const admin = isAdmin();
   els.studentsBody.innerHTML = sortedStudents().map((student) => `
     <tr>
       <td>${student.roll}</td>
@@ -2882,10 +2970,10 @@ function renderStudents() {
       <td>${escapeHtml(student.pen || "-")}</td>
       <td>${escapeHtml(student.aadhaarNo || "-")}</td>
       <td>
-        <div class="row-actions">
+        ${admin ? `<div class="row-actions">
           <button class="ghost-button" type="button" data-edit-roll="${student.roll}">Edit</button>
           <button class="ghost-button danger" type="button" data-remove-roll="${student.roll}">Remove</button>
-        </div>
+        </div>` : "-"}
       </td>
     </tr>
   `).join("");
@@ -3028,8 +3116,8 @@ function publishCurrentResult() {
     showToast("Only admin can publish results.");
     return;
   }
-  if (hasUnsavedMarkChanges()) {
-    showToast("Save marks before publishing results.");
+  if (hasUnsavedLocalChanges()) {
+    showToast("Save changes before publishing results.");
     return;
   }
 
@@ -3046,8 +3134,8 @@ function unpublishCurrentResult() {
     showToast("Only admin can unpublish results.");
     return;
   }
-  if (hasUnsavedMarkChanges()) {
-    showToast("Save marks before unpublishing results.");
+  if (hasUnsavedLocalChanges()) {
+    showToast("Save changes before unpublishing results.");
     return;
   }
 
@@ -3115,8 +3203,8 @@ async function exportExcelFromFirestore() {
     showToast("Only admin can export Excel files.");
     return;
   }
-  if (hasUnsavedMarkChanges()) {
-    showToast("Save marks before exporting to Excel.");
+  if (hasUnsavedLocalChanges()) {
+    showToast("Save changes before exporting to Excel.");
     return;
   }
   if (!window.XLSX) {
@@ -3415,7 +3503,7 @@ async function importMarksCsv(event) {
     const rows = parseCsv(await file.text());
     const result = mergeMarksFromCsv(rows);
     render();
-    showToast(`${result.updated} marks imported, ${result.skipped} rows skipped. Click Save All Marks to save.`);
+    showToast(`${result.updated} marks imported, ${result.skipped} rows skipped. Click Save to save.`);
   } catch (error) {
     showToast(error.message || "Could not import marks CSV.");
   } finally {
@@ -3703,8 +3791,9 @@ function resetDemo() {
     showToast("Only admin can reset data.");
     return;
   }
-  if (hasUnsavedMarkChanges() && !window.confirm("You have unsaved marks. Reset without saving?")) return;
+  if (hasUnsavedLocalChanges() && !window.confirm("You have unsaved changes. Reset without saving?")) return;
   unsavedMarkChanges.clear();
+  unsavedAttendanceChanges = false;
   deferredFullStateSaveAfterMarks = false;
   state = structuredClone(defaultState);
   saveState();
@@ -3731,7 +3820,7 @@ function clearMarks() {
   delete state.marks[key];
   trackSubjectMarksCleared(className, exam, subject);
   render();
-  showToast(`${subject} marks cleared. Click Save All Marks to save.`);
+  showToast(`${subject} marks cleared. Click Save to save.`);
 }
 
 function addStudent(event) {
