@@ -797,6 +797,8 @@ function renderAuth() {
   els.exportExcelBtn?.classList.toggle("hidden", !isAdmin());
   els.importMarksBtn.classList.toggle("hidden", !isAdmin());
   els.downloadMarksTemplateBtn.classList.toggle("hidden", !isAdmin());
+  els.importStudentsBtn?.classList.toggle("hidden", !isAdmin());
+  els.downloadStudentTemplateBtn?.classList.toggle("hidden", !isAdmin());
   els.academicSessionInput.disabled = !isAdmin();
 }
 
@@ -1514,7 +1516,7 @@ function renderEntry() {
         <th>Status</th>`
     : `<th>Roll No.</th><th>Student Name</th><th>Marks / Grade</th><th>Status</th>`;
 
-  els.marksBody.innerHTML = students.map((student) => {
+  els.marksBody.innerHTML = students.map((student, index) => {
     const mark = getStudentMark(student);
     const value = mark.value ?? "";
     const numericValue = Number(value);
@@ -1539,23 +1541,23 @@ function renderEntry() {
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
         ${activitiesSubject
-          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="0.01"
+          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="0.01" tabindex="${index + 1}"
                 value="${escapeAttr(mark.project ?? "")}" data-project-roll="${student.roll}"
                 aria-label="Project, assignment, and book maintenance marks for ${escapeAttr(student.name)}"></td>
             <td><strong>${mark.attendanceMarks}</strong></td>
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : splitPartSubject
-            ? `<td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
+            ? `<td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${escapeAttr(mark.partA ?? "")}" data-part-roll="${student.roll}" data-part-key="partA"
                 aria-label="Part A marks for ${escapeAttr(student.name)}"></td>
-            <td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
+            <td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${students.length + index + 1}"
                 value="${escapeAttr(mark.partB ?? "")}" data-part-roll="${student.roll}" data-part-key="partB"
                 aria-label="Part B marks for ${escapeAttr(student.name)}"></td>
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : `<td>
           ${gradeSubject
-            ? `<input class="mark-input" type="text" maxlength="1" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
-            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01"
+            ? `<input class="mark-input" type="text" maxlength="1" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
+            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
         <td><span class="status-pill ${status.className}">${status.label}</span></td>
@@ -1788,7 +1790,7 @@ function renderAttendance() {
   const students = [...(state.classes[className] || [])].sort((a, b) => a.roll - b.roll);
   const workingDays = getWorkingDays(term);
 
-  els.attendanceBody.innerHTML = students.map((student) => {
+  els.attendanceBody.innerHTML = students.map((student, index) => {
     const attendance = getStudentAttendance(student, className, term);
     const measurement = getStudentMeasurement(student, className, term);
     const previousTerm = getPreviousTerm(term);
@@ -1799,12 +1801,12 @@ function renderAttendance() {
       <tr>
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
-        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1"
+        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1" tabindex="${index + 1}"
           value="${attendance}" data-attendance-roll="${student.roll}" aria-label="Attendance for ${escapeAttr(student.name)}"></td>
         <td><strong>${attendanceMarks}</strong></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1" tabindex="${students.length + index + 1}"
           value="${measurement.height}" data-height-roll="${student.roll}" aria-label="Height for ${escapeAttr(student.name)}"></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" tabindex="${(students.length * 2) + index + 1}"
           value="${measurement.weight}" data-weight-roll="${student.roll}" aria-label="Weight for ${escapeAttr(student.name)}"></td>
       </tr>
     `;
@@ -3459,6 +3461,10 @@ function todayStamp() {
 }
 
 function downloadStudentCsvTemplate() {
+  if (!isAdmin()) {
+    showToast("Only admin can download student CSV templates.");
+    return;
+  }
   const rows = [
     ["Roll No.", "ID No.", "Name", "Date of Birth", "Father's Name", "Mother's Name", "Address", "PEN", "Aadhaar No."],
     [1, "ID-001", "Student Name", "2015-01-01", "Father Name", "Mother Name", "Address", "PEN", "Aadhaar No."]
@@ -3609,6 +3615,11 @@ function mergeMarksFromCsv(rows) {
 }
 
 async function importStudentsCsv(event) {
+  if (!isAdmin()) {
+    event.target.value = "";
+    showToast("Only admin can import students CSV.");
+    return;
+  }
   const file = event.target.files?.[0];
   if (!file) return;
 
