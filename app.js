@@ -152,6 +152,9 @@ let entryAccessDraft = normalizeEntryAccess(state.entryAccess);
 let attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
 let entryAccessDirty = false;
 let entryAccessSaveInProgress = false;
+let activePrintClass = "";
+let printCleanupTimer = null;
+let restoreMarksheetsAfterPrint = false;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -213,9 +216,11 @@ const els = {
   firebaseResultStatus: document.querySelector("#firebaseResultStatus"),
   firebaseResultCard: document.querySelector("#firebaseResultCard"),
   clearFirebaseResultBtn: document.querySelector("#clearFirebaseResultBtn"),
+  marksheetPrintArea: document.querySelector("#marksheet-print-area"),
   marksheetBody: document.querySelector("#marksheetBody"),
   marksheetNameSearchInput: document.querySelector("#marksheetNameSearchInput"),
-  printMarksheetsBtn: document.querySelector("#printMarksheetsBtn"),
+  printCurrentMarksheetBtn: document.querySelector("#printCurrentMarksheetBtn"),
+  printAllMarksheetsBtn: document.querySelector("#printAllMarksheetsBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
@@ -1543,7 +1548,8 @@ function init() {
   els.importMarksBtn.addEventListener("click", () => els.marksCsvInput.click());
   els.marksCsvInput.addEventListener("change", importMarksCsv);
   els.downloadMarksTemplateBtn.addEventListener("click", downloadMarksCsvTemplate);
-  els.printMarksheetsBtn.addEventListener("click", printMarksheets);
+  els.printCurrentMarksheetBtn?.addEventListener("click", printCurrentMarksheet);
+  els.printAllMarksheetsBtn?.addEventListener("click", printAllMarksheets);
   els.printResultsBtn.addEventListener("click", printResults);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
@@ -1562,6 +1568,7 @@ function init() {
     const routeView = viewFromLocationHash();
     if (routeView) switchView(routeView);
   });
+  window.addEventListener("afterprint", clearPrintMode);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushFirebaseStateSave(true);
@@ -2904,9 +2911,9 @@ function filteredMarksheetStudents(students) {
   return students.filter((student) => String(student.name || "").toLowerCase().includes(query));
 }
 
-function renderMarksheets() {
+function renderMarksheets({ ignoreSearch = false } = {}) {
   const allStudents = sortedStudents();
-  const students = filteredMarksheetStudents(allStudents);
+  const students = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
   const subjects = currentSubjects();
   const subjectsForMarks = markSubjects();
   const structuredTerm = isStructuredMarksheet();
@@ -3002,11 +3009,11 @@ function renderMarksheets() {
     const measurement = getStudentMeasurement(student);
 
     return `
-      <article class="marksheet${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}">
+      <article class="marksheet${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}">
         <div class="marksheet-title">
           <h3>PINEHILL ADVENTIST ACADEMY</h3>
           <p class="marksheet-location">CHAMPHAI : MIZORAM</p>
-          <p class="marksheet-session">${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())} Marksheet | Academic Session : ${escapeHtml(state.academicSession)}</p>
+          <p class="marksheet-session">${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())} Marksheet : Academic Session ${escapeHtml(state.academicSession)}</p>
         </div>
         <div class="student-details">
           ${studentDetail("Name", student.name)}
@@ -3305,12 +3312,43 @@ function saveResultsPdf() {
   printView("results");
 }
 
-function printMarksheets() {
+function printCurrentMarksheet() {
   if (!canViewResult()) {
     showToast("Publish the result before printing marksheets.");
     return;
   }
-  printView("marksheets");
+  if (!els.marksheetBody?.querySelector(".marksheet")) {
+    showToast("No marksheet available to print.");
+    return;
+  }
+  const currentMarksheet = getCurrentVisibleMarksheet();
+  if (!currentMarksheet) {
+    showToast("No marksheet available on the current screen.");
+    return;
+  }
+  clearCurrentPrintTarget();
+  currentMarksheet.classList.add("print-current-target");
+  startPrintMode("print-marksheets", "print-current-marksheet");
+}
+
+function printAllMarksheets() {
+  if (!canViewResult()) {
+    showToast("Publish the result before printing marksheets.");
+    return;
+  }
+  const hasSearch = Boolean((els.marksheetNameSearchInput?.value || "").trim());
+  if (hasSearch) {
+    restoreMarksheetsAfterPrint = true;
+    renderMarksheets({ ignoreSearch: true });
+  }
+  if (!els.marksheetBody?.querySelector(".marksheet")) {
+    restoreMarksheetsAfterPrint = false;
+    renderMarksheets();
+    showToast("No marksheet available to print.");
+    return;
+  }
+  clearCurrentPrintTarget();
+  startPrintMode("print-marksheets");
 }
 
 function saveMarksheetsPdf() {
@@ -3323,10 +3361,60 @@ function saveMarksheetsPdf() {
 }
 
 function printView(view) {
-  document.body.classList.remove("print-results", "print-marksheets");
-  document.body.classList.add(`print-${view}`);
-  window.print();
-  setTimeout(() => document.body.classList.remove(`print-${view}`), 0);
+  startPrintMode(`print-${view}`);
+}
+
+function getCurrentVisibleMarksheet() {
+  const marksheets = [...(els.marksheetBody?.querySelectorAll(".marksheet") || [])];
+  if (!marksheets.length) return null;
+  const viewport = els.marksheetPrintArea?.getBoundingClientRect?.()
+    || els.marksheetBody?.getBoundingClientRect?.()
+    || { top: 0, bottom: window.innerHeight };
+  let best = marksheets[0];
+  let bestVisible = -1;
+
+  marksheets.forEach((marksheet) => {
+    const rect = marksheet.getBoundingClientRect();
+    const visible = Math.max(0, Math.min(rect.bottom, viewport.bottom) - Math.max(rect.top, viewport.top));
+    if (visible > bestVisible) {
+      best = marksheet;
+      bestVisible = visible;
+    }
+  });
+
+  return best;
+}
+
+function clearCurrentPrintTarget() {
+  els.marksheetBody?.querySelectorAll(".print-current-target").forEach((marksheet) => {
+    marksheet.classList.remove("print-current-target");
+  });
+}
+
+function startPrintMode(printClass, extraClass = "") {
+  clearTimeout(printCleanupTimer);
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet");
+  activePrintClass = printClass;
+  document.body.classList.add(printClass);
+  if (extraClass) document.body.classList.add(extraClass);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+      printCleanupTimer = setTimeout(clearPrintMode, 30000);
+    });
+  });
+}
+
+function clearPrintMode() {
+  clearTimeout(printCleanupTimer);
+  printCleanupTimer = null;
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet");
+  clearCurrentPrintTarget();
+  activePrintClass = "";
+  if (restoreMarksheetsAfterPrint) {
+    restoreMarksheetsAfterPrint = false;
+    renderMarksheets();
+  }
 }
 
 function renderEntryAccessControl() {

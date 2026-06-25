@@ -138,6 +138,9 @@ svg {
   width: 112px;
   height: 112px;
   margin: 0 auto;
+  filter:
+    drop-shadow(0 18px 22px rgba(12, 48, 65, 0.26))
+    drop-shadow(0 6px 9px rgba(14, 118, 96, 0.2));
 }
 
 .brand-block h1,
@@ -449,7 +452,8 @@ body.marksheet-active #mainFilters select {
   font-size: 0.78rem;
 }
 
-body.marksheet-active #printMarksheetsBtn {
+body.marksheet-active #printCurrentMarksheetBtn,
+body.marksheet-active #printAllMarksheetsBtn {
   min-height: 32px;
   padding: 0 10px;
   font-size: 0.76rem;
@@ -504,11 +508,10 @@ body.marksheet-active #printMarksheetsBtn {
 }
 
 body.marksheet-active #marksheetBody {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 6px;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+  padding-right: 0;
 }
 
 body.entry-active #mainFilters {
@@ -1784,20 +1787,61 @@ th:first-child {
   gap: 24px;
 }
 
+.marksheet-print-area {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 .marksheet {
   border: 1px solid var(--line);
   border-radius: 8px;
   background-color: white;
-  background-image: url("./marksheet-background.jpg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
   color: #111;
-  padding: 22px;
+  font-size: 9pt;
+  padding: 34px 22px 22px;
   box-shadow: var(--shadow);
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
   zoom: var(--marksheet-zoom, 1);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.marksheet::before,
+.marksheet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.marksheet::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='24' viewBox='0 0 240 24'%3E%3Ctext x='0' y='17' fill='%2386b797' fill-opacity='0.22' font-family='Times New Roman, serif' font-size='14' font-weight='700' letter-spacing='0.8'%3EPINEHILL ADVENTIST ACADEMY%3C/text%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 240px 24px;
+  opacity: 0.66;
+}
+
+.marksheet::after {
+  background-image: url("./school-logo.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: min(56%, 105mm) auto;
+  opacity: 0.09;
+}
+
+.marksheet > * {
+  position: relative;
+  z-index: 1;
 }
 
 .marksheet-title {
@@ -1807,11 +1851,13 @@ th:first-child {
   margin-bottom: 16px;
   text-align: center;
   color: #111;
+  font-family: "Times New Roman", Times, serif;
 }
 
 .marksheet-title h3,
 .marksheet-title p {
   margin: 0;
+  font-size: 11pt;
 }
 
 .marksheet-title p {
@@ -1821,7 +1867,7 @@ th:first-child {
 
 .marksheet-title .marksheet-location {
   margin-top: 4px;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
   font-weight: 700;
 }
 
@@ -1852,19 +1898,20 @@ th:first-child {
 .student-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px 18px;
-  margin-bottom: 18px;
+  gap: 14px 18px;
+  margin-bottom: 22px;
 }
 
 .student-details div {
   color: #111;
   font-size: 0.84rem;
+  line-height: 1.28;
 }
 
 .student-details strong {
   display: block;
   color: #111;
-  margin-top: 3px;
+  margin-top: 6px;
 }
 
 .marksheet-summary {
@@ -1872,6 +1919,7 @@ th:first-child {
   flex-wrap: wrap;
   gap: 12px 24px;
   margin-top: 16px;
+  font-size: 10pt;
   font-weight: 700;
 }
 
@@ -1879,7 +1927,7 @@ th:first-child {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 24px;
-  margin-top: 7px;
+  margin-top: 12px;
   padding-top: 7px;
   border-top: 1px solid var(--line);
   color: #111;
@@ -1901,6 +1949,7 @@ th:first-child {
 
 .marksheet-measurements div:last-child {
   grid-column: 1 / -1;
+  margin-top: 8px;
 }
 
 .high-class-marksheet .marksheet-measurements {
@@ -1929,12 +1978,12 @@ th:first-child {
 }
 
 .marksheet.class-one-eight-marksheet .marksheet-measurements div {
-  font-size: 0.88rem;
+  font-size: 10pt;
 }
 
 .marksheet-measurements div {
   color: #111;
-  font-size: 0.8rem;
+  font-size: 10pt;
 }
 
 .marksheet-measurements strong {
@@ -1947,8 +1996,8 @@ th:first-child {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
-  margin-top: 54px;
-  font-size: 0.78rem;
+  margin-top: 82px;
+  font-size: 10pt;
   font-weight: 700;
   text-align: center;
 }
@@ -1956,6 +2005,14 @@ th:first-child {
 .marksheet-signatures span {
   border-top: 1px solid var(--ink);
   padding-top: 6px;
+}
+
+.upper-middle-marksheet .marksheet-signatures {
+  margin-top: 58px;
+}
+
+.class-six-marksheet .marksheet-signatures {
+  margin-top: 58px;
 }
 
 .structured-marksheet-table {
@@ -1967,10 +2024,12 @@ th:first-child {
 .structured-marksheet-table td {
   width: calc(100% / 7);
   padding: 9px 10px;
+  font-size: 11pt;
   text-align: center;
 }
 
 .structured-marksheet-table th {
+  font-size: 9pt;
   text-transform: uppercase;
 }
 
@@ -1995,12 +2054,14 @@ th:first-child {
 .lower-class-marksheet-table td {
   width: 25%;
   padding: 8px 10px;
+  font-size: 11pt;
   text-align: center;
 }
 
 .high-class-marksheet-table th,
 .lower-class-marksheet-table th {
   color: #111;
+  font-size: 9pt;
   text-transform: uppercase;
 }
 
@@ -2211,7 +2272,7 @@ th:first-child {
 
   body.marksheet-active #marksheetBody {
     max-height: none;
-    overflow: auto;
+    overflow: visible;
     padding-right: 0;
   }
 
@@ -3198,6 +3259,30 @@ th:first-child {
   }
 }
 
+@media (max-width: 768px) {
+  body.marksheet-active #marksheetView.active {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  body.marksheet-active .marksheet-print-area {
+    min-height: 0;
+    max-height: calc(100dvh - 190px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  body.marksheet-active #marksheetBody {
+    max-height: none;
+    overflow: visible;
+    touch-action: pan-y pinch-zoom;
+  }
+}
+
 @media print {
   body {
     background: white;
@@ -3387,10 +3472,6 @@ th:first-child {
     page-break-after: always;
     padding: 4mm;
     font-size: 8pt;
-    background-image: url("./marksheet-background.jpg") !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-    background-size: cover !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -3637,6 +3718,256 @@ th:first-child {
 @page marksheets-page {
   size: A5 portrait;
   margin: 5mm;
+}
+
+@media print {
+  body.print-marksheets {
+    page: marksheets-page;
+    width: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  body.print-marksheets * {
+    visibility: hidden;
+  }
+
+  body.print-marksheets #marksheet-print-area,
+  body.print-marksheets #marksheet-print-area * {
+    visibility: visible;
+  }
+
+  body.print-marksheets .sidebar,
+  body.print-marksheets .mobile-nav-bar,
+  body.print-marksheets .mobile-nav-overlay,
+  body.print-marksheets .mobile-nav-drawer,
+  body.print-marksheets .topbar,
+  body.print-marksheets #mainFilters,
+  body.print-marksheets .section-head,
+  body.print-marksheets .toast {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body.print-marksheets .app-shell,
+  body.print-marksheets .main-content,
+  body.print-marksheets #marksheetView,
+  body.print-marksheets #marksheet-print-area,
+  body.print-marksheets #marksheetBody {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.print-marksheets #marksheet-print-area {
+    page: marksheets-page;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+  }
+
+  body.print-marksheets .marksheet-list {
+    display: block !important;
+    gap: 0 !important;
+  }
+
+  body.print-marksheets .marksheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    max-height: none;
+    margin: 0 auto !important;
+    box-sizing: border-box;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 4mm 2mm 2mm !important;
+    overflow: visible;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+    zoom: 1 !important;
+    font-size: 9pt !important;
+    line-height: 1.08 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.print-marksheets .marksheet::before,
+  body.print-marksheets .marksheet::after {
+    display: block !important;
+    visibility: visible !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.print-marksheets .marksheet::before {
+    background-size: 44mm 4.5mm !important;
+    opacity: 0.62 !important;
+  }
+
+  body.print-marksheets .marksheet::after {
+    background-size: min(60%, 96mm) auto !important;
+    opacity: 0.085 !important;
+  }
+
+  body.print-current-marksheet .marksheet:not(.print-current-target) {
+    display: none !important;
+  }
+
+  body.print-marksheets .marksheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  body.print-marksheets .marksheet-title {
+    padding-bottom: 2mm !important;
+    margin-bottom: 2mm !important;
+    border-bottom-width: 1px;
+    font-family: "Times New Roman", Times, serif !important;
+  }
+
+  body.print-marksheets .marksheet-title h3 {
+    font-size: 11pt !important;
+    line-height: 1.05 !important;
+  }
+
+  body.print-marksheets .marksheet-title p {
+    margin-top: 1mm !important;
+    font-size: 11pt !important;
+    line-height: 1.18 !important;
+  }
+
+  body.print-marksheets .marksheet-title .marksheet-location {
+    margin-top: 1mm !important;
+    margin-bottom: 4mm !important;
+  }
+
+  body.print-marksheets .marksheet-title .marksheet-session {
+    margin-top: 2mm !important;
+  }
+
+  body.print-marksheets .student-details {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2mm 2mm !important;
+    margin-bottom: 3.4mm !important;
+  }
+
+  body.print-marksheets .student-details div {
+    font-size: 9pt !important;
+    line-height: 1.2 !important;
+  }
+
+  body.print-marksheets .marksheet-measurements div,
+  body.print-marksheets .marksheet.class-one-eight-marksheet .marksheet-measurements div {
+    font-size: 10pt !important;
+    line-height: 1.2 !important;
+  }
+
+  body.print-marksheets .student-details strong,
+  body.print-marksheets .marksheet-measurements strong {
+    margin-top: 1.25mm !important;
+  }
+
+  body.print-marksheets .table-wrap {
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  body.print-marksheets .marksheet table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse;
+  }
+
+  body.print-marksheets .structured-marksheet-table th,
+  body.print-marksheets .structured-marksheet-table td,
+  body.print-marksheets .high-class-marksheet-table th,
+  body.print-marksheets .high-class-marksheet-table td,
+  body.print-marksheets .lower-class-marksheet-table th,
+  body.print-marksheets .lower-class-marksheet-table td {
+    padding: 0.75mm 1mm !important;
+    height: 5.8mm !important;
+    font-size: 11pt !important;
+    line-height: 1.04 !important;
+    vertical-align: middle !important;
+  }
+
+  body.print-marksheets .structured-marksheet-table th,
+  body.print-marksheets .high-class-marksheet-table th,
+  body.print-marksheets .lower-class-marksheet-table th {
+    font-size: 9pt !important;
+  }
+
+  body.print-marksheets .structured-marksheet-table tr,
+  body.print-marksheets .high-class-marksheet-table tr,
+  body.print-marksheets .lower-class-marksheet-table tr {
+    height: 5.8mm !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.print-marksheets .marksheet-summary {
+    gap: 0.9mm 4mm !important;
+    margin-top: 2.6mm !important;
+    font-size: 10pt !important;
+  }
+
+  body.print-marksheets .marksheet-graded-subjects,
+  body.print-marksheets .high-third-term-marksheet .marksheet-graded-subjects,
+  body.print-marksheets .marksheet-graded-subjects.term-skill-development {
+    gap: 1mm 5mm !important;
+    margin-top: 2.4mm !important;
+    padding-top: 1.2mm !important;
+    font-size: 9pt !important;
+  }
+
+  body.print-marksheets .marksheet-measurements,
+  body.print-marksheets .high-class-marksheet .marksheet-measurements,
+  body.print-marksheets .high-third-term-marksheet .marksheet-measurements,
+  body.print-marksheets .lower-class-marksheet .marksheet-measurements,
+  body.print-marksheets .marksheet.class-one-eight-marksheet .marksheet-measurements {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 1.2mm 2mm !important;
+    margin-top: 1.8mm !important;
+    padding-top: 1.4mm !important;
+  }
+
+  body.print-marksheets .marksheet-measurements div:last-child {
+    grid-column: 1 / -1 !important;
+    margin-top: 2.4mm !important;
+  }
+
+  body.print-marksheets .marksheet-signatures,
+  body.print-marksheets .high-class-marksheet .marksheet-signatures {
+    gap: 5mm !important;
+    margin-top: 18mm !important;
+    font-size: 10pt !important;
+  }
+
+  body.print-marksheets .upper-middle-marksheet .marksheet-signatures {
+    margin-top: 10mm !important;
+  }
+
+  body.print-marksheets .class-six-marksheet .marksheet-signatures {
+    margin-top: 8mm !important;
+  }
+
+  body.print-marksheets .marksheet-signatures span {
+    padding-top: 2mm !important;
+  }
+
+  body.print-marksheets .failed-mark {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }
 
 .nav-tab-link {
