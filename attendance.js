@@ -1,8 +1,14 @@
 (function () {
   const storageKey = "results-desk-state-v1";
+  const authKey = "markhub-current-user-v1";
+  const mobileAuthKey = "markhub-mobile-current-user-v1";
   const terms = ["First Term", "Second Term", "Third Term"];
   const fallbackSession = "2026 - 2027";
   const tableBody = document.querySelector("#perfectAttendanceBody");
+  const mobileMenuBtn = document.querySelector("#mobileMenuBtn");
+  const mobileMenuCloseBtn = document.querySelector("#mobileMenuCloseBtn");
+  const mobileNavDrawer = document.querySelector("#mobileNavDrawer");
+  const mobileNavOverlay = document.querySelector("#mobileNavOverlay");
   let unsubscribeAppState = null;
 
   function escapeHtml(value) {
@@ -138,6 +144,68 @@
     unsubscribeAppState = null;
   }
 
+  function openMobileMenu() {
+    if (!mobileMenuBtn || !mobileNavDrawer || !mobileNavOverlay) return;
+    document.body.classList.add("mobile-nav-open");
+    mobileNavOverlay.hidden = false;
+    mobileNavDrawer.setAttribute("aria-hidden", "false");
+    mobileMenuBtn.setAttribute("aria-expanded", "true");
+  }
+
+  function closeMobileMenu() {
+    if (!mobileMenuBtn || !mobileNavDrawer || !mobileNavOverlay) return;
+    document.body.classList.remove("mobile-nav-open");
+    mobileNavDrawer.setAttribute("aria-hidden", "true");
+    mobileMenuBtn.setAttribute("aria-expanded", "false");
+    setTimeout(() => {
+      if (!document.body.classList.contains("mobile-nav-open")) {
+        mobileNavOverlay.hidden = true;
+      }
+    }, 220);
+  }
+
+  function setupMobileNavigation() {
+    if (!mobileMenuBtn || !mobileNavDrawer || !mobileNavOverlay) return;
+    mobileMenuBtn.addEventListener("click", openMobileMenu);
+    mobileMenuCloseBtn?.addEventListener("click", closeMobileMenu);
+    mobileNavOverlay.addEventListener("click", closeMobileMenu);
+    mobileNavDrawer.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", closeMobileMenu);
+    });
+
+    let touchStartX = null;
+    mobileNavDrawer.addEventListener("touchstart", (event) => {
+      touchStartX = event.touches?.[0]?.clientX ?? null;
+    }, { passive: true });
+    mobileNavDrawer.addEventListener("touchend", (event) => {
+      if (touchStartX === null) return;
+      const touchEndX = event.changedTouches?.[0]?.clientX ?? touchStartX;
+      if (touchEndX - touchStartX > 70) closeMobileMenu();
+      touchStartX = null;
+    }, { passive: true });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeMobileMenu();
+    });
+  }
+
+  function isAdminSignedIn() {
+    const saved = sessionStorage.getItem(mobileAuthKey) || localStorage.getItem(authKey);
+    if (!saved) return false;
+    try {
+      return JSON.parse(saved)?.role === "admin";
+    } catch {
+      return false;
+    }
+  }
+
+  function renderAdminOnlyLinks() {
+    document.querySelectorAll("[data-admin-only]").forEach((element) => {
+      element.classList.toggle("hidden", !isAdminSignedIn());
+    });
+  }
+
+  renderAdminOnlyLinks();
+  setupMobileNavigation();
   renderPerfectAttendance();
   startFirestoreAttendanceListener();
   document.addEventListener("visibilitychange", () => {

@@ -190,6 +190,162 @@ svg {
   color: #10231f;
 }
 
+.mobile-nav-bar,
+.mobile-nav-overlay,
+.mobile-nav-drawer {
+  display: none;
+}
+
+.mobile-nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #10231f;
+  color: white;
+  box-shadow: 0 10px 24px rgba(23, 32, 42, 0.18);
+}
+
+.mobile-nav-brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 900;
+}
+
+.mobile-nav-brand img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.mobile-nav-brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-menu-button,
+.mobile-menu-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-weight: 900;
+}
+
+.mobile-menu-button {
+  flex: 0 0 auto;
+  width: 44px;
+  min-height: 44px;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1240;
+  background: rgba(15, 23, 42, 0.48);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.mobile-nav-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1250;
+  width: min(340px, calc(100vw - 32px));
+  max-width: 100%;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: #10231f;
+  color: white;
+  box-shadow: -18px 0 42px rgba(23, 32, 42, 0.25);
+  transform: translateX(105%);
+  transition: transform 220ms ease;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.mobile-drawer-head strong,
+.mobile-drawer-head span {
+  display: block;
+}
+
+.mobile-drawer-head strong {
+  font-size: 1rem;
+}
+
+.mobile-drawer-head span {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mobile-menu-close {
+  width: 40px;
+  min-height: 40px;
+  font-size: 1.5rem;
+}
+
+.mobile-menu-group {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-menu-group > span {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-menu-group a,
+.mobile-menu-group button {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.84);
+  padding: 0 12px;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: none;
+}
+
+.mobile-menu-group a.active,
+.mobile-menu-group button.active {
+  background: white;
+  color: #10231f;
+}
+
 .publish-panel {
   margin-top: auto;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -2089,6 +2245,41 @@ th:first-child {
 }
 
 @media (max-width: 768px) {
+  .mobile-nav-bar {
+    display: flex;
+  }
+
+  .mobile-nav-overlay {
+    display: block;
+    pointer-events: none;
+  }
+
+  .mobile-nav-drawer {
+    display: flex;
+  }
+
+  body.mobile-nav-open .mobile-nav-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.mobile-nav-open .mobile-nav-drawer {
+    transform: translateX(0);
+  }
+
+  .app-shell,
+  body.marksheet-active .app-shell,
+  body.results-active .app-shell,
+  body.students-active .app-shell,
+  .attendance-honor-page .app-shell {
+    padding-top: 58px;
+  }
+
+  .sidebar,
+  .attendance-honor-page .sidebar {
+    display: none;
+  }
+
   .login-screen {
     align-items: start;
     padding: 18px;
@@ -3060,6 +3251,9 @@ th:first-child {
   }
 
   .sidebar,
+  .mobile-nav-bar,
+  .mobile-nav-overlay,
+  .mobile-nav-drawer,
   .topbar,
   .filters,
   .firebase-result-search,

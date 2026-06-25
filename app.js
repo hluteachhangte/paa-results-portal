@@ -163,6 +163,10 @@ const els = {
   loginForm: document.querySelector("#loginForm"),
   usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
+  mobileMenuBtn: document.querySelector("#mobileMenuBtn"),
+  mobileMenuCloseBtn: document.querySelector("#mobileMenuCloseBtn"),
+  mobileNavDrawer: document.querySelector("#mobileNavDrawer"),
+  mobileNavOverlay: document.querySelector("#mobileNavOverlay"),
   publicFirebaseResultSearch: document.querySelector("#publicFirebaseResultSearch"),
   publicFirebaseRollInput: document.querySelector("#publicFirebaseRollInput"),
   publicFirebaseResultStatus: document.querySelector("#publicFirebaseResultStatus"),
@@ -653,19 +657,27 @@ async function saveAllMarks() {
 
 function loadSavedUiState() {
   const fallback = { activeView: "entry" };
+  const routeView = viewFromLocationHash();
   const saved = localStorage.getItem(uiKey);
-  if (!saved) return fallback;
+  if (!saved) return { ...fallback, activeView: routeView || fallback.activeView };
 
   try {
     const parsed = JSON.parse(saved);
-    const allowedViews = ["entry", "attendance", "results", "marksheet", "students"];
+    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "entryAccess"];
     return {
       ...parsed,
-      activeView: allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
+      activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
     };
   } catch {
-    return fallback;
+    return { ...fallback, activeView: routeView || fallback.activeView };
   }
+}
+
+function viewFromLocationHash() {
+  const hash = window.location.hash.replace(/^#/, "");
+  const routeView = new URLSearchParams(hash).get("view") || hash.replace(/^view=/, "");
+  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "entryAccess"];
+  return allowedViews.includes(routeView) ? routeView : "";
 }
 
 function saveUiState() {
@@ -1445,6 +1457,7 @@ function init() {
   document.querySelectorAll(".nav-tab").forEach((tab) => {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
   });
+  setupMobileNavigation();
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -1542,6 +1555,13 @@ function init() {
   els.zoomOutMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(-10));
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
   document.addEventListener("keydown", handleEnterAsTab);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMobileMenu();
+  });
+  window.addEventListener("hashchange", () => {
+    const routeView = viewFromLocationHash();
+    if (routeView) switchView(routeView);
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushFirebaseStateSave(true);
@@ -1689,6 +1709,62 @@ function switchView(view) {
   updateSubjectSelect();
   saveUiState();
   render();
+  closeMobileMenu();
+}
+
+function setupMobileNavigation() {
+  if (!els.mobileMenuBtn || !els.mobileNavDrawer || !els.mobileNavOverlay) return;
+
+  els.mobileMenuBtn.addEventListener("click", openMobileMenu);
+  els.mobileMenuCloseBtn?.addEventListener("click", closeMobileMenu);
+  els.mobileNavOverlay.addEventListener("click", closeMobileMenu);
+
+  document.querySelectorAll("[data-mobile-view]").forEach((item) => {
+    item.addEventListener("click", () => switchView(item.dataset.mobileView));
+  });
+
+  els.mobileNavDrawer.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", closeMobileMenu);
+  });
+
+  let touchStartX = null;
+  els.mobileNavDrawer.addEventListener("touchstart", (event) => {
+    touchStartX = event.touches?.[0]?.clientX ?? null;
+  }, { passive: true });
+  els.mobileNavDrawer.addEventListener("touchend", (event) => {
+    if (touchStartX === null) return;
+    const touchEndX = event.changedTouches?.[0]?.clientX ?? touchStartX;
+    if (touchEndX - touchStartX > 70) closeMobileMenu();
+    touchStartX = null;
+  }, { passive: true });
+
+  updateMobileNavActiveState();
+}
+
+function openMobileMenu() {
+  if (!els.mobileMenuBtn || !els.mobileNavDrawer || !els.mobileNavOverlay) return;
+  document.body.classList.add("mobile-nav-open");
+  els.mobileNavOverlay.hidden = false;
+  els.mobileNavDrawer.setAttribute("aria-hidden", "false");
+  els.mobileMenuBtn.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileMenu() {
+  if (!els.mobileMenuBtn || !els.mobileNavDrawer || !els.mobileNavOverlay) return;
+  document.body.classList.remove("mobile-nav-open");
+  els.mobileNavDrawer.setAttribute("aria-hidden", "true");
+  els.mobileMenuBtn.setAttribute("aria-expanded", "false");
+  setTimeout(() => {
+    if (!document.body.classList.contains("mobile-nav-open")) {
+      els.mobileNavOverlay.hidden = true;
+    }
+  }, 220);
+}
+
+function updateMobileNavActiveState() {
+  document.querySelectorAll("[data-mobile-view]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.mobileView === activeView);
+  });
 }
 
 function renderActiveViewChrome() {
@@ -1700,6 +1776,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
+  updateMobileNavActiveState();
   const titles = {
     entry: "Marks Entry",
     attendance: "Attendance and Physical Measurement",
