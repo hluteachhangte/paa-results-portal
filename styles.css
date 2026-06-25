@@ -2691,6 +2691,12 @@ th:first-child {
     height: 40px;
   }
 
+  .login-card .login-logo,
+  .brand-logo.login-logo {
+    width: min(224px, 76vw);
+    height: min(224px, 76vw);
+  }
+
   .brand-block h1 {
     font-size: 1rem;
   }
