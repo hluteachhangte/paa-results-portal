@@ -80,6 +80,27 @@ const entryAccessGroups = {
   }
 };
 
+const attendanceAccessGroups = {
+  classesLkgTo8: {
+    title: "LKG-Class VIII Attendance",
+    classRange: "LKG-Class VIII",
+    exams: [
+      { key: "FirstTerm", label: "First Term Attendance", appExam: "First Term" },
+      { key: "SecondTerm", label: "Second Term Attendance", appExam: "Second Term" },
+      { key: "ThirdTerm", label: "Third Term Attendance", appExam: "Third Term" }
+    ]
+  },
+  classes9to10: {
+    title: "Classes IX-X Attendance",
+    classRange: "Classes IX-X",
+    exams: [
+      { key: "FirstTerm", label: "First Term Attendance", appExam: "First Term" },
+      { key: "SecondTerm", label: "Second Term Attendance", appExam: "Second Term" },
+      { key: "ThirdTerm", label: "Third Term Attendance", appExam: "Third Term" }
+    ]
+  }
+};
+
 const subjectGroups = {
   lkg: ["Moral", "English", "Alphabets", "Numbers", "Conversation", "Rhymes", "A.E."],
   ukg: ["Moral", "English", "Science", "Numbers", "Mathematics", "A.E."],
@@ -104,6 +125,7 @@ const defaultState = {
   maxMarks: createExamMarks(100),
   passMarks: createExamMarks(33),
   entryAccess: createDefaultEntryAccess(),
+  attendanceAccess: createDefaultAttendanceAccess(),
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -127,6 +149,7 @@ let unsavedAttendanceChanges = false;
 let attendanceSaveInProgress = false;
 let deferredFullStateSaveAfterMarks = false;
 let entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+let attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
 let entryAccessDirty = false;
 let entryAccessSaveInProgress = false;
 const firebaseResultListeners = {
@@ -231,6 +254,7 @@ function normalizeState(existingState = {}) {
   parsed.maxMarks = normalizeExamMarks(parsed.maxMarks, 100);
   parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
   parsed.entryAccess = normalizeEntryAccess(existingState.entryAccess || parsed.entryAccess);
+  parsed.attendanceAccess = normalizeAttendanceAccess(existingState.attendanceAccess || parsed.attendanceAccess);
   parsed.sessions = normalizeSessions(parsed.sessions);
 
   const migratedActiveData = normalizeSessionData({
@@ -260,6 +284,28 @@ function createDefaultEntryAccess(enabled = false) {
 function normalizeEntryAccess(existingAccess = {}) {
   const defaults = createDefaultEntryAccess(false);
   Object.entries(entryAccessGroups).forEach(([groupKey, group]) => {
+    group.exams.forEach((exam) => {
+      const stored = existingAccess?.[groupKey]?.[exam.key];
+      defaults[groupKey][exam.key] = {
+        enabled: Boolean(stored?.enabled ?? stored === true)
+      };
+    });
+  });
+  return defaults;
+}
+
+function createDefaultAttendanceAccess(enabled = false) {
+  return Object.fromEntries(
+    Object.entries(attendanceAccessGroups).map(([groupKey, group]) => [
+      groupKey,
+      Object.fromEntries(group.exams.map((exam) => [exam.key, { enabled }]))
+    ])
+  );
+}
+
+function normalizeAttendanceAccess(existingAccess = {}) {
+  const defaults = createDefaultAttendanceAccess(false);
+  Object.entries(attendanceAccessGroups).forEach(([groupKey, group]) => {
     group.exams.forEach((exam) => {
       const stored = existingAccess?.[groupKey]?.[exam.key];
       defaults[groupKey][exam.key] = {
@@ -477,13 +523,13 @@ function refreshAttendanceSaveControls() {
   const locked = selectedAttendanceEntryLocked();
   els.saveAttendanceBtn.disabled = attendanceSaveInProgress || locked || !unsavedAttendanceChanges;
   els.saveAttendanceBtn.textContent = attendanceSaveInProgress ? "Saving..." : "Save";
-  els.clearAttendanceBtn.disabled = locked || attendanceSaveInProgress;
+  els.clearAttendanceBtn.disabled = attendanceSaveInProgress || locked;
   els.workingDaysInput.disabled = locked;
   if (els.attendanceAccessNotice) {
     els.attendanceAccessNotice.textContent = locked
-      ? entryAccessLockedMessage(selectedAttendanceClass(), selectedAttendanceTerm())
-      : "Entry is active for this term.";
-    els.attendanceAccessNotice.classList.toggle("hidden", false);
+      ? attendanceAccessLockedMessage(selectedAttendanceClass(), selectedAttendanceTerm())
+      : "Attendance entry is active for this term.";
+    els.attendanceAccessNotice.classList.remove("hidden");
     els.attendanceAccessNotice.classList.toggle("locked", locked);
   }
 }
@@ -719,6 +765,14 @@ function startFirebaseStateSync(attempt = 0) {
         localStorage.setItem(storageKey, JSON.stringify(state));
         refreshEntryAccessUiOnly();
       }
+      const remoteAttendanceAccess = normalizeAttendanceAccess(remoteState?.attendanceAccess);
+      if (JSON.stringify(remoteAttendanceAccess) !== JSON.stringify(state.attendanceAccess)) {
+        state.attendanceAccess = remoteAttendanceAccess;
+        attendanceAccessDraft = normalizeAttendanceAccess(remoteAttendanceAccess);
+        entryAccessDirty = false;
+        localStorage.setItem(storageKey, JSON.stringify(state));
+        refreshEntryAccessUiOnly();
+      }
       console.log("[Firestore] App state update held because the page has unsaved local changes.");
       return;
     }
@@ -731,6 +785,7 @@ function startFirebaseStateSync(attempt = 0) {
     applyingRemoteState = true;
     state = normalizeState(remoteState);
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+    attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
     entryAccessDirty = false;
     const remoteStateJson = JSON.stringify(state);
     lastSyncedFirebaseStateJson = remoteStateJson;
@@ -920,8 +975,30 @@ function selectedMarksEntryLocked() {
   return !isEntryAccessOpen(selectedClass(), selectedExam());
 }
 
+function attendanceAccessGroupForClass(className = selectedAttendanceClass()) {
+  return isHighClass(className) ? "classes9to10" : "classesLkgTo8";
+}
+
+function attendanceAccessExamForTerm(className = selectedAttendanceClass(), term = selectedAttendanceTerm()) {
+  const group = attendanceAccessGroups[attendanceAccessGroupForClass(className)];
+  return group?.exams.find((item) => item.appExam === term) || null;
+}
+
+function isAttendanceAccessOpen(className = selectedAttendanceClass(), term = selectedAttendanceTerm(), access = state.attendanceAccess) {
+  const groupKey = attendanceAccessGroupForClass(className);
+  const examConfig = attendanceAccessExamForTerm(className, term);
+  if (!examConfig) return true;
+  return Boolean(access?.[groupKey]?.[examConfig.key]?.enabled);
+}
+
 function selectedAttendanceEntryLocked() {
-  return !isEntryAccessOpen(selectedAttendanceClass(), selectedAttendanceTerm());
+  return !isAttendanceAccessOpen(selectedAttendanceClass(), selectedAttendanceTerm());
+}
+
+function attendanceAccessLockedMessage(className, term) {
+  const group = attendanceAccessGroups[attendanceAccessGroupForClass(className)];
+  const examConfig = attendanceAccessExamForTerm(className, term);
+  return `${String.fromCodePoint(0x1F512)} Locked by Administrator - ${group?.classRange || className} ${examConfig?.label || term}`;
 }
 
 function entryAccessLockedMessage(className, exam) {
@@ -1275,7 +1352,7 @@ function getStudentAttendance(student, className = selectedClass(), exam = selec
 }
 
 function setStudentAttendance(roll, value, className = selectedClass(), exam = selectedExam(), options = {}) {
-  if (!isEntryAccessOpen(className, exam)) {
+  if (!isAttendanceAccessOpen(className, exam)) {
     showToast("This attendance entry is locked by Administrator.");
     return;
   }
@@ -1314,7 +1391,7 @@ function getStudentMeasurement(student, className = selectedClass(), exam = sele
 }
 
 function setStudentMeasurement(roll, patch, className = selectedClass(), exam = selectedExam(), options = {}) {
-  if (!isEntryAccessOpen(className, exam)) {
+  if (!isAttendanceAccessOpen(className, exam)) {
     showToast("This measurement entry is locked by Administrator.");
     return;
   }
@@ -2049,7 +2126,7 @@ function renderAttendance() {
 function applyAttendanceEntryAccessState() {
   const locked = selectedAttendanceEntryLocked();
   els.workingDaysInput.disabled = locked;
-  els.clearAttendanceBtn.disabled = locked || attendanceSaveInProgress;
+  els.clearAttendanceBtn.disabled = attendanceSaveInProgress || locked;
   document.querySelectorAll("#attendanceView input").forEach((field) => {
     if (field instanceof HTMLInputElement) field.disabled = locked;
   });
@@ -2060,7 +2137,7 @@ function applyAttendanceEntryAccessState() {
 function clearAttendanceData() {
   const className = selectedAttendanceClass();
   const term = selectedAttendanceTerm();
-  if (!isEntryAccessOpen(className, term)) {
+  if (!isAttendanceAccessOpen(className, term)) {
     showToast("This attendance entry is locked by Administrator.");
     return;
   }
@@ -3182,51 +3259,43 @@ function renderEntryAccessControl() {
     return;
   }
 
-  if (!entryAccessDirty) entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+  if (!entryAccessDirty) {
+    entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+    attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
+  }
 
-  els.entryAccessDashboard.innerHTML = Object.entries(entryAccessGroups).map(([groupKey, group]) => `
-    <article class="entry-access-card">
-      <div class="entry-access-card-head">
-        <div>
-          <span class="eyebrow">${escapeHtml(group.title)}</span>
-          <h3>Entry Status Dashboard</h3>
-        </div>
-      </div>
-      <div class="entry-access-table-wrap">
-        <table class="entry-access-table">
-          <thead>
-            <tr>
-              <th>Examination</th>
-              <th>Status</th>
-              <th>Allow Entry</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${group.exams.map((exam) => {
-              const enabled = Boolean(entryAccessDraft?.[groupKey]?.[exam.key]?.enabled);
-              return `<tr class="${enabled ? "entry-active-row" : "entry-locked-row"}">
-                <td>${escapeHtml(exam.label)}</td>
-                <td><span class="entry-status-badge ${enabled ? "active" : "locked"}">${enabled ? "ACTIVE" : `${String.fromCodePoint(0x1F512)} LOCKED`}</span></td>
-                <td>
-                  <label class="toggle-switch" aria-label="Allow entry for ${escapeAttr(group.title)} ${escapeAttr(exam.label)}">
-                    <input type="checkbox" data-entry-access-group="${groupKey}" data-entry-access-exam="${exam.key}" ${enabled ? "checked" : ""}>
-                    <span></span>
-                  </label>
-                </td>
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  `).join("");
+  els.entryAccessDashboard.innerHTML = `
+    <div class="entry-access-section-title">
+      <span class="eyebrow">Marks Entry</span>
+      <h3>Marks Entry Access</h3>
+    </div>
+    ${renderMarksAccessTable()}
+    <div class="entry-access-section-title">
+      <span class="eyebrow">Attendance</span>
+      <h3>Attendance Access</h3>
+    </div>
+    ${renderAttendanceAccessTable()}
+  `;
 
-  document.querySelectorAll("[data-entry-access-group]").forEach((input) => {
+  document.querySelectorAll("[data-entry-access-kind]").forEach((input) => {
     input.addEventListener("change", () => {
+      const kind = input.dataset.entryAccessKind;
       const groupKey = input.dataset.entryAccessGroup;
       const examKeyValue = input.dataset.entryAccessExam;
-      entryAccessDraft = normalizeEntryAccess(entryAccessDraft);
-      entryAccessDraft[groupKey][examKeyValue].enabled = input.checked;
+      if (kind === "attendanceAll") {
+        attendanceAccessDraft = normalizeAttendanceAccess(attendanceAccessDraft);
+        Object.keys(attendanceAccessDraft).forEach((attendanceGroupKey) => {
+          if (attendanceAccessDraft[attendanceGroupKey]?.[examKeyValue]) {
+            attendanceAccessDraft[attendanceGroupKey][examKeyValue].enabled = input.checked;
+          }
+        });
+      } else if (kind === "attendance") {
+        attendanceAccessDraft = normalizeAttendanceAccess(attendanceAccessDraft);
+        attendanceAccessDraft[groupKey][examKeyValue].enabled = input.checked;
+      } else {
+        entryAccessDraft = normalizeEntryAccess(entryAccessDraft);
+        entryAccessDraft[groupKey][examKeyValue].enabled = input.checked;
+      }
       entryAccessDirty = true;
       renderEntryAccessControl();
       updateEntryAccessSaveStatus();
@@ -3234,6 +3303,98 @@ function renderEntryAccessControl() {
   });
 
   updateEntryAccessSaveStatus();
+}
+
+function accessStatusCell(enabled) {
+  return `<span class="entry-status-badge ${enabled ? "active" : "locked"}">${enabled ? "ACTIVE" : `${String.fromCodePoint(0x1F512)} LOCKED`}</span>`;
+}
+
+function accessToggleCell(kind, groupKey, exam, enabled, label) {
+  return `<label class="toggle-switch" aria-label="${escapeAttr(label)}">
+    <input type="checkbox" data-entry-access-kind="${kind}" data-entry-access-group="${groupKey}" data-entry-access-exam="${exam.key}" ${enabled ? "checked" : ""}>
+    <span></span>
+  </label>`;
+}
+
+function renderMarksAccessTable() {
+  const lowerGroupKey = "classes1to8";
+  const highGroupKey = "classes9to10";
+  const lowerGroup = entryAccessGroups[lowerGroupKey];
+  const highGroup = entryAccessGroups[highGroupKey];
+  const rowCount = Math.max(lowerGroup.exams.length, highGroup.exams.length);
+
+  return `
+    <article class="entry-access-card wide">
+      <div class="entry-access-table-wrap">
+        <table class="entry-access-table combined-access-table marks-access-table">
+          <thead>
+            <tr>
+              <th>Classes I-VIII</th>
+              <th>Status</th>
+              <th>Allow</th>
+              <th>Classes IX-X</th>
+              <th>Status</th>
+              <th>Allow</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Array.from({ length: rowCount }, (_, index) => {
+              const lowerExam = lowerGroup.exams[index];
+              const highExam = highGroup.exams[index];
+              const lowerEnabled = lowerExam ? Boolean(entryAccessDraft?.[lowerGroupKey]?.[lowerExam.key]?.enabled) : false;
+              const highEnabled = highExam ? Boolean(entryAccessDraft?.[highGroupKey]?.[highExam.key]?.enabled) : false;
+              return `<tr>
+                <td>${lowerExam ? escapeHtml(lowerExam.label) : ""}</td>
+                <td>${lowerExam ? accessStatusCell(lowerEnabled) : ""}</td>
+                <td>${lowerExam ? accessToggleCell("marks", lowerGroupKey, lowerExam, lowerEnabled, `Allow marks entry for ${lowerGroup.title} ${lowerExam.label}`) : ""}</td>
+                <td>${highExam ? escapeHtml(highExam.label) : ""}</td>
+                <td>${highExam ? accessStatusCell(highEnabled) : ""}</td>
+                <td>${highExam ? accessToggleCell("marks", highGroupKey, highExam, highEnabled, `Allow marks entry for ${highGroup.title} ${highExam.label}`) : ""}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+function attendanceTermStatus(termKey) {
+  const values = Object.values(attendanceAccessDraft || {})
+    .map((group) => Boolean(group?.[termKey]?.enabled));
+  const activeCount = values.filter(Boolean).length;
+  if (activeCount === values.length) return { enabled: true, label: "ACTIVE", className: "active" };
+  if (activeCount === 0) return { enabled: false, label: `${String.fromCodePoint(0x1F512)} LOCKED`, className: "locked" };
+  return { enabled: true, label: "MIXED", className: "mixed" };
+}
+
+function renderAttendanceAccessTable() {
+  const terms = attendanceAccessGroups.classesLkgTo8.exams;
+  return `
+    <article class="entry-access-card wide">
+      <div class="entry-access-table-wrap">
+        <table class="entry-access-table combined-access-table attendance-access-table">
+          <thead>
+            <tr>
+              <th>LKG-Class X Term</th>
+              <th>Status</th>
+              <th>Allow Entry</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${terms.map((term) => {
+              const status = attendanceTermStatus(term.key);
+              return `<tr>
+                <td>${escapeHtml(term.label)}</td>
+                <td><span class="entry-status-badge ${status.className}">${status.label}</span></td>
+                <td>${accessToggleCell("attendanceAll", "", term, status.enabled, `Allow attendance entry for LKG-Class X ${term.label}`)}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
 }
 
 function updateEntryAccessSaveStatus(message = "") {
@@ -3248,23 +3409,27 @@ function updateEntryAccessSaveStatus(message = "") {
   }
 }
 
-function summarizeEntryAccessChanges(access) {
-  const parts = Object.entries(entryAccessGroups).map(([groupKey, group]) => {
+function summarizeAccessChanges(groups, access) {
+  return Object.entries(groups).map(([groupKey, group]) => {
     const enabled = group.exams
       .filter((exam) => access?.[groupKey]?.[exam.key]?.enabled)
       .map((exam) => exam.label);
     return `${group.title}: ${enabled.length ? enabled.join(", ") : "all locked"}`;
-  });
-  return parts.join(" and ");
+  }).join("; ");
 }
 
-async function saveEntryAccessSettings(access = entryAccessDraft, options = {}) {
+function summarizeEntryAccessChanges(nextEntryAccess, nextAttendanceAccess) {
+  return `Marks Entry - ${summarizeAccessChanges(entryAccessGroups, nextEntryAccess)}. Attendance - ${summarizeAccessChanges(attendanceAccessGroups, nextAttendanceAccess)}.`;
+}
+
+async function saveEntryAccessSettings(access = entryAccessDraft, attendanceAccess = attendanceAccessDraft, options = {}) {
   if (!isAdmin()) {
     showToast("Only admin can modify Entry Access Control.");
     return;
   }
   const nextAccess = normalizeEntryAccess(access);
-  const summary = summarizeEntryAccessChanges(nextAccess);
+  const nextAttendanceAccess = normalizeAttendanceAccess(attendanceAccess);
+  const summary = summarizeEntryAccessChanges(nextAccess, nextAttendanceAccess);
   const message = options.message || `You are about to set entry access as follows: ${summary}. Do you want to continue?`;
   if (!options.skipConfirm && !window.confirm(message)) return;
 
@@ -3273,13 +3438,16 @@ async function saveEntryAccessSettings(access = entryAccessDraft, options = {}) 
 
   try {
     state.entryAccess = nextAccess;
+    state.attendanceAccess = nextAttendanceAccess;
     entryAccessDraft = normalizeEntryAccess(nextAccess);
+    attendanceAccessDraft = normalizeAttendanceAccess(nextAttendanceAccess);
     entryAccessDirty = false;
     const stateJson = JSON.stringify(state);
     localStorage.setItem(storageKey, stateJson);
     if (window.MarkHubFirebase?.updateAppStateFields) {
       await window.MarkHubFirebase.updateAppStateFields([
-        { path: ["state", "entryAccess"], value: nextAccess }
+        { path: ["state", "entryAccess"], value: nextAccess },
+        { path: ["state", "attendanceAccess"], value: nextAttendanceAccess }
       ], structuredClone(state));
       lastSyncedFirebaseStateJson = stateJson;
     } else if (window.MarkHubFirebase?.saveAppState) {
@@ -3303,9 +3471,10 @@ async function saveEntryAccessSettings(access = entryAccessDraft, options = {}) 
 
 function setAllEntryAccess(enabled) {
   const nextAccess = createDefaultEntryAccess(enabled);
-  const action = enabled ? "unlock all examinations" : "lock all examinations";
-  saveEntryAccessSettings(nextAccess, {
-    message: `You are about to ${action} for Classes I-VIII and Classes IX-X. Do you want to continue?`
+  const nextAttendanceAccess = createDefaultAttendanceAccess(enabled);
+  const action = enabled ? "unlock all marks and attendance entries" : "lock all marks and attendance entries";
+  saveEntryAccessSettings(nextAccess, nextAttendanceAccess, {
+    message: `You are about to ${action}. Do you want to continue?`
   });
 }
 

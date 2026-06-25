@@ -998,8 +998,18 @@ th:first-child {
 
 .entry-access-dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+
+.entry-access-section-title {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.entry-access-section-title h3 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
 }
 
 .entry-access-card {
@@ -1009,6 +1019,10 @@ th:first-child {
   background: white;
   padding: 14px;
   box-shadow: var(--shadow);
+}
+
+.entry-access-card.wide {
+  grid-column: 1 / -1;
 }
 
 .entry-access-card-head {
@@ -1029,7 +1043,9 @@ th:first-child {
 }
 
 .entry-access-table {
-  min-width: 420px;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .entry-access-table th,
@@ -1041,9 +1057,38 @@ th:first-child {
 .entry-access-table th:nth-child(2),
 .entry-access-table td:nth-child(2),
 .entry-access-table th:nth-child(3),
-.entry-access-table td:nth-child(3) {
+.entry-access-table td:nth-child(3),
+.entry-access-table th:nth-child(5),
+.entry-access-table td:nth-child(5),
+.entry-access-table th:nth-child(6),
+.entry-access-table td:nth-child(6) {
   text-align: center;
-  width: 112px;
+  width: 92px;
+}
+
+.combined-access-table th,
+.combined-access-table td {
+  white-space: normal;
+}
+
+.marks-access-table th:nth-child(1),
+.marks-access-table td:nth-child(1),
+.marks-access-table th:nth-child(4),
+.marks-access-table td:nth-child(4) {
+  width: auto;
+}
+
+.attendance-access-table th:nth-child(1),
+.attendance-access-table td:nth-child(1) {
+  width: auto;
+}
+
+.attendance-access-table th:nth-child(2),
+.attendance-access-table td:nth-child(2),
+.attendance-access-table th:nth-child(3),
+.attendance-access-table td:nth-child(3) {
+  width: 120px;
+  text-align: center;
 }
 
 .entry-locked-row {
@@ -1071,6 +1116,11 @@ th:first-child {
 .entry-status-badge.locked {
   background: #e9edf2;
   color: #697586;
+}
+
+.entry-status-badge.mixed {
+  background: #fff5df;
+  color: #8a5a00;
 }
 
 .toggle-switch {
@@ -2129,8 +2179,12 @@ th:first-child {
     padding: 10px;
   }
 
-  .entry-access-table {
-    min-width: 390px;
+  .marks-access-table {
+    min-width: 640px;
+  }
+
+  .attendance-access-table {
+    min-width: 360px;
   }
 
   .entry-access-table th,
