@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=mobile-tab-admin-20260624">
+  <link rel="stylesheet" href="./styles.css?v=entry-access-20260625">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -62,6 +62,10 @@
         <button class="nav-tab" data-view="students" type="button" title="Student list">
           <span aria-hidden="true">＋</span>
           Students
+        </button>
+        <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
+          <span aria-hidden="true">&#128274;</span>
+          Entry Access Control
         </button>
         <a class="nav-tab-link nav-link" href="./attendance.html" title="100% attendance students">
           100% Attendance
@@ -171,6 +175,7 @@
       </section>
 
       <section id="attendanceView" class="view" aria-label="Attendance and physical measurement">
+        <div id="attendanceAccessNotice" class="entry-access-notice hidden"></div>
         <div class="attendance-filters">
           <label>
             Class
@@ -203,6 +208,22 @@
             <tbody id="attendanceBody"></tbody>
           </table>
         </div>
+      </section>
+
+      <section id="entryAccessView" class="view" aria-label="Entry access control">
+        <div class="section-head">
+          <div>
+            <h3>Entry Access Control</h3>
+            <p>Activate only the examinations that should allow marks, attendance, height, and weight entry.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="saveEntryAccessBtn" class="primary-button" type="button">Save Settings</button>
+            <button id="unlockAllEntryAccessBtn" class="ghost-button" type="button">Unlock All</button>
+            <button id="lockAllEntryAccessBtn" class="ghost-button danger" type="button">Lock All</button>
+          </div>
+        </div>
+        <div id="entryAccessStatus" class="entry-access-save-status">Live Firestore access settings.</div>
+        <div id="entryAccessDashboard" class="entry-access-dashboard"></div>
       </section>
 
       <section id="resultsView" class="view" aria-label="Published results">
@@ -332,6 +353,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
-  <script src="./app.js?v=mobile-tab-admin-20260624"></script>
+  <script src="./app.js?v=entry-access-20260625"></script>
 </body>
 </html>

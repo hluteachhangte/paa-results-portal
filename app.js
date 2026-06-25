@@ -51,6 +51,35 @@ const examGroups = {
   high: ["CT1", "CT2", "CT3", "CT4", "First Term", "Second Term", "Third Term"]
 };
 
+const entryAccessGroups = {
+  classes1to8: {
+    title: "Classes I-VIII",
+    classRange: "Classes I-VIII",
+    exams: [
+      { key: "FTUT1", label: "First Term Unit Test 1", appExam: "FT Unit Test 1" },
+      { key: "FTUT2", label: "First Term Unit Test 2", appExam: "FT Unit Test 2" },
+      { key: "FirstTerm", label: "First Term Examination", appExam: "First Term" },
+      { key: "STUT1", label: "Second Term Unit Test 1", appExam: "ST Unit Test 1" },
+      { key: "STUT2", label: "Second Term Unit Test 2", appExam: "ST Unit Test 2" },
+      { key: "SecondTerm", label: "Second Term Examination", appExam: "Second Term" },
+      { key: "ThirdTerm", label: "Third Term Examination", appExam: "Third Term" }
+    ]
+  },
+  classes9to10: {
+    title: "Classes IX-X",
+    classRange: "Classes IX-X",
+    exams: [
+      { key: "CT1", label: "Class Test 1 (CT1)", appExam: "CT1" },
+      { key: "CT2", label: "Class Test 2 (CT2)", appExam: "CT2" },
+      { key: "FirstTerm", label: "First Term Examination", appExam: "First Term" },
+      { key: "CT3", label: "Class Test 3 (CT3)", appExam: "CT3" },
+      { key: "CT4", label: "Class Test 4 (CT4)", appExam: "CT4" },
+      { key: "SecondTerm", label: "Second Term Examination", appExam: "Second Term" },
+      { key: "ThirdTerm", label: "Third Term Examination", appExam: "Third Term" }
+    ]
+  }
+};
+
 const subjectGroups = {
   lkg: ["Moral", "English", "Alphabets", "Numbers", "Conversation", "Rhymes", "A.E."],
   ukg: ["Moral", "English", "Science", "Numbers", "Mathematics", "A.E."],
@@ -74,6 +103,7 @@ const defaultState = {
   exams: examNames,
   maxMarks: createExamMarks(100),
   passMarks: createExamMarks(33),
+  entryAccess: createDefaultEntryAccess(),
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -96,6 +126,9 @@ let marksSaveInProgress = false;
 let unsavedAttendanceChanges = false;
 let attendanceSaveInProgress = false;
 let deferredFullStateSaveAfterMarks = false;
+let entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+let entryAccessDirty = false;
+let entryAccessSaveInProgress = false;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -123,9 +156,15 @@ const els = {
   workingDaysInput: document.querySelector("#workingDaysInput"),
   saveAttendanceBtn: document.querySelector("#saveAttendanceBtn"),
   clearAttendanceBtn: document.querySelector("#clearAttendanceBtn"),
+  attendanceAccessNotice: document.querySelector("#attendanceAccessNotice"),
   attendanceClassSelect: document.querySelector("#attendanceClassSelect"),
   attendanceTermSelect: document.querySelector("#attendanceTermSelect"),
   attendanceBody: document.querySelector("#attendanceBody"),
+  entryAccessDashboard: document.querySelector("#entryAccessDashboard"),
+  entryAccessStatus: document.querySelector("#entryAccessStatus"),
+  saveEntryAccessBtn: document.querySelector("#saveEntryAccessBtn"),
+  unlockAllEntryAccessBtn: document.querySelector("#unlockAllEntryAccessBtn"),
+  lockAllEntryAccessBtn: document.querySelector("#lockAllEntryAccessBtn"),
   studentsClassSelect: document.querySelector("#studentsClassSelect"),
   studentCsvInput: document.querySelector("#studentCsvInput"),
   importStudentsBtn: document.querySelector("#importStudentsBtn"),
@@ -191,6 +230,7 @@ function normalizeState(existingState = {}) {
   parsed.exams = examNames;
   parsed.maxMarks = normalizeExamMarks(parsed.maxMarks, 100);
   parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
+  parsed.entryAccess = normalizeEntryAccess(existingState.entryAccess || parsed.entryAccess);
   parsed.sessions = normalizeSessions(parsed.sessions);
 
   const migratedActiveData = normalizeSessionData({
@@ -206,6 +246,28 @@ function normalizeState(existingState = {}) {
   }
   setActiveSessionData(parsed, parsed.sessions[parsed.academicSession]);
   return parsed;
+}
+
+function createDefaultEntryAccess(enabled = false) {
+  return Object.fromEntries(
+    Object.entries(entryAccessGroups).map(([groupKey, group]) => [
+      groupKey,
+      Object.fromEntries(group.exams.map((exam) => [exam.key, { enabled }]))
+    ])
+  );
+}
+
+function normalizeEntryAccess(existingAccess = {}) {
+  const defaults = createDefaultEntryAccess(false);
+  Object.entries(entryAccessGroups).forEach(([groupKey, group]) => {
+    group.exams.forEach((exam) => {
+      const stored = existingAccess?.[groupKey]?.[exam.key];
+      defaults[groupKey][exam.key] = {
+        enabled: Boolean(stored?.enabled ?? stored === true)
+      };
+    });
+  });
+  return defaults;
 }
 
 function currentSessionKey(session = defaultState?.academicSession || "2026 - 2027") {
@@ -383,12 +445,16 @@ function trackSubjectMarksCleared(className = selectedClass(), exam = selectedEx
 function refreshMarksSaveControls() {
   if (!els.saveMarksBtn) return;
   const changedCount = unsavedMarkChanges.size;
-  els.saveMarksBtn.disabled = marksSaveInProgress || changedCount === 0;
+  const locked = selectedMarksEntryLocked();
+  els.saveMarksBtn.disabled = marksSaveInProgress || locked || changedCount === 0;
   els.saveMarksBtn.textContent = marksSaveInProgress ? "Saving..." : "Save";
   if (els.entrySaveHint) {
-    els.entrySaveHint.textContent = changedCount
+    els.entrySaveHint.textContent = locked
+      ? entryAccessLockedMessage(selectedClass(), selectedExam())
+      : changedCount
       ? `${changedCount} unsaved mark ${changedCount === 1 ? "change" : "changes"}. Click Save.`
       : "Enter marks, then click Save.";
+    els.entrySaveHint.classList.toggle("entry-locked-text", locked);
   }
 }
 
@@ -408,12 +474,26 @@ function trackUnsavedAttendanceChange() {
 
 function refreshAttendanceSaveControls() {
   if (!els.saveAttendanceBtn) return;
-  els.saveAttendanceBtn.disabled = attendanceSaveInProgress || !unsavedAttendanceChanges;
+  const locked = selectedAttendanceEntryLocked();
+  els.saveAttendanceBtn.disabled = attendanceSaveInProgress || locked || !unsavedAttendanceChanges;
   els.saveAttendanceBtn.textContent = attendanceSaveInProgress ? "Saving..." : "Save";
+  els.clearAttendanceBtn.disabled = locked || attendanceSaveInProgress;
+  els.workingDaysInput.disabled = locked;
+  if (els.attendanceAccessNotice) {
+    els.attendanceAccessNotice.textContent = locked
+      ? entryAccessLockedMessage(selectedAttendanceClass(), selectedAttendanceTerm())
+      : "Entry is active for this term.";
+    els.attendanceAccessNotice.classList.toggle("hidden", false);
+    els.attendanceAccessNotice.classList.toggle("locked", locked);
+  }
 }
 
 async function saveAttendanceData() {
   if (attendanceSaveInProgress) return;
+  if (selectedAttendanceEntryLocked()) {
+    showToast("This attendance entry is locked by Administrator.");
+    return;
+  }
   if (hasUnsavedMarkChanges()) {
     showToast("Save marks before saving attendance.");
     return;
@@ -473,6 +553,15 @@ function buildUnsavedMarkFieldUpdates() {
 
 async function saveAllMarks() {
   if (marksSaveInProgress) return;
+  if (selectedMarksEntryLocked()) {
+    showToast("This marks entry is locked by Administrator.");
+    return;
+  }
+  const lockedChange = [...unsavedMarkChanges.values()].find((change) => !isEntryAccessOpen(change.className, change.exam));
+  if (lockedChange) {
+    showToast(`${lockedChange.exam} is locked by Administrator. It was not saved.`);
+    return;
+  }
   if (!hasUnsavedMarkChanges()) {
     showToast("No mark changes to save.");
     return;
@@ -622,6 +711,14 @@ function startFirebaseStateSync(attempt = 0) {
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
     if (hasUnsavedLocalChanges()) {
+      const remoteEntryAccess = normalizeEntryAccess(remoteState?.entryAccess);
+      if (JSON.stringify(remoteEntryAccess) !== JSON.stringify(state.entryAccess)) {
+        state.entryAccess = remoteEntryAccess;
+        entryAccessDraft = normalizeEntryAccess(remoteEntryAccess);
+        entryAccessDirty = false;
+        localStorage.setItem(storageKey, JSON.stringify(state));
+        refreshEntryAccessUiOnly();
+      }
       console.log("[Firestore] App state update held because the page has unsaved local changes.");
       return;
     }
@@ -633,6 +730,8 @@ function startFirebaseStateSync(attempt = 0) {
     const uiState = captureUiState();
     applyingRemoteState = true;
     state = normalizeState(remoteState);
+    entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+    entryAccessDirty = false;
     const remoteStateJson = JSON.stringify(state);
     lastSyncedFirebaseStateJson = remoteStateJson;
     if (pendingFirebaseStateJson === remoteStateJson) pendingFirebaseStateJson = "";
@@ -723,6 +822,8 @@ function renderActiveViewOnly() {
     renderEntry();
   } else if (activeView === "attendance") {
     renderAttendance();
+  } else if (activeView === "entryAccess") {
+    renderEntryAccessControl();
   } else if (activeView === "results") {
     renderResults();
   } else if (activeView === "marksheet") {
@@ -737,6 +838,18 @@ function renderActiveViewOnly() {
 function refreshStateControls() {
   const uiState = captureUiState();
   applyRemoteStateToCurrentView(uiState);
+}
+
+function refreshEntryAccessUiOnly() {
+  if (activeView === "entry") {
+    applyMarksEntryAccessState();
+  } else if (activeView === "attendance") {
+    applyAttendanceEntryAccessState();
+  } else if (activeView === "entryAccess") {
+    renderEntryAccessControl();
+  }
+  refreshMarksSaveControls();
+  refreshAttendanceSaveControls();
 }
 
 function loadCurrentUser() {
@@ -778,6 +891,44 @@ function isAdmin() {
   return currentUser?.role === "admin";
 }
 
+function entryAccessGroupForClass(className = selectedClass()) {
+  return isHighClass(className) ? "classes9to10" : "classes1to8";
+}
+
+function entryAccessExamForAppExam(className = selectedClass(), exam = selectedExam()) {
+  const group = entryAccessGroups[entryAccessGroupForClass(className)];
+  return group?.exams.find((item) => item.appExam === exam) || null;
+}
+
+function isEntryAccessOpen(className = selectedClass(), exam = selectedExam(), access = state.entryAccess) {
+  const groupKey = entryAccessGroupForClass(className);
+  const examConfig = entryAccessExamForAppExam(className, exam);
+  if (!examConfig) return true;
+  return Boolean(access?.[groupKey]?.[examConfig.key]?.enabled);
+}
+
+function currentEntryAccessLabel(className = selectedClass(), exam = selectedExam()) {
+  const group = entryAccessGroups[entryAccessGroupForClass(className)];
+  const examConfig = entryAccessExamForAppExam(className, exam);
+  return {
+    classRange: group?.classRange || className,
+    examLabel: examConfig?.label || exam
+  };
+}
+
+function selectedMarksEntryLocked() {
+  return !isEntryAccessOpen(selectedClass(), selectedExam());
+}
+
+function selectedAttendanceEntryLocked() {
+  return !isEntryAccessOpen(selectedAttendanceClass(), selectedAttendanceTerm());
+}
+
+function entryAccessLockedMessage(className, exam) {
+  const { classRange, examLabel } = currentEntryAccessLabel(className, exam);
+  return `${String.fromCodePoint(0x1F512)} Locked by Administrator - ${classRange} ${examLabel}`;
+}
+
 function renderAuth() {
   const signedIn = Boolean(currentUser);
   els.loginScreen.classList.toggle("hidden", signedIn);
@@ -791,6 +942,8 @@ function renderAuth() {
   startFirebaseStateSync();
 
   els.userBadge.textContent = `You logged in as ${currentUser.role === "admin" ? "Admin" : "Teacher"}`;
+  document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
+  if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
   els.resetBtn.classList.toggle("hidden", !isAdmin());
@@ -1080,6 +1233,10 @@ function setStudentMark(roll, patch, options = {}) {
   const className = selectedClass();
   const exam = selectedExam();
   const subject = selectedSubject();
+  if (!isEntryAccessOpen(className, exam)) {
+    showToast("This marks entry is locked by Administrator.");
+    return;
+  }
   const key = markKey();
   state.marks[key] = state.marks[key] || {};
   state.marks[key][String(roll)] = { ...(state.marks[key][String(roll)] || {}), ...patch };
@@ -1118,6 +1275,10 @@ function getStudentAttendance(student, className = selectedClass(), exam = selec
 }
 
 function setStudentAttendance(roll, value, className = selectedClass(), exam = selectedExam(), options = {}) {
+  if (!isEntryAccessOpen(className, exam)) {
+    showToast("This attendance entry is locked by Administrator.");
+    return;
+  }
   const key = attendanceKey(className, exam);
   state.attendance[key] = state.attendance[key] || {};
   state.attendance[key][String(roll)] = value;
@@ -1153,6 +1314,10 @@ function getStudentMeasurement(student, className = selectedClass(), exam = sele
 }
 
 function setStudentMeasurement(roll, patch, className = selectedClass(), exam = selectedExam(), options = {}) {
+  if (!isEntryAccessOpen(className, exam)) {
+    showToast("This measurement entry is locked by Administrator.");
+    return;
+  }
   const key = attendanceKey(className, exam);
   state.measurements[key] = state.measurements[key] || {};
   state.measurements[key][String(roll)] = {
@@ -1234,6 +1399,11 @@ function init() {
   });
 
   els.workingDaysInput.addEventListener("change", () => {
+    if (selectedAttendanceEntryLocked()) {
+      showToast("This attendance entry is locked by Administrator.");
+      updateAttendanceInputs();
+      return;
+    }
     const value = Number(els.workingDaysInput.value);
     state.workingDays[selectedAttendanceTerm()] = Number.isFinite(value) && value >= 0 ? value : 0;
     trackUnsavedAttendanceChange();
@@ -1272,6 +1442,9 @@ function init() {
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
   document.querySelector("#clearMarksBtn").addEventListener("click", clearMarks);
   els.saveMarksBtn?.addEventListener("click", saveAllMarks);
+  els.saveEntryAccessBtn?.addEventListener("click", () => saveEntryAccessSettings());
+  els.unlockAllEntryAccessBtn?.addEventListener("click", () => setAllEntryAccess(true));
+  els.lockAllEntryAccessBtn?.addEventListener("click", () => setAllEntryAccess(false));
   document.querySelector("#studentForm").addEventListener("submit", addStudent);
   document.querySelector("#cancelStudentEditBtn").addEventListener("click", cancelStudentEdit);
   els.importStudentsBtn.addEventListener("click", () => els.studentCsvInput.click());
@@ -1430,6 +1603,10 @@ function getInputRestoreSelector(input) {
 }
 
 function switchView(view) {
+  if (view === "entryAccess" && !isAdmin()) {
+    showToast("Only admin can open Entry Access Control.");
+    view = "entry";
+  }
   activeView = view;
   updateExamSelect();
   updateSubjectSelect();
@@ -1443,6 +1620,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("results-active", activeView === "results");
   document.body.classList.toggle("students-active", activeView === "students");
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
+  document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
   const titles = {
@@ -1450,7 +1628,8 @@ function renderActiveViewChrome() {
     attendance: "Attendance and Physical Measurement",
     results: "Results",
     marksheet: "Marksheets",
-    students: "Students"
+    students: "Students",
+    entryAccess: "Entry Access Control"
   };
   els.viewTitle.textContent = titles[activeView] || "Marks Entry";
 }
@@ -1463,12 +1642,13 @@ function render() {
   renderResults();
   renderMarksheets();
   renderStudents();
+  renderEntryAccessControl();
 }
 
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = activeView !== "attendance" && activeView !== "students";
+  const showMainFilters = activeView !== "attendance" && activeView !== "students" && activeView !== "entryAccess";
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -1495,6 +1675,7 @@ function renderEntry() {
   const activitiesSubject = isActivitiesSubject();
   const splitPartSubject = isSplitPartSubject();
   const noPassMark = isNoPassMarkSubject();
+  const locked = selectedMarksEntryLocked();
   let entered = 0;
   let total = 0;
   let highest = 0;
@@ -1560,7 +1741,7 @@ function renderEntry() {
             : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
-        <td><span class="status-pill ${status.className}">${status.label}</span></td>
+        <td><span class="status-pill ${locked ? "locked" : status.className}">${locked ? "Locked" : status.label}</span></td>
       </tr>
     `;
   }).join("");
@@ -1571,6 +1752,7 @@ function renderEntry() {
   els.highestMarks.textContent = gradeSubject ? "-" : entered ? `${highest}/${maxMarks}` : "0";
   els.lowestMarks.textContent = gradeSubject ? "-" : entered ? `${lowest}/${maxMarks}` : "0";
   refreshMarksSaveControls();
+  applyMarksEntryAccessState();
 
   document.querySelectorAll("[data-roll]").forEach((input) => {
     input.addEventListener("input", () => saveEntryInputInPlace(input));
@@ -1592,6 +1774,18 @@ function renderEntry() {
     input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
   });
 
+}
+
+function applyMarksEntryAccessState() {
+  const locked = selectedMarksEntryLocked();
+  document.querySelector("#clearMarksBtn").disabled = locked || marksSaveInProgress;
+  document.querySelectorAll("#entryView input, #entryView select").forEach((field) => {
+    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+      field.disabled = locked;
+    }
+  });
+  els.marksBody?.classList.toggle("entry-locked", locked);
+  refreshMarksSaveControls();
 }
 
 function isEntryMarkInput(input) {
@@ -1628,6 +1822,11 @@ function normalizeNumberInputValue(input, limit, showWarning, message) {
 }
 
 function saveEntryInputInPlace(input, options = {}) {
+  if (selectedMarksEntryLocked()) {
+    showToast("This marks entry is locked by Administrator.");
+    syncEntryInputsFromState();
+    return;
+  }
   const { showWarning = false } = options;
   if (input.dataset.roll !== undefined) {
     const limit = getMarkWarningLimit();
@@ -1789,6 +1988,7 @@ function renderAttendance() {
   const term = selectedAttendanceTerm();
   const students = [...(state.classes[className] || [])].sort((a, b) => a.roll - b.roll);
   const workingDays = getWorkingDays(term);
+  const locked = selectedAttendanceEntryLocked();
 
   els.attendanceBody.innerHTML = students.map((student, index) => {
     const attendance = getStudentAttendance(student, className, term);
@@ -1801,12 +2001,12 @@ function renderAttendance() {
       <tr>
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
-        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1" tabindex="${index + 1}"
+        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1" tabindex="${index + 1}" ${locked ? "disabled" : ""}
           value="${attendance}" data-attendance-roll="${student.roll}" aria-label="Attendance for ${escapeAttr(student.name)}"></td>
         <td><strong>${attendanceMarks}</strong></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1" tabindex="${students.length + index + 1}"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1" tabindex="${students.length + index + 1}" ${locked ? "disabled" : ""}
           value="${measurement.height}" data-height-roll="${student.roll}" aria-label="Height for ${escapeAttr(student.name)}"></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" tabindex="${(students.length * 2) + index + 1}"
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" tabindex="${(students.length * 2) + index + 1}" ${locked ? "disabled" : ""}
           value="${measurement.weight}" data-weight-roll="${student.roll}" aria-label="Weight for ${escapeAttr(student.name)}"></td>
       </tr>
     `;
@@ -1843,11 +2043,27 @@ function renderAttendance() {
   });
 
   refreshAttendanceSaveControls();
+  applyAttendanceEntryAccessState();
+}
+
+function applyAttendanceEntryAccessState() {
+  const locked = selectedAttendanceEntryLocked();
+  els.workingDaysInput.disabled = locked;
+  els.clearAttendanceBtn.disabled = locked || attendanceSaveInProgress;
+  document.querySelectorAll("#attendanceView input").forEach((field) => {
+    if (field instanceof HTMLInputElement) field.disabled = locked;
+  });
+  els.attendanceBody?.classList.toggle("entry-locked", locked);
+  refreshAttendanceSaveControls();
 }
 
 function clearAttendanceData() {
   const className = selectedAttendanceClass();
   const term = selectedAttendanceTerm();
+  if (!isEntryAccessOpen(className, term)) {
+    showToast("This attendance entry is locked by Administrator.");
+    return;
+  }
   if (!window.confirm(`Clear attendance, height, and weight data for ${className} ${term}?`)) return;
   const key = attendanceKey(className, term);
   delete state.attendance[key];
@@ -2959,6 +3175,140 @@ function printView(view) {
   setTimeout(() => document.body.classList.remove(`print-${view}`), 0);
 }
 
+function renderEntryAccessControl() {
+  if (!els.entryAccessDashboard) return;
+  if (!isAdmin()) {
+    els.entryAccessDashboard.innerHTML = "";
+    return;
+  }
+
+  if (!entryAccessDirty) entryAccessDraft = normalizeEntryAccess(state.entryAccess);
+
+  els.entryAccessDashboard.innerHTML = Object.entries(entryAccessGroups).map(([groupKey, group]) => `
+    <article class="entry-access-card">
+      <div class="entry-access-card-head">
+        <div>
+          <span class="eyebrow">${escapeHtml(group.title)}</span>
+          <h3>Entry Status Dashboard</h3>
+        </div>
+      </div>
+      <div class="entry-access-table-wrap">
+        <table class="entry-access-table">
+          <thead>
+            <tr>
+              <th>Examination</th>
+              <th>Status</th>
+              <th>Allow Entry</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${group.exams.map((exam) => {
+              const enabled = Boolean(entryAccessDraft?.[groupKey]?.[exam.key]?.enabled);
+              return `<tr class="${enabled ? "entry-active-row" : "entry-locked-row"}">
+                <td>${escapeHtml(exam.label)}</td>
+                <td><span class="entry-status-badge ${enabled ? "active" : "locked"}">${enabled ? "ACTIVE" : `${String.fromCodePoint(0x1F512)} LOCKED`}</span></td>
+                <td>
+                  <label class="toggle-switch" aria-label="Allow entry for ${escapeAttr(group.title)} ${escapeAttr(exam.label)}">
+                    <input type="checkbox" data-entry-access-group="${groupKey}" data-entry-access-exam="${exam.key}" ${enabled ? "checked" : ""}>
+                    <span></span>
+                  </label>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `).join("");
+
+  document.querySelectorAll("[data-entry-access-group]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const groupKey = input.dataset.entryAccessGroup;
+      const examKeyValue = input.dataset.entryAccessExam;
+      entryAccessDraft = normalizeEntryAccess(entryAccessDraft);
+      entryAccessDraft[groupKey][examKeyValue].enabled = input.checked;
+      entryAccessDirty = true;
+      renderEntryAccessControl();
+      updateEntryAccessSaveStatus();
+    });
+  });
+
+  updateEntryAccessSaveStatus();
+}
+
+function updateEntryAccessSaveStatus(message = "") {
+  if (!els.entryAccessStatus) return;
+  els.entryAccessStatus.textContent = message || (entryAccessDirty
+    ? "Unsaved access changes. Click Save Settings."
+    : "Live Firestore access settings.");
+  els.entryAccessStatus.classList.toggle("dirty", entryAccessDirty);
+  if (els.saveEntryAccessBtn) {
+    els.saveEntryAccessBtn.disabled = entryAccessSaveInProgress || !entryAccessDirty;
+    els.saveEntryAccessBtn.textContent = entryAccessSaveInProgress ? "Saving..." : "Save Settings";
+  }
+}
+
+function summarizeEntryAccessChanges(access) {
+  const parts = Object.entries(entryAccessGroups).map(([groupKey, group]) => {
+    const enabled = group.exams
+      .filter((exam) => access?.[groupKey]?.[exam.key]?.enabled)
+      .map((exam) => exam.label);
+    return `${group.title}: ${enabled.length ? enabled.join(", ") : "all locked"}`;
+  });
+  return parts.join(" and ");
+}
+
+async function saveEntryAccessSettings(access = entryAccessDraft, options = {}) {
+  if (!isAdmin()) {
+    showToast("Only admin can modify Entry Access Control.");
+    return;
+  }
+  const nextAccess = normalizeEntryAccess(access);
+  const summary = summarizeEntryAccessChanges(nextAccess);
+  const message = options.message || `You are about to set entry access as follows: ${summary}. Do you want to continue?`;
+  if (!options.skipConfirm && !window.confirm(message)) return;
+
+  entryAccessSaveInProgress = true;
+  updateEntryAccessSaveStatus("Saving entry access settings...");
+
+  try {
+    state.entryAccess = nextAccess;
+    entryAccessDraft = normalizeEntryAccess(nextAccess);
+    entryAccessDirty = false;
+    const stateJson = JSON.stringify(state);
+    localStorage.setItem(storageKey, stateJson);
+    if (window.MarkHubFirebase?.updateAppStateFields) {
+      await window.MarkHubFirebase.updateAppStateFields([
+        { path: ["state", "entryAccess"], value: nextAccess }
+      ], structuredClone(state));
+      lastSyncedFirebaseStateJson = stateJson;
+    } else if (window.MarkHubFirebase?.saveAppState) {
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+      lastSyncedFirebaseStateJson = stateJson;
+    }
+    updateEntryAccessSaveStatus("Entry access settings saved.");
+    renderEntryAccessControl();
+    refreshEntryAccessUiOnly();
+    showToast("Entry access settings saved.");
+  } catch (error) {
+    console.error("[Firestore] Save entry access failed", error);
+    entryAccessDirty = true;
+    updateEntryAccessSaveStatus("Could not save entry access settings.");
+    showToast("Could not save Entry Access Control. Please try again.");
+  } finally {
+    entryAccessSaveInProgress = false;
+    updateEntryAccessSaveStatus();
+  }
+}
+
+function setAllEntryAccess(enabled) {
+  const nextAccess = createDefaultEntryAccess(enabled);
+  const action = enabled ? "unlock all examinations" : "lock all examinations";
+  saveEntryAccessSettings(nextAccess, {
+    message: `You are about to ${action} for Classes I-VIII and Classes IX-X. Do you want to continue?`
+  });
+}
+
 function renderStudents() {
   const admin = isAdmin();
   els.studentsBody.innerHTML = sortedStudents().map((student) => `
@@ -3503,6 +3853,11 @@ async function importMarksCsv(event) {
     showToast("Only admin can import marks CSV.");
     return;
   }
+  if (selectedMarksEntryLocked()) {
+    event.target.value = "";
+    showToast("This marks entry is locked by Administrator.");
+    return;
+  }
   const file = event.target.files?.[0];
   if (!file) return;
 
@@ -3826,6 +4181,10 @@ function clearMarks() {
   const subject = selectedSubject();
   const className = selectedClass();
   const exam = selectedExam();
+  if (!isEntryAccessOpen(className, exam)) {
+    showToast("This marks entry is locked by Administrator.");
+    return;
+  }
   const key = markKey(className, exam, subject);
   if (!window.confirm(`Clear all ${subject} marks for ${className} ${exam}?`)) return;
   state.marks[key] = {};
