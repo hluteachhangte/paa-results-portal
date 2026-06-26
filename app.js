@@ -221,6 +221,7 @@ const els = {
   marksheetNameSearchInput: document.querySelector("#marksheetNameSearchInput"),
   printCurrentMarksheetBtn: document.querySelector("#printCurrentMarksheetBtn"),
   printAllMarksheetsBtn: document.querySelector("#printAllMarksheetsBtn"),
+  downloadMarksheetPdfBtn: document.querySelector("#downloadMarksheetPdfBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
@@ -1550,6 +1551,7 @@ function init() {
   els.downloadMarksTemplateBtn.addEventListener("click", downloadMarksCsvTemplate);
   els.printCurrentMarksheetBtn?.addEventListener("click", printCurrentMarksheet);
   els.printAllMarksheetsBtn?.addEventListener("click", printAllMarksheets);
+  els.downloadMarksheetPdfBtn?.addEventListener("click", downloadMarksheetPDF);
   els.printResultsBtn.addEventListener("click", printResults);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
@@ -3009,7 +3011,8 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     const measurement = getStudentMeasurement(student);
 
     return `
-      <article class="marksheet${(["LKG", "UKG"].includes(selectedClass()) || isHighClass()) ? " legacy-marksheet-format" : ""}${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}">
+      <article class="marksheet${(["LKG", "UKG"].includes(selectedClass()) || isHighClass()) ? " legacy-marksheet-format" : ""}${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}"
+        data-student-name="${escapeAttr(student.name)}" data-class-name="${escapeAttr(selectedClass())}" data-roll-no="${escapeAttr(student.roll)}">
         <div class="marksheet-title">
           <h3>PINEHILL ADVENTIST ACADEMY</h3>
           <p class="marksheet-location">CHAMPHAI : MIZORAM</p>
@@ -3375,6 +3378,128 @@ function saveMarksheetsPdf() {
   }
   showToast('Choose "Save as PDF" in the print dialog.');
   printView("marksheets");
+}
+
+async function downloadMarksheetPDF() {
+  if (!canViewResult()) {
+    showToast("Publish the result before downloading marksheets.");
+    return;
+  }
+  if (!window.html2canvas || !window.jspdf?.jsPDF) {
+    showToast("Could not generate PDF. Please try again.");
+    return;
+  }
+
+  const button = els.downloadMarksheetPdfBtn;
+  const previousText = button?.textContent || "Download PDF";
+  if (button?.disabled) return;
+
+  const allMarksheets = [...(els.marksheetBody?.querySelectorAll(".marksheet") || [])];
+  const hasStudentFilter = Boolean((els.marksheetNameSearchInput?.value || "").trim());
+  const currentMarksheet = getCurrentVisibleMarksheet();
+  const marksheetsToDownload = hasStudentFilter
+    ? (currentMarksheet ? [currentMarksheet] : [])
+    : allMarksheets;
+
+  if (!marksheetsToDownload.length) {
+    showToast("No marksheet available to download.");
+    return;
+  }
+
+  let host = null;
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Generating PDF...";
+    }
+    showToast("Generating PDF...");
+
+    host = document.createElement("div");
+    host.className = "pdf-capture-host";
+    document.body.appendChild(host);
+
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
+
+    for (const [index, marksheet] of marksheetsToDownload.entries()) {
+      const canvas = await captureMarksheetCanvas(marksheet, host);
+      if (index > 0) pdf.addPage("a5", "portrait");
+      addMarksheetCanvasToPdf(pdf, canvas);
+    }
+
+    pdf.save(marksheetsToDownload.length === 1
+      ? marksheetPdfFilename(marksheetsToDownload[0])
+      : allMarksheetsPdfFilename());
+  } catch (error) {
+    console.error("Could not generate marksheet PDF", error);
+    showToast("Could not generate PDF. Please try again.");
+  } finally {
+    marksheetsToDownload.forEach((marksheet) => marksheet.classList.remove("pdf-capture-source"));
+    host?.remove();
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
+async function captureMarksheetCanvas(marksheet, host) {
+  marksheet.classList.add("pdf-capture-source");
+  const clone = marksheet.cloneNode(true);
+  clone.classList.add("pdf-capture-target");
+  clone.classList.remove("print-current-target");
+  host.replaceChildren(clone);
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return window.html2canvas(clone, {
+    backgroundColor: "#ffffff",
+    scale: Math.min(3, Math.max(2, window.devicePixelRatio || 1)),
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: clone.scrollWidth,
+    windowHeight: clone.scrollHeight
+  });
+}
+
+function addMarksheetCanvasToPdf(pdf, canvas) {
+  const pageWidth = 148;
+  const pageHeight = 210;
+  const margin = 3;
+  const usableWidth = pageWidth - margin * 2;
+  const usableHeight = pageHeight - margin * 2;
+  const imageRatio = canvas.width / canvas.height;
+  let imageWidth = usableWidth;
+  let imageHeight = imageWidth / imageRatio;
+  if (imageHeight > usableHeight) {
+    imageHeight = usableHeight;
+    imageWidth = imageHeight * imageRatio;
+  }
+  const imageX = margin + (usableWidth - imageWidth) / 2;
+  const imageY = margin + (usableHeight - imageHeight) / 2;
+  pdf.addImage(canvas.toDataURL("image/png"), "PNG", imageX, imageY, imageWidth, imageHeight, undefined, "FAST");
+}
+
+function marksheetPdfFilename(marksheet) {
+  const studentName = marksheet?.dataset?.studentName || "Student";
+  const className = marksheet?.dataset?.className || selectedClass();
+  const rollNo = marksheet?.dataset?.rollNo || "RollNo";
+  return `Marksheet_${fileSafeName(studentName)}_${fileSafeName(className)}_${fileSafeName(rollNo)}.pdf`;
+}
+
+function allMarksheetsPdfFilename() {
+  return `Marksheets_${fileSafeName(selectedClass())}_${fileSafeName(selectedExam())}.pdf`;
+}
+
+function fileSafeName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, "_")
+    || "NA";
 }
 
 function printView(view) {

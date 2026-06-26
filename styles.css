@@ -2117,6 +2117,209 @@ th:first-child {
   text-align: left;
 }
 
+.pdf-capture-host {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 138mm;
+  height: 200mm;
+  overflow: hidden;
+  background: white;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.pdf-capture-host .marksheet {
+  width: 138mm !important;
+  max-width: 138mm !important;
+  min-height: 200mm !important;
+  height: 200mm !important;
+  max-height: 200mm !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 4mm 2mm 2mm !important;
+  overflow: hidden !important;
+  zoom: 1 !important;
+  font-size: 9pt !important;
+  line-height: 1.08 !important;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.pdf-capture-host .marksheet::before,
+.pdf-capture-host .marksheet::after {
+  display: block !important;
+  visibility: visible !important;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.pdf-capture-host .marksheet::before {
+  background-size: 44mm 4.5mm !important;
+  opacity: 0.70 !important;
+  -webkit-mask-image: radial-gradient(ellipse 36% 31% at center, transparent 0 64%, #000 74%) !important;
+  mask-image: radial-gradient(ellipse 36% 31% at center, transparent 0 64%, #000 74%) !important;
+}
+
+.pdf-capture-host .marksheet::after {
+  background-size: min(60%, 96mm) auto !important;
+  opacity: 0.085 !important;
+}
+
+.pdf-capture-host .marksheet-title {
+  padding-bottom: 2mm !important;
+  margin-bottom: 2mm !important;
+  border-bottom-width: 1px;
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.pdf-capture-host .marksheet-title h3 {
+  font-size: 11pt !important;
+  line-height: 1.05 !important;
+}
+
+.pdf-capture-host .marksheet-title p {
+  margin-top: 1mm !important;
+  font-size: 11pt !important;
+  line-height: 1.18 !important;
+}
+
+.pdf-capture-host .marksheet-title .marksheet-location {
+  margin-top: 1mm !important;
+  margin-bottom: 4mm !important;
+}
+
+.pdf-capture-host .marksheet-title .marksheet-session {
+  margin-top: 2mm !important;
+}
+
+.pdf-capture-host .student-details {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 2mm 2mm !important;
+  margin-bottom: 3.4mm !important;
+}
+
+.pdf-capture-host .student-details div {
+  font-size: 9pt !important;
+  line-height: 1.2 !important;
+}
+
+.pdf-capture-host .student-details strong,
+.pdf-capture-host .marksheet-measurements strong {
+  margin-top: 1.25mm !important;
+}
+
+.pdf-capture-host .table-wrap {
+  overflow: visible !important;
+  box-shadow: none !important;
+}
+
+.pdf-capture-host .marksheet table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: collapse;
+}
+
+.pdf-capture-host .structured-marksheet-table th,
+.pdf-capture-host .structured-marksheet-table td,
+.pdf-capture-host .high-class-marksheet-table th,
+.pdf-capture-host .high-class-marksheet-table td,
+.pdf-capture-host .lower-class-marksheet-table th,
+.pdf-capture-host .lower-class-marksheet-table td {
+  padding: 0.75mm 1mm !important;
+  height: 5.8mm !important;
+  font-size: 11pt !important;
+  line-height: 1.04 !important;
+  vertical-align: middle !important;
+}
+
+.pdf-capture-host .structured-marksheet-table th,
+.pdf-capture-host .high-class-marksheet-table th,
+.pdf-capture-host .lower-class-marksheet-table th {
+  font-size: 9pt !important;
+}
+
+.pdf-capture-host .marksheet td.marksheet-special-subject,
+.pdf-capture-host .marksheet .marksheet-special-subject {
+  font-size: 11pt !important;
+}
+
+.pdf-capture-host .structured-marksheet-table tr,
+.pdf-capture-host .high-class-marksheet-table tr,
+.pdf-capture-host .lower-class-marksheet-table tr {
+  height: 5.8mm !important;
+}
+
+.pdf-capture-host .marksheet-summary {
+  gap: 0.9mm 4mm !important;
+  margin-top: 2.6mm !important;
+  font-size: 10pt !important;
+}
+
+.pdf-capture-host .marksheet-graded-subjects,
+.pdf-capture-host .high-third-term-marksheet .marksheet-graded-subjects,
+.pdf-capture-host .marksheet-graded-subjects.term-skill-development {
+  gap: 1mm 5mm !important;
+  margin-top: 2.4mm !important;
+  padding-top: 1.2mm !important;
+  font-size: 9pt !important;
+}
+
+.pdf-capture-host .marksheet-measurements,
+.pdf-capture-host .high-class-marksheet .marksheet-measurements,
+.pdf-capture-host .high-third-term-marksheet .marksheet-measurements,
+.pdf-capture-host .lower-class-marksheet .marksheet-measurements,
+.pdf-capture-host .marksheet.class-one-eight-marksheet .marksheet-measurements {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 1.2mm 2mm !important;
+  margin-top: 1.8mm !important;
+  padding-top: 1.4mm !important;
+}
+
+.pdf-capture-host .marksheet-measurements div,
+.pdf-capture-host .marksheet.class-one-eight-marksheet .marksheet-measurements div {
+  font-size: 10pt !important;
+  line-height: 1.2 !important;
+}
+
+.pdf-capture-host .marksheet-measurements div:last-child {
+  grid-column: 1 / -1 !important;
+  margin-top: 2.4mm !important;
+}
+
+.pdf-capture-host .marksheet:not(.upper-middle-marksheet) .marksheet-measurements div:last-child {
+  margin-top: 4mm !important;
+}
+
+.pdf-capture-host .marksheet-remarks {
+  white-space: nowrap !important;
+  font-weight: 400 !important;
+}
+
+.pdf-capture-host .marksheet-signatures,
+.pdf-capture-host .high-class-marksheet .marksheet-signatures {
+  gap: 5mm !important;
+  margin-top: auto !important;
+  padding-top: 6mm !important;
+  font-size: 10pt !important;
+}
+
+.pdf-capture-host .upper-middle-marksheet .marksheet-signatures,
+.pdf-capture-host .class-six-marksheet .marksheet-signatures {
+  margin-top: auto !important;
+  padding-top: 5mm !important;
+}
+
+.pdf-capture-host .marksheet-signatures span {
+  padding-top: 2mm !important;
+}
+
 .toast {
   position: fixed;
   right: 22px;
