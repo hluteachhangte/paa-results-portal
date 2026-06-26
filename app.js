@@ -3009,7 +3009,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     const measurement = getStudentMeasurement(student);
 
     return `
-      <article class="marksheet${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}">
+      <article class="marksheet${(["LKG", "UKG"].includes(selectedClass()) || isHighClass()) ? " legacy-marksheet-format" : ""}${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}">
         <div class="marksheet-title">
           <h3>PINEHILL ADVENTIST ACADEMY</h3>
           <p class="marksheet-location">CHAMPHAI : MIZORAM</p>
@@ -3050,7 +3050,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
               ${studentDetail("Attendance", attendance === "" ? "" : `${attendance}/${workingDays}`)}
               ${studentDetail("Height (in cm)", measurement.height)}
               ${studentDetail("Weight (in kg)", measurement.weight)}
-              ${studentDetail("Remark", getMarksheetRemark(outcome))}
+              ${marksheetRemarkDetail(getMarksheetRemark(outcome))}
             </div>`
           : ""}
         <div class="marksheet-signatures">
@@ -3100,9 +3100,20 @@ function renderMarksheetGradedSubjects(subjects, extraClass = "") {
     ${subjects.map(({ subject, value }) => {
       const displayValue = value || "AB";
       const failed = getGradeStatus(value).className !== "pass";
-      return `<span>${escapeHtml(subject)}: <strong>${failed ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>` : escapeHtml(displayValue)}</strong></span>`;
+      return `<span${marksheetSpecialSubjectAttr(subject)}>${escapeHtml(subject)}: <strong>${failed ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>` : escapeHtml(displayValue)}</strong></span>`;
     }).join("")}
   </div>`;
+}
+
+function marksheetSpecialSubjectAttr(subject) {
+  return ["Skill Development", "W.E.", "Moral"].includes(subject) ? ' class="marksheet-special-subject"' : "";
+}
+
+function formatFullPassMarks(fullMarks, passMarks = "") {
+  if (fullMarks === "" && passMarks === "") return "";
+  return passMarks === "" || passMarks === null || passMarks === undefined
+    ? escapeHtml(fullMarks)
+    : `${escapeHtml(fullMarks)}/${escapeHtml(passMarks)}`;
 }
 
 function renderStructuredMarksheetTable(structure, subjectResults, standaloneResults, total, maximumTotal) {
@@ -3113,21 +3124,19 @@ function renderStructuredMarksheetTable(structure, subjectResults, standaloneRes
       <thead>
         <tr>
           <th>Subject</th>
-          <th>Full Marks</th>
-          <th>Pass Marks</th>
+          <th>F.M./P.M.</th>
           <th>${thirdTermSheet ? "First Term (30%)" : "Activities"}</th>
           <th>${thirdTermSheet ? "Second Term (30%)" : "Unit Test"}</th>
           <th>${thirdTermSheet ? "Exam (40%)" : "Exam"}</th>
-          <th>Marks Obtained</th>
+          <th>M.O.</th>
         </tr>
       </thead>
       <tbody>
         ${structure.groups.map((group, index) => {
           const result = subjectResults[index];
           return `<tr>
-            <td>${escapeHtml(group.name)}</td>
-            <td>100</td>
-            <td>50</td>
+            <td${marksheetSpecialSubjectAttr(group.name)}>${escapeHtml(group.name)}</td>
+            <td>${formatFullPassMarks(100, 50)}</td>
             <td>${marksheetComponentValue(result.activities)}</td>
             <td>${marksheetComponentValue(result.unitTest)}</td>
             <td>${marksheetComponentValue(result.exam)}</td>
@@ -3135,9 +3144,8 @@ function renderStructuredMarksheetTable(structure, subjectResults, standaloneRes
           </tr>`;
         }).join("")}
         ${standaloneResults.map((result) => `<tr>
-          <td>${escapeHtml(result.subject)}</td>
-          <td>${result.subject === "A.E." || result.subject === "W.E." ? 50 : ""}</td>
-          <td></td>
+          <td${marksheetSpecialSubjectAttr(result.subject)}>${escapeHtml(result.subject)}</td>
+          <td>${result.subject === "A.E." || result.subject === "W.E." ? formatFullPassMarks(50) : ""}</td>
           <td></td>
           <td></td>
           <td></td>
@@ -3145,8 +3153,7 @@ function renderStructuredMarksheetTable(structure, subjectResults, standaloneRes
         </tr>`).join("")}
         <tr class="grand-total-row">
           <td>Grand Total</td>
-          <td>${maximumTotal}</td>
-          <td>${passMarksTotal}</td>
+          <td>${formatFullPassMarks(maximumTotal, passMarksTotal)}</td>
           <td></td>
           <td></td>
           <td></td>
@@ -3176,10 +3183,12 @@ function renderHighClassMarksheetTable(student, subjects, passMarks, maxMarks) {
         ${subjects.map((subject) => {
           const value = getStudentMark(student, subject).value;
           const graded = isGradeSubject(subject);
+          const subjectMaxMarks = getSubjectMaxMarks(selectedClass(), selectedExam(), subject);
+          const subjectPassMarks = getSubjectPassMarks(selectedClass(), selectedExam(), subject);
           return `<tr>
-            <td>${escapeHtml(subject)}</td>
-            <td>${graded ? "-" : maxMarks}</td>
-            <td>${graded ? "-" : passMarks}</td>
+            <td${marksheetSpecialSubjectAttr(subject)}>${escapeHtml(subject)}</td>
+            <td>${graded ? "" : subjectMaxMarks}</td>
+            <td>${graded ? "" : subjectPassMarks}</td>
             <td><strong>${marksheetHighClassValue(subject, value, passMarks)}</strong></td>
           </tr>`;
         }).join("")}
@@ -3195,6 +3204,7 @@ function renderHighClassMarksheetTable(student, subjects, passMarks, maxMarks) {
 }
 
 function renderLowerClassMarksheetTable(student, subjects, passMarks) {
+  const legacyFormat = selectedClass() === "LKG" || selectedClass() === "UKG";
   const numericSubjects = subjects.filter((subject) => !isGradeSubject(subject));
   const fullMarksTotal = numericSubjects.reduce((sum, subject) => sum + getSubjectMaxMarks(selectedClass(), selectedExam(), subject), 0);
   const passMarksTotal = numericSubjects.reduce((sum, subject) => {
@@ -3208,9 +3218,9 @@ function renderLowerClassMarksheetTable(student, subjects, passMarks) {
       <thead>
         <tr>
           <th>Subject</th>
-          <th>Full Marks</th>
-          <th>Pass Marks</th>
-          <th>Marks Obtained</th>
+          ${legacyFormat
+            ? "<th>Full Marks</th><th>Pass Marks</th><th>Marks Obtained</th>"
+            : "<th>F.M./P.M.</th><th>M.O.</th>"}
         </tr>
       </thead>
       <tbody>
@@ -3224,17 +3234,20 @@ function renderLowerClassMarksheetTable(student, subjects, passMarks) {
           const hasNoPassMark = noPassMark && !earlyYearsSubject;
           const failed = value === "" || (!graded && !hasNoPassMark && getStatus(value, subjectPassMarks).className !== "pass")
             || (graded && getGradeStatus(value).className !== "pass");
+          const subjectMaxMarks = getSubjectMaxMarks(selectedClass(), selectedExam(), subject);
           return `<tr>
-            <td>${escapeHtml(subject)}</td>
-            <td>${graded ? "-" : getSubjectMaxMarks(selectedClass(), selectedExam(), subject)}</td>
-            <td>${graded || hasNoPassMark ? "-" : subjectPassMarks}</td>
+            <td${marksheetSpecialSubjectAttr(subject)}>${escapeHtml(subject)}</td>
+            ${legacyFormat
+              ? `<td>${graded ? "" : subjectMaxMarks}</td><td>${graded || hasNoPassMark ? "" : subjectPassMarks}</td>`
+              : `<td>${graded ? "" : formatFullPassMarks(subjectMaxMarks, hasNoPassMark ? "" : subjectPassMarks)}</td>`}
             <td><strong>${failed ? `<span class="failed-mark">${displayValue}</span>` : displayValue}</strong></td>
           </tr>`;
         }).join("")}
         <tr class="grand-total-row">
           <td>Grand Total</td>
-          <td>${fullMarksTotal}</td>
-          <td>${passMarksTotal}</td>
+          ${legacyFormat
+            ? `<td>${fullMarksTotal}</td><td>${passMarksTotal}</td>`
+            : `<td>${formatFullPassMarks(fullMarksTotal, passMarksTotal)}</td>`}
           <td><strong>${obtainedTotal}</strong></td>
         </tr>
       </tbody>
@@ -3271,6 +3284,10 @@ function marksheetStandaloneValue(result) {
 
 function studentDetail(label, value) {
   return `<div>${escapeHtml(label)}<strong>${escapeHtml(value || "-")}</strong></div>`;
+}
+
+function marksheetRemarkDetail(value) {
+  return `<div class="marksheet-remarks">Remarks: ${escapeHtml(value || "-")}</div>`;
 }
 
 function getMarksheetRemark(outcome) {
