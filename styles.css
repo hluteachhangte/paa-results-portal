@@ -3349,10 +3349,16 @@ th:first-child {
     width: 138mm;
     max-width: none;
     min-height: 200mm;
+    height: 200mm;
+    max-height: 200mm;
     aspect-ratio: 138 / 200;
-    padding: 34px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    padding: 4mm 2mm 2mm;
     font-size: 9pt;
+    line-height: 1.08;
     box-sizing: border-box;
+    overflow: hidden;
     touch-action: pan-x pan-y pinch-zoom;
   }
 
@@ -3364,13 +3370,44 @@ th:first-child {
 
   body.marksheet-active .student-details {
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px 18px;
-    margin-bottom: 22px;
+    gap: 2mm 2mm;
+    margin-bottom: 3.4mm;
+  }
+
+  body.marksheet-active .student-details div {
+    font-size: 9pt;
+    line-height: 1.2;
+  }
+
+  body.marksheet-active .student-details strong,
+  body.marksheet-active .marksheet-measurements strong {
+    margin-top: 1.25mm;
   }
 
   body.marksheet-active .marksheet-title {
-    padding-bottom: 14px;
-    margin-bottom: 16px;
+    padding-bottom: 2mm;
+    margin-bottom: 2mm;
+    border-bottom-width: 1px;
+  }
+
+  body.marksheet-active .marksheet-title h3 {
+    font-size: 11pt;
+    line-height: 1.05;
+  }
+
+  body.marksheet-active .marksheet-title p {
+    margin-top: 1mm;
+    font-size: 11pt;
+    line-height: 1.18;
+  }
+
+  body.marksheet-active .marksheet-title .marksheet-location {
+    margin-top: 1mm;
+    margin-bottom: 4mm;
+  }
+
+  body.marksheet-active .marksheet-title .marksheet-session {
+    margin-top: 2mm;
   }
 
   body.marksheet-active .structured-marksheet-table th,
@@ -3379,8 +3416,11 @@ th:first-child {
   body.marksheet-active .high-class-marksheet-table td,
   body.marksheet-active .lower-class-marksheet-table th,
   body.marksheet-active .lower-class-marksheet-table td {
-    padding: 8px 10px;
+    padding: 0.75mm 1mm;
+    height: 5.8mm;
     font-size: 11pt;
+    line-height: 1.04;
+    vertical-align: middle;
   }
 
   body.marksheet-active .structured-marksheet-table th,
@@ -3391,14 +3431,25 @@ th:first-child {
 
   body.marksheet-active .marksheet-summary,
   body.marksheet-active .marksheet-graded-subjects {
-    gap: 12px 24px;
+    gap: 0.9mm 4mm;
+  }
+
+  body.marksheet-active .marksheet-summary {
+    margin-top: 2.6mm;
+    font-size: 10pt;
+  }
+
+  body.marksheet-active .marksheet-graded-subjects {
+    margin-top: 2.4mm;
+    padding-top: 1.2mm;
+    font-size: 9pt;
   }
 
   body.marksheet-active .marksheet-measurements {
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-top: 10px;
-    padding-top: 9px;
+    gap: 1.2mm 2mm;
+    margin-top: 1.8mm;
+    padding-top: 1.4mm;
   }
 
   body.marksheet-active .high-class-marksheet .marksheet-measurements,
@@ -3414,6 +3465,7 @@ th:first-child {
   body.marksheet-active .marksheet-measurements div,
   body.marksheet-active .marksheet.class-one-eight-marksheet .marksheet-measurements div {
     font-size: 10pt;
+    line-height: 1.2;
   }
 
   body.marksheet-active .marksheet-measurements div:last-child {
@@ -3428,19 +3480,25 @@ th:first-child {
 
   body.marksheet-active .marksheet:not(.upper-middle-marksheet) .marksheet-measurements div:last-child {
     grid-column: 1 / -1;
-    margin-top: 16px;
+    margin-top: 4mm;
   }
 
   body.marksheet-active .marksheet-signatures {
     grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-    margin-top: 82px;
+    gap: 5mm;
+    margin-top: auto;
+    padding-top: 6mm;
     font-size: 10pt;
   }
 
   body.marksheet-active .upper-middle-marksheet .marksheet-signatures,
   body.marksheet-active .class-six-marksheet .marksheet-signatures {
-    margin-top: 58px;
+    margin-top: auto;
+    padding-top: 5mm;
+  }
+
+  body.marksheet-active .marksheet-signatures span {
+    padding-top: 2mm;
   }
 }
 
