@@ -3324,6 +3324,126 @@ th:first-child {
   }
 }
 
+@media (max-width: 768px) {
+  body.marksheet-active .marksheet-print-area {
+    overflow: auto;
+    overflow-x: auto;
+    overflow-y: auto;
+    align-items: flex-start;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  body.marksheet-active #marksheetBody,
+  body.marksheet-active .marksheet-list {
+    width: max-content;
+    min-width: 138mm;
+    max-width: none;
+    overflow: visible;
+  }
+
+  body.marksheet-active .marksheet-list {
+    gap: 24px;
+  }
+
+  body.marksheet-active .marksheet {
+    width: 138mm;
+    max-width: none;
+    min-height: 200mm;
+    aspect-ratio: 138 / 200;
+    padding: 34px 22px 22px;
+    font-size: 9pt;
+    box-sizing: border-box;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  body.marksheet-active .marksheet table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  body.marksheet-active .student-details {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 18px;
+    margin-bottom: 22px;
+  }
+
+  body.marksheet-active .marksheet-title {
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+
+  body.marksheet-active .structured-marksheet-table th,
+  body.marksheet-active .structured-marksheet-table td,
+  body.marksheet-active .high-class-marksheet-table th,
+  body.marksheet-active .high-class-marksheet-table td,
+  body.marksheet-active .lower-class-marksheet-table th,
+  body.marksheet-active .lower-class-marksheet-table td {
+    padding: 8px 10px;
+    font-size: 11pt;
+  }
+
+  body.marksheet-active .structured-marksheet-table th,
+  body.marksheet-active .high-class-marksheet-table th,
+  body.marksheet-active .lower-class-marksheet-table th {
+    font-size: 9pt;
+  }
+
+  body.marksheet-active .marksheet-summary,
+  body.marksheet-active .marksheet-graded-subjects {
+    gap: 12px 24px;
+  }
+
+  body.marksheet-active .marksheet-measurements {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+
+  body.marksheet-active .high-class-marksheet .marksheet-measurements,
+  body.marksheet-active .high-third-term-marksheet .marksheet-measurements,
+  body.marksheet-active .marksheet.class-one-eight-marksheet .marksheet-measurements {
+    grid-template-columns: 0.85fr 0.9fr 0.95fr 0.95fr 3.35fr;
+  }
+
+  body.marksheet-active .lower-class-marksheet .marksheet-measurements {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  body.marksheet-active .marksheet-measurements div,
+  body.marksheet-active .marksheet.class-one-eight-marksheet .marksheet-measurements div {
+    font-size: 10pt;
+  }
+
+  body.marksheet-active .marksheet-measurements div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  body.marksheet-active .high-class-marksheet .marksheet-measurements div:last-child,
+  body.marksheet-active .lower-class-marksheet .marksheet-measurements div:last-child,
+  body.marksheet-active .marksheet.class-one-eight-marksheet .marksheet-measurements div:last-child {
+    grid-column: auto;
+  }
+
+  body.marksheet-active .marksheet:not(.upper-middle-marksheet) .marksheet-measurements div:last-child {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+  }
+
+  body.marksheet-active .marksheet-signatures {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 82px;
+    font-size: 10pt;
+  }
+
+  body.marksheet-active .upper-middle-marksheet .marksheet-signatures,
+  body.marksheet-active .class-six-marksheet .marksheet-signatures {
+    margin-top: 58px;
+  }
+}
+
 @media print {
   body {
     background: white;
