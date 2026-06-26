@@ -3797,7 +3797,8 @@ th:first-child {
   body.print-marksheets #marksheet-print-area,
   body.print-marksheets #marksheetBody {
     display: block !important;
-    width: 100% !important;
+    width: 138mm !important;
+    max-width: 138mm !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -3809,20 +3810,23 @@ th:first-child {
     page: marksheets-page;
     position: static !important;
     inset: auto !important;
-    width: 100% !important;
+    width: 138mm !important;
+    max-width: 138mm !important;
   }
 
   body.print-marksheets .marksheet-list {
     display: block !important;
+    width: 138mm !important;
+    max-width: 138mm !important;
     gap: 0 !important;
   }
 
   body.print-marksheets .marksheet {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: calc(210mm - 10mm) !important;
-    height: calc(210mm - 10mm) !important;
-    max-height: calc(210mm - 10mm) !important;
+    width: 138mm !important;
+    max-width: 138mm !important;
+    min-height: 200mm !important;
+    height: 200mm !important;
+    max-height: 200mm !important;
     margin: 0 auto !important;
     box-sizing: border-box;
     display: flex !important;
