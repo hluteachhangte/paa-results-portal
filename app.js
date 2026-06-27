@@ -227,6 +227,7 @@ const els = {
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
   zoomInMarksheetBtn: document.querySelector("#zoomInMarksheetBtn"),
   printResultsBtn: document.querySelector("#printResultsBtn"),
+  downloadResultsPdfBtn: document.querySelector("#downloadResultsPdfBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -1553,6 +1554,7 @@ function init() {
   els.printAllMarksheetsBtn?.addEventListener("click", printAllMarksheets);
   els.downloadMarksheetPdfBtn?.addEventListener("click", downloadMarksheetPDF);
   els.printResultsBtn.addEventListener("click", printResults);
+  els.downloadResultsPdfBtn?.addEventListener("click", downloadResultsPDF);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetNameSearchInput?.addEventListener("input", () => {
@@ -3316,11 +3318,336 @@ function formatResultMark(subject, value, passMarks) {
 }
 
 function printResults() {
+  if (!isAdmin()) {
+    showToast("Only Admin can print results.");
+    return;
+  }
   if (!canViewResult()) {
     showToast("Publish the result before printing results.");
     return;
   }
   printView("results");
+}
+
+async function downloadResultsPDF() {
+  if (!canViewResult()) {
+    showToast("Publish the result before downloading results.");
+    return;
+  }
+  if (!window.jspdf?.jsPDF) {
+    showToast("Could not generate Result PDF. Please try again.");
+    return;
+  }
+
+  const rows = visibleResultRows();
+  if (!rows.length) {
+    showToast("No result records are available to download.");
+    return;
+  }
+
+  const button = els.downloadResultsPdfBtn;
+  if (button?.disabled) return;
+  const previousText = button?.textContent || "Download PDF";
+  const layout = resultPdfLayout(selectedClass());
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Generating Result PDF...";
+    }
+    showToast("Generating Result PDF...");
+
+    const logo = await createPdfLogoWatermark();
+    const logoSrc = logo?.src || "";
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: layout.orientation,
+      unit: "mm",
+      format: "a3",
+      compress: true
+    });
+
+    if (typeof pdf.autoTable !== "function") {
+      throw new Error("jsPDF AutoTable is not available.");
+    }
+
+    const headerBottom = drawResultPdfHeader(pdf, layout, logoSrc);
+    const summaryBottom = drawResultPdfSummary(pdf, rows, layout, headerBottom + 2);
+    const structured = els.resultsTable.classList.contains("structured-results");
+    const head = resultAutoTableHead();
+    const body = resultAutoTableBody(rows);
+    const fontSize = structured
+      ? (layout.orientation === "landscape" ? 5.8 : 4.7)
+      : 7.5;
+
+    pdf.autoTable({
+      head,
+      body,
+      startY: summaryBottom + 2,
+      margin: {
+        top: headerBottom + 2,
+        right: layout.margin,
+        bottom: 10,
+        left: layout.margin
+      },
+      theme: "grid",
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
+      tableWidth: "auto",
+      styles: {
+        font: "helvetica",
+        fontSize,
+        textColor: [17, 17, 17],
+        lineColor: [130, 155, 151],
+        lineWidth: 0.18,
+        cellPadding: structured ? 0.7 : 1.2,
+        halign: "center",
+        valign: "middle",
+        overflow: "linebreak",
+        minCellHeight: structured ? 4.8 : 5.6,
+        minCellWidth: structured ? 3.2 : 7
+      },
+      headStyles: {
+        fillColor: [220, 233, 231],
+        textColor: [17, 17, 17],
+        fontStyle: "bold",
+        halign: "center",
+        valign: "middle",
+        lineColor: [130, 155, 151],
+        lineWidth: 0.18,
+        cellPadding: structured ? 0.65 : 1.2
+      },
+      alternateRowStyles: {
+        fillColor: [244, 247, 248]
+      },
+      columnStyles: {
+        0: { cellWidth: structured ? 10 : 13, halign: "center" },
+        1: { cellWidth: layout.orientation === "landscape" ? 38 : 32, halign: "left" }
+      },
+      didParseCell(data) {
+        const raw = data.cell.raw;
+        if (raw?.isStudentName && data.section === "body") {
+          data.cell.styles.halign = "left";
+        }
+        if (raw?.isBold) {
+          data.cell.styles.fontStyle = "bold";
+        }
+        if (raw?.isFailed || raw?.isFailedStatus) {
+          data.cell.styles.textColor = [190, 24, 24];
+          data.cell.styles.fontStyle = "bold";
+        } else if (raw?.isAbsentStatus) {
+          data.cell.styles.textColor = [138, 90, 0];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+      didDrawCell(data) {
+        if (data.section !== "body" || !data.cell.raw?.isFailed) return;
+        const content = String(data.cell.raw.content || "");
+        const radiusX = Math.min(
+          Math.max((pdf.getTextWidth(content) + 2.4) / 2, 2.1),
+          Math.max((data.cell.width / 2) - 0.7, 1.5)
+        );
+        const radiusY = Math.min(Math.max((data.cell.height / 2) - 0.8, 1.8), 3);
+        pdf.setDrawColor(190, 24, 24);
+        pdf.setLineWidth(0.22);
+        pdf.ellipse(
+          data.cell.x + (data.cell.width / 2),
+          data.cell.y + (data.cell.height / 2),
+          radiusX,
+          radiusY
+        );
+      },
+      didDrawPage() {
+        drawResultPdfHeader(pdf, layout, logoSrc);
+      }
+    });
+
+    addResultPdfPageNumbers(pdf, layout);
+    pdf.save(resultPdfFilename());
+    showToast("Result PDF downloaded.");
+  } catch (error) {
+    console.error("Could not generate Result PDF", error);
+    showToast("Could not generate Result PDF. Please try again.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
+function visibleResultRows() {
+  return [...(els.resultsBody?.querySelectorAll("tr") || [])].filter((row) => {
+    if (row.hidden || row.getAttribute("aria-hidden") === "true") return false;
+    if (window.getComputedStyle(row).display === "none") return false;
+    return row.querySelectorAll("td").length > 1;
+  });
+}
+
+function resultPdfLayout(className) {
+  const landscape = ["Class VI", "Class VII", "Class VIII"].includes(className);
+  const pageWidth = landscape ? 420 : 297;
+  const pageHeight = landscape ? 297 : 420;
+  const margin = 5;
+  return {
+    orientation: landscape ? "landscape" : "portrait",
+    pageWidth,
+    pageHeight,
+    margin,
+    contentWidth: pageWidth - (margin * 2),
+    contentHeight: pageHeight - (margin * 2)
+  };
+}
+
+function resultPdfSummaryData(rows) {
+  const records = rows.map((row) => {
+    const cells = row.querySelectorAll("td");
+    return {
+      result: String(cells[cells.length - 1]?.textContent || "").trim(),
+      division: String(cells[cells.length - 2]?.textContent || "").trim()
+    };
+  });
+  const appearedRecords = records.filter((record) => record.result && record.result !== "-");
+  const appeared = appearedRecords.length;
+  const absent = records.length - appeared;
+  const passed = appearedRecords.filter((record) => record.result !== "Fail").length;
+  const failed = appeared - passed;
+  const passPercentage = appeared ? Math.round((passed / appeared) * 10000) / 100 : 0;
+  const divisionCount = (division) => appearedRecords.filter((record) => record.division === division).length;
+
+  return [
+    ["No. of Students", records.length],
+    ["Absent", absent],
+    ["Appeared", appeared],
+    ["Pass Percentage", `${passPercentage}%`],
+    ["No. of Passed", passed],
+    ["No. of Failed", failed],
+    ["No. of Distinction", divisionCount("Dist.")],
+    ["No. of First Division", divisionCount("I")],
+    ["No. of Second Division", divisionCount("II")],
+    ["No. of Third Division", divisionCount("III")]
+  ];
+}
+
+function drawResultPdfHeader(pdf, layout, logoSrc) {
+  const centerX = layout.pageWidth / 2;
+  const top = layout.margin;
+  if (/^data:image\//i.test(logoSrc)) {
+    try {
+      pdf.addImage(logoSrc, "PNG", layout.margin, top, 16, 16, undefined, "FAST");
+    } catch (error) {
+      console.warn("School logo could not be added to the Result PDF", error);
+    }
+  }
+
+  pdf.setTextColor(17, 17, 17);
+  pdf.setFont("times", "bold");
+  pdf.setFontSize(15);
+  pdf.text("PINEHILL ADVENTIST ACADEMY", centerX, top + 6, { align: "center" });
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text(
+    els.printResultsTitle?.textContent || `${selectedClass()} ${selectedExam()} Result`,
+    centerX,
+    top + 12,
+    { align: "center" }
+  );
+  pdf.setDrawColor(17, 17, 17);
+  pdf.setLineWidth(0.45);
+  pdf.line(layout.margin, top + 18, layout.pageWidth - layout.margin, top + 18);
+  return top + 18;
+}
+
+function drawResultPdfSummary(pdf, rows, layout, startY) {
+  const summary = resultPdfSummaryData(rows);
+  pdf.autoTable({
+    head: [summary.map(([label]) => label)],
+    body: [summary.map(([, value]) => String(value))],
+    startY,
+    margin: { left: layout.margin, right: layout.margin },
+    theme: "grid",
+    tableWidth: "auto",
+    styles: {
+      font: "helvetica",
+      halign: "center",
+      valign: "middle",
+      lineColor: [130, 155, 151],
+      lineWidth: 0.18,
+      cellPadding: 1
+    },
+    headStyles: {
+      fillColor: [237, 243, 246],
+      textColor: [75, 85, 99],
+      fontStyle: "bold",
+      fontSize: 5.5
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [17, 17, 17],
+      fontStyle: "bold",
+      fontSize: 8
+    }
+  });
+  return pdf.lastAutoTable?.finalY || startY;
+}
+
+function resultAutoTableHead() {
+  return [...(els.resultsHead?.querySelectorAll("tr") || [])].map((row) =>
+    [...row.cells].map((cell) => ({
+      content: resultPdfCellText(cell),
+      colSpan: Math.max(1, Number(cell.colSpan) || 1),
+      rowSpan: Math.max(1, Number(cell.rowSpan) || 1),
+      styles: {
+        halign: "center",
+        valign: "middle",
+        fontStyle: "bold"
+      }
+    })));
+}
+
+function resultAutoTableBody(rows) {
+  return rows.map((row) =>
+    [...row.cells].map((cell, columnIndex) => {
+      const status = cell.querySelector(".status-pill");
+      return {
+        content: resultPdfCellText(cell),
+        isStudentName: columnIndex === 1,
+        isFailed: Boolean(cell.querySelector(".failed-mark")),
+        isFailedStatus: Boolean(status?.classList.contains("fail")),
+        isAbsentStatus: Boolean(status?.classList.contains("absent")),
+        isBold: Boolean(cell.querySelector("strong"))
+      };
+    }));
+}
+
+function resultPdfCellText(cell) {
+  const copy = cell.cloneNode(true);
+  copy.querySelectorAll("br").forEach((breakElement) => breakElement.replaceWith("\n"));
+  return String(copy.textContent || "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+}
+
+function addResultPdfPageNumbers(pdf, layout) {
+  const totalPages = pdf.internal.getNumberOfPages();
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7);
+  pdf.setTextColor(75, 85, 99);
+  for (let page = 1; page <= totalPages; page += 1) {
+    pdf.setPage(page);
+    pdf.text(
+      `Page ${page} of ${totalPages}`,
+      layout.pageWidth - layout.margin,
+      layout.pageHeight - 4,
+      { align: "right" }
+    );
+  }
+}
+
+function resultPdfFilename() {
+  const session = String(state.academicSession || "").replace(/\s+/g, "");
+  return `Results_${fileSafeName(selectedClass())}_${fileSafeName(selectedExam())}_${fileSafeName(session)}.pdf`;
 }
 
 function saveResultsPdf() {
@@ -3333,6 +3660,10 @@ function saveResultsPdf() {
 }
 
 function printCurrentMarksheet() {
+  if (!isAdmin()) {
+    showToast("Only Admin can print marksheets.");
+    return;
+  }
   if (!canViewResult()) {
     showToast("Publish the result before printing marksheets.");
     return;
@@ -3352,6 +3683,10 @@ function printCurrentMarksheet() {
 }
 
 function printAllMarksheets() {
+  if (!isAdmin()) {
+    showToast("Only Admin can print marksheets.");
+    return;
+  }
   if (!canViewResult()) {
     showToast("Publish the result before printing marksheets.");
     return;
@@ -3450,6 +3785,8 @@ async function captureMarksheetCanvas(marksheet, host) {
   const clone = marksheet.cloneNode(true);
   clone.classList.add("pdf-capture-target");
   clone.classList.remove("print-current-target");
+  const logoWatermark = await createPdfLogoWatermark();
+  if (logoWatermark) clone.prepend(logoWatermark);
   host.replaceChildren(clone);
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return window.html2canvas(clone, {
@@ -3463,6 +3800,37 @@ async function captureMarksheetCanvas(marksheet, host) {
     windowWidth: clone.scrollWidth,
     windowHeight: clone.scrollHeight
   });
+}
+
+async function createPdfLogoWatermark() {
+  const source = document.querySelector('img[src*="school-logo.png"]');
+  if (!source) return null;
+
+  const watermark = document.createElement("img");
+  watermark.className = "pdf-capture-logo-watermark";
+  watermark.alt = "";
+  watermark.setAttribute("aria-hidden", "true");
+
+  try {
+    if (!source.complete || !source.naturalWidth) {
+      await source.decode();
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = source.naturalWidth;
+    canvas.height = source.naturalHeight;
+    canvas.getContext("2d").drawImage(source, 0, 0);
+    watermark.src = canvas.toDataURL("image/png");
+  } catch (error) {
+    console.warn("Using the original school logo for PDF capture", error);
+    watermark.src = source.currentSrc || source.src;
+  }
+
+  try {
+    await watermark.decode();
+  } catch (error) {
+    console.warn("School logo could not be decoded for PDF capture", error);
+  }
+  return watermark;
 }
 
 function addMarksheetCanvasToPdf(pdf, canvas) {
