@@ -3334,8 +3334,8 @@ async function downloadResultsPDF() {
     showToast("Publish the result before downloading results.");
     return;
   }
-  if (!window.jspdf?.jsPDF) {
-    showToast("Could not generate Result PDF. Please try again.");
+  if (!window.html2canvas || !window.jspdf?.jsPDF) {
+    showToast("Could not generate PDF. Please try again.");
     return;
   }
 
@@ -3349,6 +3349,7 @@ async function downloadResultsPDF() {
   if (button?.disabled) return;
   const previousText = button?.textContent || "Download PDF";
   const layout = resultPdfLayout(selectedClass(), selectedExam());
+  let host = null;
 
   try {
     if (button) {
@@ -3356,6 +3357,18 @@ async function downloadResultsPDF() {
       button.textContent = "Generating Result Sheet PDF...";
     }
     showToast("Generating Result Sheet PDF...");
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    host = document.createElement("div");
+    host.className = "result-pdf-capture-host";
+    host.style.width = `${layout.contentWidth}mm`;
+    document.body.appendChild(host);
+
+    const pages = paginateResultRows(rows, host, layout);
+    pages.forEach((page, index) => {
+      const pageNumber = page.querySelector(".result-pdf-page-number");
+      if (pageNumber) pageNumber.textContent = `Page ${index + 1} of ${pages.length}`;
+    });
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
@@ -3365,120 +3378,22 @@ async function downloadResultsPDF() {
       compress: true
     });
 
-    if (typeof pdf.autoTable !== "function") {
-      throw new Error("jsPDF AutoTable is not available.");
+    for (const [index, page] of pages.entries()) {
+      const canvas = await captureResultPdfPage(page);
+      if (index > 0) pdf.addPage("a3", layout.orientation);
+      addResultCanvasToPdf(pdf, canvas, layout);
+      page.remove();
+      canvas.width = 1;
+      canvas.height = 1;
     }
 
-    const headerBottom = drawOfficialResultPdfHeader(pdf, layout);
-    const summaryBottom = drawOfficialResultPdfSummary(pdf, rows, layout, headerBottom + 2);
-    const structured = els.resultsTable.classList.contains("structured-results");
-    const tableFontSize = structured
-      ? (layout.orientation === "landscape" ? 5.6 : 4.8)
-      : 7.5;
-
-    pdf.autoTable({
-      head: officialResultPdfHead(),
-      body: officialResultPdfBody(rows),
-      startY: summaryBottom + 2,
-      margin: {
-        top: headerBottom + 2,
-        right: layout.margin,
-        bottom: 10,
-        left: layout.margin
-      },
-      theme: "grid",
-      tableWidth: layout.contentWidth,
-      showHead: "everyPage",
-      rowPageBreak: "avoid",
-      styles: {
-        font: "helvetica",
-        fontSize: tableFontSize,
-        textColor: [17, 17, 17],
-        lineColor: [130, 155, 151],
-        lineWidth: 0.18,
-        cellPadding: structured ? 0.65 : 1.15,
-        halign: "center",
-        valign: "middle",
-        overflow: "linebreak",
-        minCellWidth: structured ? 2.4 : 6,
-        minCellHeight: structured ? 4.8 : 5.6
-      },
-      headStyles: {
-        fillColor: [220, 233, 231],
-        textColor: [17, 17, 17],
-        fontStyle: "bold",
-        halign: "center",
-        valign: "middle",
-        lineColor: [130, 155, 151],
-        lineWidth: 0.18,
-        cellPadding: structured ? 0.55 : 1.1
-      },
-      alternateRowStyles: {
-        fillColor: [244, 247, 248]
-      },
-      columnStyles: officialResultPdfColumnStyles(rows, layout, structured),
-      didParseCell(data) {
-        const raw = data.cell.raw;
-        if (data.section === "body" && raw?.isStudentName) {
-          data.cell.styles.halign = "left";
-          data.cell.styles.overflow = "visible";
-        }
-        if (raw?.isBold) {
-          data.cell.styles.fontStyle = "bold";
-        }
-        if (raw?.isFailed || raw?.isFailedStatus) {
-          data.cell.styles.textColor = [190, 24, 24];
-          data.cell.styles.fontStyle = "bold";
-        } else if (raw?.isAbsentStatus) {
-          data.cell.styles.textColor = [138, 90, 0];
-          data.cell.styles.fontStyle = "bold";
-        }
-        if (data.section === "head" && raw?.verticalText) {
-          data.cell.text = [];
-          data.cell.styles.minCellHeight = raw.verticalHeight;
-        }
-      },
-      didDrawCell(data) {
-        const raw = data.cell.raw;
-        if (data.section === "head" && raw?.verticalText) {
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(structured ? 5 : 6);
-          pdf.setTextColor(17, 17, 17);
-          pdf.text(
-            raw.verticalText,
-            data.cell.x + (data.cell.width / 2) + 0.8,
-            data.cell.y + data.cell.height - 1.2,
-            { angle: 90, align: "left" }
-          );
-        }
-        if (data.section !== "body" || !raw?.isFailed) return;
-        const content = String(raw.content || "");
-        const radiusX = Math.min(
-          Math.max((pdf.getTextWidth(content) + 2.4) / 2, 2.1),
-          Math.max((data.cell.width / 2) - 0.7, 1.5)
-        );
-        const radiusY = Math.min(Math.max((data.cell.height / 2) - 0.8, 1.8), 3);
-        pdf.setDrawColor(190, 24, 24);
-        pdf.setLineWidth(0.22);
-        pdf.ellipse(
-          data.cell.x + (data.cell.width / 2),
-          data.cell.y + (data.cell.height / 2),
-          radiusX,
-          radiusY
-        );
-      },
-      didDrawPage() {
-        drawOfficialResultPdfHeader(pdf, layout);
-      }
-    });
-
-    addOfficialResultPdfPageNumbers(pdf, layout);
     pdf.save(resultPdfFilename());
     showToast("Result PDF downloaded.");
   } catch (error) {
     console.error("Could not generate Result PDF", error);
-    showToast("Could not generate Result PDF. Please try again.");
+    showToast("Could not generate PDF. Please try again.");
   } finally {
+    host?.remove();
     if (button) {
       button.disabled = false;
       button.textContent = previousText;
@@ -3514,75 +3429,73 @@ function resultPdfLayout(className, exam = selectedExam()) {
   };
 }
 
-function drawOfficialResultPdfHeader(pdf, layout) {
-  const centerX = layout.pageWidth / 2;
-  const top = layout.margin;
-  pdf.setTextColor(17, 17, 17);
-  pdf.setFont("times", "bold");
-  pdf.setFontSize(15);
-  pdf.text("PINEHILL ADVENTIST ACADEMY", centerX, top + 6, { align: "center" });
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.text(
-    els.printResultsTitle?.textContent || `${selectedClass()} ${selectedExam()} Result`,
-    centerX,
-    top + 12,
-    { align: "center" }
-  );
-  pdf.setDrawColor(17, 17, 17);
-  pdf.setLineWidth(0.4);
-  pdf.line(layout.margin, top + 18, layout.pageWidth - layout.margin, top + 18);
-  return top + 18;
+function paginateResultRows(rows, host, layout) {
+  const pages = [];
+  let rowIndex = 0;
+
+  while (rowIndex < rows.length) {
+    const page = createResultPdfPage({
+      layout,
+      includeSummary: pages.length === 0,
+      rows
+    });
+    host.appendChild(page);
+    const body = page.querySelector(".result-pdf-table-body");
+    const tableBody = page.querySelector("tbody");
+    let rowsAdded = 0;
+
+    while (rowIndex < rows.length) {
+      const row = rows[rowIndex].cloneNode(true);
+      tableBody.appendChild(row);
+      if (body.scrollHeight > body.clientHeight + 1 && rowsAdded > 0) {
+        row.remove();
+        break;
+      }
+      rowIndex += 1;
+      rowsAdded += 1;
+    }
+
+    pages.push(page);
+  }
+
+  return pages;
 }
 
-function officialResultPdfHead() {
-  return [...(els.resultsHead?.querySelectorAll("tr") || [])].map((row) =>
-    [...row.cells].map((cell) => {
-      const text = resultPdfCellText(cell);
-      const vertical = cell.classList.contains("vertical-header");
-      return {
-        content: vertical ? "" : text,
-        colSpan: Math.max(1, Number(cell.colSpan) || 1),
-        rowSpan: Math.max(1, Number(cell.rowSpan) || 1),
-        verticalText: vertical ? text : "",
-        verticalHeight: resultPdfVerticalHeaderHeight(text),
-        styles: {
-          halign: "center",
-          valign: "middle",
-          fontStyle: "bold"
-        }
-      };
-    }));
-}
+function createResultPdfPage({ layout, includeSummary, rows }) {
+  const page = document.createElement("section");
+  page.className = `result-pdf-page result-pdf-${layout.orientation}`;
+  page.style.width = `${layout.contentWidth}mm`;
+  page.style.height = `${layout.contentHeight}mm`;
+  page.style.setProperty("--result-pdf-name-width", `${resultPdfNameColumnWidth(rows, layout)}mm`);
 
-function officialResultPdfBody(rows) {
-  return rows.map((row) =>
-    [...row.cells].map((cell, columnIndex) => {
-      const status = cell.querySelector(".status-pill");
-      return {
-        content: resultPdfCellText(cell),
-        isStudentName: columnIndex === 1,
-        isFailed: Boolean(cell.querySelector(".failed-mark")),
-        isFailedStatus: Boolean(status?.classList.contains("fail")),
-        isAbsentStatus: Boolean(status?.classList.contains("absent")),
-        isBold: Boolean(cell.querySelector("strong"))
-      };
-    }));
-}
+  const header = document.createElement("header");
+  header.className = "result-pdf-header";
+  const heading = document.createElement("div");
+  heading.innerHTML = `
+    <h3>PINEHILL ADVENTIST ACADEMY</h3>
+    <p>${escapeHtml(els.printResultsTitle?.textContent || `${selectedClass()} ${selectedExam()} Result`)}</p>
+  `;
+  header.appendChild(heading);
+  page.appendChild(header);
 
-function resultPdfCellText(cell) {
-  const copy = cell.cloneNode(true);
-  copy.querySelectorAll("br").forEach((breakElement) => breakElement.replaceWith("\n"));
-  return String(copy.textContent || "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\s*\n\s*/g, "\n")
-    .trim();
-}
+  if (includeSummary) {
+    page.appendChild(createResultPdfSummary(rows));
+  }
 
-function resultPdfVerticalHeaderHeight(text) {
-  if (String(text).length >= 18) return 34;
-  if (String(text).length >= 12) return 28;
-  return 22;
+  const tableBody = document.createElement("div");
+  tableBody.className = "result-pdf-table-body";
+  const table = els.resultsTable.cloneNode(false);
+  table.removeAttribute("style");
+  table.classList.add("result-pdf-table");
+  table.appendChild(els.resultsHead.cloneNode(true));
+  table.appendChild(document.createElement("tbody"));
+  tableBody.appendChild(table);
+  page.appendChild(tableBody);
+
+  const pageNumber = document.createElement("div");
+  pageNumber.className = "result-pdf-page-number";
+  page.appendChild(pageNumber);
+  return page;
 }
 
 function resultPdfNameColumnWidth(rows, layout) {
@@ -3600,29 +3513,9 @@ function resultPdfNameColumnWidth(rows, layout) {
   return Math.min(maximumWidth, Math.max(34, Math.ceil(estimatedMillimetres)));
 }
 
-function officialResultPdfColumnStyles(rows, layout, structured) {
-  const columnCount = rows[0]?.cells?.length || 0;
-  const styles = {
-    0: { cellWidth: structured ? 10 : 12, halign: "center" },
-    1: {
-      cellWidth: resultPdfNameColumnWidth(rows, layout),
-      halign: "left",
-      overflow: "visible"
-    }
-  };
-  if (columnCount >= 4) {
-    styles[columnCount - 4] = { cellWidth: 13 };
-    styles[columnCount - 3] = { cellWidth: 11 };
-    styles[columnCount - 2] = { cellWidth: 10 };
-    styles[columnCount - 1] = { cellWidth: 12 };
-  }
-  if (structured && columnCount >= 5) {
-    styles[columnCount - 5] = { cellWidth: 13 };
-  }
-  return styles;
-}
-
-function officialResultPdfSummaryData(rows) {
+function createResultPdfSummary(rows) {
+  const summary = document.createElement("div");
+  summary.className = "result-summary result-pdf-summary";
   const records = rows.map((row) => {
     const cells = row.querySelectorAll("td");
     return {
@@ -3638,67 +3531,58 @@ function officialResultPdfSummaryData(rows) {
   const passPercentage = appeared ? Math.round((passed / appeared) * 10000) / 100 : 0;
   const divisionCount = (division) => appearedRecords.filter((record) => record.division === division).length;
 
-  return [
-    ["No. of Students", records.length],
-    ["Absent", absent],
-    ["Appeared", appeared],
-    ["Pass Percentage", `${passPercentage}%`],
-    ["No. of Passed", passed],
-    ["No. of Failed", failed],
-    ["No. of Distinction", divisionCount("Dist.")],
-    ["No. of First Division", divisionCount("I")],
-    ["No. of Second Division", divisionCount("II")],
-    ["No. of Third Division", divisionCount("III")]
-  ];
+  summary.innerHTML = `
+    ${summaryItem("No. of Students", records.length)}
+    ${summaryItem("Absent", absent)}
+    ${summaryItem("Appeared", appeared)}
+    ${summaryItem("Pass Percentage", `${passPercentage}%`)}
+    ${summaryItem("No. of Passed", passed)}
+    ${summaryItem("No. of Failed", failed)}
+    ${summaryItem("No. of Distinction", divisionCount("Dist."))}
+    ${summaryItem("No. of First Division", divisionCount("I"))}
+    ${summaryItem("No. of Second Division", divisionCount("II"))}
+    ${summaryItem("No. of Third Division", divisionCount("III"))}
+  `;
+  return summary;
 }
 
-function drawOfficialResultPdfSummary(pdf, rows, layout, startY) {
-  const summary = officialResultPdfSummaryData(rows);
-  pdf.autoTable({
-    head: [summary.map(([label]) => label)],
-    body: [summary.map(([, value]) => String(value))],
-    startY,
-    margin: { left: layout.margin, right: layout.margin },
-    theme: "grid",
-    tableWidth: layout.contentWidth,
-    styles: {
-      font: "helvetica",
-      halign: "center",
-      valign: "middle",
-      lineColor: [130, 155, 151],
-      lineWidth: 0.18,
-      cellPadding: 1
-    },
-    headStyles: {
-      fillColor: [237, 243, 246],
-      textColor: [75, 85, 99],
-      fontStyle: "bold",
-      fontSize: 5.5
-    },
-    bodyStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [17, 17, 17],
-      fontStyle: "bold",
-      fontSize: 8
-    }
+async function captureResultPdfPage(page) {
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return window.html2canvas(page, {
+    backgroundColor: "#ffffff",
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: page.scrollWidth,
+    windowHeight: page.scrollHeight
   });
-  return pdf.lastAutoTable?.finalY || startY;
 }
 
-function addOfficialResultPdfPageNumbers(pdf, layout) {
-  const totalPages = pdf.internal.getNumberOfPages();
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-  pdf.setTextColor(75, 85, 99);
-  for (let page = 1; page <= totalPages; page += 1) {
-    pdf.setPage(page);
-    pdf.text(
-      `Page ${page} of ${totalPages}`,
-      layout.pageWidth - layout.margin,
-      layout.pageHeight - 4,
-      { align: "right" }
-    );
+function addResultCanvasToPdf(pdf, canvas, layout) {
+  const imageRatio = canvas.width / canvas.height;
+  const contentRatio = layout.contentWidth / layout.contentHeight;
+  let imageWidth = layout.contentWidth;
+  let imageHeight = layout.contentHeight;
+  if (imageRatio > contentRatio) {
+    imageHeight = imageWidth / imageRatio;
+  } else {
+    imageWidth = imageHeight * imageRatio;
   }
+  const x = layout.margin + ((layout.contentWidth - imageWidth) / 2);
+  const y = layout.margin + ((layout.contentHeight - imageHeight) / 2);
+  pdf.addImage(
+    canvas.toDataURL("image/png"),
+    "PNG",
+    x,
+    y,
+    imageWidth,
+    imageHeight,
+    undefined,
+    "FAST"
+  );
 }
 
 function resultPdfFilename() {

@@ -2444,10 +2444,7 @@ th:first-child {
   left: auto !important;
   height: 5.6mm !important;
   padding: 0.7mm 0.6mm !important;
-  border-top: 0.25mm solid #829b97;
-  border-right: 0 !important;
-  border-bottom: 0.25mm solid #829b97;
-  border-left: 0 !important;
+  border: 0.25mm solid #829b97 !important;
   background: transparent;
   color: #111;
   font-size: 7.5pt !important;
