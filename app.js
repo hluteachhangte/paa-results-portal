@@ -3466,14 +3466,13 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   page.className = `result-pdf-page result-pdf-${layout.orientation}`;
   page.style.width = `${layout.contentWidth}mm`;
   page.style.height = `${layout.contentHeight}mm`;
-  page.style.setProperty("--result-pdf-name-width", `${resultPdfNameColumnWidth(rows, layout)}mm`);
 
   const header = document.createElement("header");
   header.className = "result-pdf-header";
   const heading = document.createElement("div");
   heading.innerHTML = `
-    <h3>PINEHILL ADVENTIST ACADEMY</h3>
-    <p>${escapeHtml(els.printResultsTitle?.textContent || `${selectedClass()} ${selectedExam()} Result`)}</p>
+    <h3>Class Result Sheet</h3>
+    <p>${escapeHtml(els.resultNotice?.textContent || `${selectedClass()} ${selectedExam()} Result`)}</p>
   `;
   header.appendChild(heading);
   page.appendChild(header);
@@ -3485,7 +3484,6 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   const tableBody = document.createElement("div");
   tableBody.className = "result-pdf-table-body";
   const table = els.resultsTable.cloneNode(false);
-  table.removeAttribute("style");
   table.classList.add("result-pdf-table");
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
@@ -3496,21 +3494,6 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   pageNumber.className = "result-pdf-page-number";
   page.appendChild(pageNumber);
   return page;
-}
-
-function resultPdfNameColumnWidth(rows, layout) {
-  const names = rows.map((row) => String(row.cells?.[1]?.textContent || "").trim()).filter(Boolean);
-  const structured = els.resultsTable.classList.contains("structured-results");
-  let measuredWidth = 0;
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (context) {
-    context.font = structured ? "5.6pt Arial" : "7.5pt Arial";
-    measuredWidth = names.reduce((width, name) => Math.max(width, context.measureText(name).width), 0);
-  }
-  const estimatedMillimetres = (measuredWidth * 25.4 / 96) + 5;
-  const maximumWidth = layout.orientation === "landscape" ? 90 : 72;
-  return Math.min(maximumWidth, Math.max(34, Math.ceil(estimatedMillimetres)));
 }
 
 function createResultPdfSummary(rows) {
