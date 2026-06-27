@@ -3359,14 +3359,12 @@ async function downloadResultsPDF() {
     showToast("Generating Result PDF...");
     if (document.fonts?.ready) await document.fonts.ready;
 
-    const logo = await createPdfLogoWatermark();
-    const logoSrc = logo?.src || "";
     host = document.createElement("div");
     host.className = "result-pdf-capture-host";
     host.style.width = `${layout.contentWidth}mm`;
     document.body.appendChild(host);
 
-    const pages = paginateResultRows(rows, host, layout, logoSrc);
+    const pages = paginateResultRows(rows, host, layout);
     pages.forEach((page, index) => {
       const pageNumber = page.querySelector(".result-pdf-page-number");
       if (pageNumber) pageNumber.textContent = `Page ${index + 1} of ${pages.length}`;
@@ -3426,14 +3424,13 @@ function resultPdfLayout(className) {
   };
 }
 
-function paginateResultRows(rows, host, layout, logoSrc) {
+function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
       layout,
-      logoSrc,
       includeSummary: pages.length === 0,
       rows
     });
@@ -3459,21 +3456,15 @@ function paginateResultRows(rows, host, layout, logoSrc) {
   return pages;
 }
 
-function createResultPdfPage({ layout, logoSrc, includeSummary, rows }) {
+function createResultPdfPage({ layout, includeSummary, rows }) {
   const page = document.createElement("section");
   page.className = `result-pdf-page result-pdf-${layout.orientation}`;
   page.style.width = `${layout.contentWidth}mm`;
   page.style.height = `${layout.contentHeight}mm`;
+  page.style.setProperty("--result-pdf-name-width", `${resultPdfNameColumnWidth(rows, layout)}mm`);
 
   const header = document.createElement("header");
   header.className = "result-pdf-header";
-  if (logoSrc) {
-    const logo = document.createElement("img");
-    logo.src = logoSrc;
-    logo.alt = "";
-    logo.setAttribute("aria-hidden", "true");
-    header.appendChild(logo);
-  }
   const heading = document.createElement("div");
   heading.innerHTML = `
     <h3>PINEHILL ADVENTIST ACADEMY</h3>
@@ -3500,6 +3491,21 @@ function createResultPdfPage({ layout, logoSrc, includeSummary, rows }) {
   pageNumber.className = "result-pdf-page-number";
   page.appendChild(pageNumber);
   return page;
+}
+
+function resultPdfNameColumnWidth(rows, layout) {
+  const names = rows.map((row) => String(row.cells?.[1]?.textContent || "").trim()).filter(Boolean);
+  const structured = els.resultsTable.classList.contains("structured-results");
+  let measuredWidth = 0;
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.font = structured ? "5.6pt Arial" : "7.5pt Arial";
+    measuredWidth = names.reduce((width, name) => Math.max(width, context.measureText(name).width), 0);
+  }
+  const estimatedMillimetres = (measuredWidth * 25.4 / 96) + 5;
+  const maximumWidth = layout.orientation === "landscape" ? 90 : 72;
+  return Math.min(maximumWidth, Math.max(34, Math.ceil(estimatedMillimetres)));
 }
 
 function createResultPdfSummary(rows) {
