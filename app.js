@@ -3454,7 +3454,9 @@ function paginateResultRows(rows, host, layout) {
     const tableBody = page.querySelector("tbody");
     const pageEnd = Math.min(rowIndex + rowsPerPage, rows.length);
     while (rowIndex < pageEnd) {
-      tableBody.appendChild(rows[rowIndex].cloneNode(true));
+      const row = rows[rowIndex].cloneNode(true);
+      abbreviateResultPdfRow(row);
+      tableBody.appendChild(row);
       rowIndex += 1;
     }
     pages.push(page);
@@ -3533,6 +3535,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
     table.querySelectorAll("thead th br").forEach((breakElement) => breakElement.replaceWith(" "));
   }
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
+  abbreviateUnitTestResultPdfHeaders(table, selectedExam());
   tableBody.appendChild(table);
   page.appendChild(tableBody);
 
@@ -3576,6 +3579,31 @@ function abbreviateHighClassResultPdfHeaders(table, className, exam) {
     const key = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
     const replacement = replacements[key];
     if (replacement) label.textContent = replacement;
+  });
+}
+
+function abbreviateUnitTestResultPdfHeaders(table, exam) {
+  if (!primaryUnitTests.includes(exam)) return;
+  const replacements = {
+    MATHEMATICS: "MATHS",
+    "SKILL DEVELOPMENT": "SKILL DEV.",
+    ATTENDANCE: "ATTND.",
+    PERCENTAGE: "%",
+    DIVISION: "DIV."
+  };
+  table.querySelectorAll("thead th").forEach((cell) => {
+    const label = cell.querySelector("span") || cell;
+    const key = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    const replacement = replacements[key];
+    if (replacement) label.textContent = replacement;
+  });
+}
+
+function abbreviateResultPdfRow(row) {
+  row.querySelectorAll(".status-pill").forEach((status) => {
+    if (String(status.textContent || "").trim().toLowerCase() === "simple pass") {
+      status.textContent = "S.P.";
+    }
   });
 }
 
