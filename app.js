@@ -1573,6 +1573,7 @@ function init() {
     if (routeView) switchView(routeView);
   });
   window.addEventListener("afterprint", clearPrintMode);
+  window.addEventListener("resize", scheduleResultTableLayout, { passive: true });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       flushFirebaseStateSave(true);
@@ -2422,7 +2423,6 @@ function renderResults() {
   const workingDays = getWorkingDays();
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
-  els.resultsTable.classList.toggle("class-v-reference-format", selectedClass() === "Class I");
   els.resultsTable.style.width = "";
   els.resultsTable.style.removeProperty("--student-name-width");
   els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);
@@ -2445,14 +2445,14 @@ function renderResults() {
   const totalHeading = isHighClass() ? "Grand Total" : "Total";
   els.resultsHead.innerHTML = `
     <tr>
-      <th>Roll No.</th>
+      <th>${resultSheetLabel("Roll No.")}</th>
       <th>Student Name</th>
-      ${subjects.map((subject) => `<th>${subject}</th>`).join("")}
-      ${term ? "<th>Attendance</th>" : ""}
+      ${subjects.map((subject) => `<th>${escapeHtml(resultSheetLabel(subject))}</th>`).join("")}
+      ${term ? `<th>${resultSheetLabel("Attendance")}</th>` : ""}
       ${showMeasurements ? "<th>Height (in cm)</th><th>Weight (in kg)</th>" : ""}
-      <th>${totalHeading}</th>
-      <th>Percentage</th>
-      <th>Division</th>
+      <th>${resultSheetLabel(totalHeading)}</th>
+      <th>${resultSheetLabel("Percentage")}</th>
+      <th>${resultSheetLabel("Division")}</th>
       <th>Result</th>
     </tr>
   `;
@@ -2518,12 +2518,29 @@ function renderResults() {
   }).join("");
 
   renderResultSummary(records, students.length);
+  optimizeResultTableLayout();
   updateResultStickyHeaderMetrics();
 }
 
 function isStructuredTermResult(className = selectedClass(), exam = selectedExam()) {
   return ["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VI", "Class VII", "Class VIII"].includes(className)
     && (exam === "First Term" || exam === "Second Term");
+}
+
+function resultSheetLabel(label) {
+  const replacements = {
+    "ROLL NO.": "R. No.",
+    "ROLL NO": "R. No.",
+    MATHEMATICS: "MATHS",
+    "SOCIAL SCIENCE": "S.S.",
+    PERCENTAGE: "%",
+    DIVISION: "DIV.",
+    "SKILL DEVELOPMENT": "SKILL DEV.",
+    ATTENDANCE: "ATTND.",
+    "GRAND TOTAL": "G. TOTAL"
+  };
+  const text = String(label || "").trim();
+  return replacements[text.toUpperCase()] || text;
 }
 
 function isStructuredResultSheet(className = selectedClass(), exam = selectedExam()) {
@@ -2570,20 +2587,21 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
 
   els.resultsHead.innerHTML = `
     <tr>
-      <th rowspan="2" class="roll-column">Roll No.</th>
+      <th rowspan="2" class="roll-column">${resultSheetLabel("Roll No.")}</th>
       <th rowspan="2" class="student-name-column">Student Name</th>
-      ${structure.groups.map((group) => `<th colspan="${componentsPerSubject}" class="subject-group">${escapeHtml(group.name)}</th>`).join("")}
+      ${structure.groups.map((group) => `<th colspan="${componentsPerSubject}" class="subject-group">${escapeHtml(resultSheetLabel(group.name))}</th>`).join("")}
       ${structure.standalone.map((subject) => {
         if (highThirdTermSheet && subject === "Skill Development") {
-          return '<th rowspan="2" class="standalone-column vertical-header skill-development-header"><span>Skill Development</span></th>';
+          return `<th rowspan="2" class="standalone-column vertical-header skill-development-header"><span>${resultSheetLabel(subject)}</span></th>`;
         }
         const vertical = thirdTermSheet || subject === "Skill Development";
-        return `<th rowspan="2" class="standalone-column ${vertical ? "vertical-header" : ""}">${vertical ? `<span>${escapeHtml(subject)}</span>` : escapeHtml(subject)}</th>`;
+        const displaySubject = escapeHtml(resultSheetLabel(subject));
+        return `<th rowspan="2" class="standalone-column ${vertical ? "vertical-header" : ""}">${vertical ? `<span>${displaySubject}</span>` : displaySubject}</th>`;
       }).join("")}
-      <th rowspan="2" class="attendance-column vertical-header"><span>Attendance</span></th>
-      <th rowspan="2" class="outcome-column">Grand<br>Total</th>
+      <th rowspan="2" class="attendance-column vertical-header"><span>${resultSheetLabel("Attendance")}</span></th>
+      <th rowspan="2" class="outcome-column">${resultSheetLabel("Grand Total")}</th>
       <th rowspan="2" class="outcome-column">%</th>
-      <th rowspan="2" class="outcome-column vertical-header"><span>Division</span></th>
+      <th rowspan="2" class="outcome-column vertical-header"><span>${resultSheetLabel("Division")}</span></th>
       <th rowspan="2" class="result-column vertical-header"><span>Result</span></th>
     </tr>
     <tr>
@@ -2658,6 +2676,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
 
   const appearedRecords = records.filter((record) => record.appeared);
   renderResultSummary(appearedRecords.map((record) => ({ ...record, appeared: true })), students.length);
+  optimizeResultTableLayout();
   updateResultStickyHeaderMetrics();
 }
 
@@ -2681,6 +2700,216 @@ function getMobileStudentNameColumnWidth(students) {
   const names = students.map((student) => String(student.name || "").trim()).filter(Boolean);
   const longestNameLength = names.reduce((longest, name) => Math.max(longest, name.length), 0);
   return Math.max(54, Math.ceil(longestNameLength * 5.8) + 12);
+}
+
+function getResultHeaderGrid(table, columnCount) {
+  const placements = [];
+  const activeRowspans = Array(columnCount).fill(0);
+
+  table.querySelectorAll("thead tr").forEach((row) => {
+    let cursor = 0;
+    row.querySelectorAll("th").forEach((cell) => {
+      while (activeRowspans[cursor] > 0) cursor += 1;
+      const span = Math.max(1, Number(cell.colSpan) || 1);
+      const rowspan = Math.max(1, Number(cell.rowSpan) || 1);
+      placements.push({ cell, start: cursor, span });
+      for (let index = cursor; index < Math.min(columnCount, cursor + span); index += 1) {
+        activeRowspans[index] = Math.max(activeRowspans[index], rowspan);
+      }
+      cursor += span;
+    });
+    activeRowspans.forEach((value, index) => {
+      activeRowspans[index] = Math.max(0, value - 1);
+    });
+  });
+
+  return placements;
+}
+
+function getResultColumnRole(index, labels, columnCount, table) {
+  const label = labels.join(" ").replace(/\s+/g, " ").trim().toUpperCase();
+  if (index === 0 || /ROLL(\s+NO)?/.test(label)) return "roll";
+  if (index === 1 || label.includes("STUDENT NAME") || label === "NAME") return "name";
+  if (label.includes("REMARK")) return "remarks";
+  if (label.includes("ATTENDANCE") || label.includes("ATTD") || label.includes("ATTND")) return "attendance";
+  if (label.includes("HEIGHT") || label.includes("WEIGHT")) return "measurement";
+  if (label === "%" || label.includes("PERCENT")) return "percentage";
+  if (label.includes("DIVISION") || label === "DIV." || label === "DIV") return "division";
+  if (label.includes("GRADE")) return "grade";
+  if (label.includes("RESULT") || index === columnCount - 1) return "result";
+  if (label.includes("GRAND TOTAL") || label.includes("G. TOTAL")) return "total";
+  if (table.classList.contains("structured-results")
+    && /(ACTIVITIES|UNIT TEST|EXAM|FIRST TERM|SECOND TERM|THIRD TERM|F\.A\.|S\.A\.|TOTAL)/.test(label)) {
+    return "component";
+  }
+  return "subject";
+}
+
+function getResultColumnLimits(role) {
+  const limits = {
+    roll: { min: 46, max: 68, grow: 0.35 },
+    name: { min: 104, max: 270, grow: 0 },
+    remarks: { min: 150, max: 340, grow: 5 },
+    attendance: { min: 54, max: 88, grow: 0.55 },
+    measurement: { min: 58, max: 92, grow: 0.7 },
+    percentage: { min: 52, max: 92, grow: 1.1 },
+    division: { min: 48, max: 80, grow: 0.85 },
+    grade: { min: 38, max: 54, grow: 0.25 },
+    result: { min: 48, max: 78, grow: 0.45 },
+    total: { min: 58, max: 104, grow: 1.25 },
+    component: { min: 27, max: 48, grow: 0.6 },
+    subject: { min: 46, max: 112, grow: 1.5 }
+  };
+  return limits[role] || limits.subject;
+}
+
+function resultCellText(cell) {
+  return String(cell?.textContent || "").replace(/\s+/g, " ").trim();
+}
+
+function optimizeResultTableLayout() {
+  const table = els.resultsTable;
+  const wrapper = table?.closest(".table-wrap");
+  const bodyRows = [...(table?.tBodies?.[0]?.rows || [])];
+  if (!table || !wrapper || wrapper.clientWidth < 120 || !bodyRows.length) return;
+
+  const firstDataRow = bodyRows.find((row) => row.cells.length > 1);
+  const columnCount = firstDataRow?.cells.length || 0;
+  if (!columnCount) return;
+
+  table.querySelector('colgroup[data-result-layout="true"]')?.remove();
+  table.classList.add("result-layout-optimized");
+
+  const canvas = optimizeResultTableLayout.canvas || (optimizeResultTableLayout.canvas = document.createElement("canvas"));
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const measureCache = new Map();
+  const measure = (text, bold = false) => {
+    const key = `${bold ? "b" : "n"}:${text}`;
+    if (measureCache.has(key)) return measureCache.get(key);
+    context.font = `${bold ? "700" : "400"} 13.333px Arial, sans-serif`;
+    const width = context.measureText(text).width;
+    measureCache.set(key, width);
+    return width;
+  };
+
+  const placements = getResultHeaderGrid(table, columnCount);
+  const labels = Array.from({ length: columnCount }, () => []);
+  placements.forEach(({ cell, start, span }) => {
+    const text = resultCellText(cell);
+    for (let index = start; index < Math.min(columnCount, start + span); index += 1) {
+      if (text) labels[index].push(text);
+    }
+  });
+
+  const columns = Array.from({ length: columnCount }, (_, index) => {
+    const role = getResultColumnRole(index, labels[index], columnCount, table);
+    const limits = getResultColumnLimits(role);
+    let measured = 0;
+    bodyRows.forEach((row) => {
+      const cell = row.cells[index];
+      if (cell) measured = Math.max(measured, measure(resultCellText(cell)));
+    });
+    placements.forEach(({ cell, start, span }) => {
+      if (index < start || index >= start + span || cell.classList.contains("vertical-header")) return;
+      measured = Math.max(measured, measure(resultCellText(cell), true) / span);
+    });
+    const padding = table.classList.contains("structured-results") ? 10 : 20;
+    const width = Math.min(limits.max, Math.max(limits.min, Math.ceil(measured + padding)));
+    return {
+      role,
+      ...limits,
+      max: role === "name" ? width : limits.max,
+      width
+    };
+  });
+
+  const minimumWidth = columns.reduce((sum, column) => sum + column.min, 0);
+  const availableWidth = Math.max(1, Math.floor(wrapper.clientWidth - 2));
+  const targetWidth = Math.max(availableWidth, minimumWidth);
+  let currentWidth = columns.reduce((sum, column) => sum + column.width, 0);
+
+  if (currentWidth > targetWidth) {
+    let excess = currentWidth - targetWidth;
+    for (let pass = 0; pass < 4 && excess > 0.5; pass += 1) {
+      const shrinkable = columns.filter((column) => column.width > column.min + 0.1);
+      const capacity = shrinkable.reduce((sum, column) => sum + ((column.width - column.min) / Math.max(column.grow, 0.25)), 0);
+      if (!capacity) break;
+      shrinkable.forEach((column) => {
+        const share = excess * (((column.width - column.min) / Math.max(column.grow, 0.25)) / capacity);
+        const reduction = Math.min(column.width - column.min, share);
+        column.width -= reduction;
+      });
+      currentWidth = columns.reduce((sum, column) => sum + column.width, 0);
+      excess = currentWidth - targetWidth;
+    }
+  } else if (currentWidth < targetWidth) {
+    let spare = targetWidth - currentWidth;
+    for (let pass = 0; pass < 4 && spare > 0.5; pass += 1) {
+      const expandable = columns.filter((column) => column.width < column.max - 0.1);
+      const weight = expandable.reduce((sum, column) => sum + column.grow, 0);
+      if (!weight) break;
+      expandable.forEach((column) => {
+        const addition = Math.min(column.max - column.width, spare * (column.grow / weight));
+        column.width += addition;
+      });
+      currentWidth = columns.reduce((sum, column) => sum + column.width, 0);
+      spare = targetWidth - currentWidth;
+    }
+  }
+
+  const finalWidth = Math.max(targetWidth, columns.reduce((sum, column) => sum + column.width, 0));
+  const colgroup = document.createElement("colgroup");
+  colgroup.dataset.resultLayout = "true";
+  columns.forEach((column) => {
+    const col = document.createElement("col");
+    col.style.width = `${(column.width / finalWidth) * 100}%`;
+    col.dataset.resultRole = column.role;
+    colgroup.appendChild(col);
+  });
+  table.insertBefore(colgroup, table.firstChild);
+  table.style.setProperty("--result-layout-table-width", `${Math.ceil(finalWidth)}px`);
+
+  const fontSteps = [10, 9, 8, 7];
+  const cellFits = [];
+  const collectCellFit = (cell, width, role, isHeader = false) => {
+    if (!cell) return;
+    const text = resultCellText(cell);
+    const vertical = cell.classList.contains("vertical-header");
+    const padding = table.classList.contains("structured-results") ? 8 : 16;
+    const usableWidth = Math.max(8, width - padding);
+    const baseWidth = measure(text, isHeader);
+    const mayWrap = role === "name" && !isHeader;
+    const requiredSize = vertical || mayWrap || !text
+      ? 10
+      : fontSteps.find((size) => baseWidth * (size / 10) <= usableWidth) || 7;
+    cellFits.push({ cell, baseWidth, usableWidth, mayWrap, vertical, requiredSize });
+  };
+
+  bodyRows.forEach((row) => {
+    [...row.cells].forEach((cell, index) => collectCellFit(cell, columns[index]?.width || 50, columns[index]?.role || "subject"));
+  });
+  placements.forEach(({ cell, start, span }) => {
+    const width = columns.slice(start, start + span).reduce((sum, column) => sum + column.width, 0);
+    collectCellFit(cell, width, columns[start]?.role || "subject", true);
+  });
+
+  const uniformFontSize = Math.max(7, Math.min(10, ...cellFits.map((item) => item.requiredSize)));
+  table.style.setProperty("--result-table-uniform-font", `${uniformFontSize}pt`);
+  cellFits.forEach(({ cell, baseWidth, usableWidth, mayWrap, vertical }) => {
+    cell.dataset.resultFontPt = String(uniformFontSize);
+    cell.style.setProperty("--result-cell-font-size", `${uniformFontSize}pt`);
+    cell.classList.toggle("result-cell-wrap", mayWrap && !vertical && baseWidth * (uniformFontSize / 10) > usableWidth);
+  });
+}
+
+function scheduleResultTableLayout() {
+  if (activeView !== "results" || !els.resultsTable) return;
+  cancelAnimationFrame(scheduleResultTableLayout.frame);
+  scheduleResultTableLayout.frame = requestAnimationFrame(() => {
+    optimizeResultTableLayout();
+    updateResultStickyHeaderMetrics();
+  });
 }
 
 function updateResultStickyHeaderMetrics() {
@@ -3503,6 +3732,10 @@ function applyResultPdfTableScale(page, scale) {
   table.style.setProperty("--result-pdf-vertical-font", `${Math.max(5.5, verticalFont * scale)}px`);
   table.style.setProperty("--result-pdf-padding-y", `${Math.max(1, paddingY * scale)}px`);
   table.style.setProperty("--result-pdf-padding-x", `${Math.max(1, paddingX * scale)}px`);
+  table.querySelectorAll("[data-result-font-pt]").forEach((cell) => {
+    const baseFont = Number(cell.dataset.resultFontPt) || 10;
+    cell.style.setProperty("--result-pdf-cell-font", `${Math.max(7, baseFont * scale)}pt`);
+  });
 }
 
 function createResultPdfPage({ layout, includeSummary, rows }) {
@@ -3515,8 +3748,8 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   header.className = "result-pdf-header";
   const heading = document.createElement("div");
   heading.innerHTML = `
-    <h3>Class Result Sheet</h3>
-    <p>${escapeHtml(els.resultNotice?.textContent || `${selectedClass()} ${selectedExam()} Result`)}</p>
+    <h3>PINEHILL ADVENTIST ACADEMY</h3>
+    <p>${escapeHtml(`${selectedClass()} ${selectedExam()} Result : Academic Session ${formatAcademicSession(state.academicSession)}`)}</p>
   `;
   header.appendChild(heading);
   page.appendChild(header);
@@ -3531,6 +3764,8 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   table.style.width = "100%";
   table.classList.add("result-pdf-table");
   applyResultPdfTableProfile(table, selectedClass(), selectedExam());
+  const resultLayoutColumns = els.resultsTable.querySelector('colgroup[data-result-layout="true"]');
+  if (resultLayoutColumns) table.appendChild(resultLayoutColumns.cloneNode(true));
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
   if (table.classList.contains("result-pdf-large-one-line")) {
