@@ -1533,7 +1533,7 @@ function init() {
   els.publicClearFirebaseResultBtn?.addEventListener("click", clearPublicFirebaseResultSearch);
   els.logoutBtn.addEventListener("click", logout);
   els.publishBtn.addEventListener("click", publishCurrentResult);
-  els.unpublishBtn.addEventListener("click", unpublishCurrentResult);
+  els.unpublishBtn.addEventListener("click", toggleResultPublication);
   document.querySelector("#exportBtn").addEventListener("click", exportCsv);
   els.exportExcelBtn?.addEventListener("click", exportExcelFromFirestore);
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
@@ -1830,6 +1830,14 @@ function renderPublishStatus() {
     : `${selectedClass()} - ${selectedExam()} | Admin only`;
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
+  els.unpublishBtn.textContent = status ? "Unpublish" : "Publish";
+  els.unpublishBtn.classList.toggle("primary-button", !status);
+  els.unpublishBtn.classList.toggle("ghost-button", status);
+  els.unpublishBtn.classList.toggle("danger", status);
+  els.unpublishBtn.setAttribute(
+    "aria-label",
+    status ? "Unpublish selected class result" : "Publish selected class result"
+  );
 }
 
 function renderEntry() {
@@ -3410,11 +3418,13 @@ function visibleResultRows() {
 }
 
 function resultPdfLayout(className, exam = selectedExam()) {
+  const earlyClass = ["LKG", "UKG"].includes(className);
   const termSheetClass = [
     "Class I", "Class II", "Class III", "Class IV",
     "Class V", "Class VI", "Class VII", "Class VIII"
   ].includes(className);
-  const landscape = (termSheetClass && termExams.includes(exam))
+  const landscape = earlyClass
+    || (termSheetClass && termExams.includes(exam))
     || (["Class IX", "Class X"].includes(className) && exam === "Third Term");
   const pageWidth = landscape ? 420 : 297;
   const pageHeight = landscape ? 297 : 420;
@@ -3432,6 +3442,7 @@ function resultPdfLayout(className, exam = selectedExam()) {
 function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
+  const rowsPerPage = layout.orientation === "portrait" ? 30 : 28;
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
@@ -3440,25 +3451,53 @@ function paginateResultRows(rows, host, layout) {
       rows
     });
     host.appendChild(page);
-    const body = page.querySelector(".result-pdf-table-body");
     const tableBody = page.querySelector("tbody");
-    let rowsAdded = 0;
-
-    while (rowIndex < rows.length) {
-      const row = rows[rowIndex].cloneNode(true);
-      tableBody.appendChild(row);
-      if (body.scrollHeight > body.clientHeight + 1 && rowsAdded > 0) {
-        row.remove();
-        break;
-      }
+    const pageEnd = Math.min(rowIndex + rowsPerPage, rows.length);
+    while (rowIndex < pageEnd) {
+      tableBody.appendChild(rows[rowIndex].cloneNode(true));
       rowIndex += 1;
-      rowsAdded += 1;
     }
-
     pages.push(page);
   }
 
+  fitResultPdfPages(pages);
   return pages;
+}
+
+function fitResultPdfPages(pages) {
+  let scale = 1;
+  for (let pass = 0; pass < 5; pass += 1) {
+    pages.forEach((page) => applyResultPdfTableScale(page, scale));
+    let fitRatio = 1;
+    pages.forEach((page) => {
+      const body = page.querySelector(".result-pdf-table-body");
+      const table = page.querySelector(".result-pdf-table");
+      if (!body || !table) return;
+      const widthRatio = body.clientWidth / Math.max(table.scrollWidth, 1);
+      const heightRatio = body.clientHeight / Math.max(table.scrollHeight, 1);
+      fitRatio = Math.min(fitRatio, widthRatio, heightRatio);
+    });
+    if (fitRatio >= 0.995) break;
+    scale *= Math.max(0.72, fitRatio * 0.985);
+    scale = Math.max(0.48, scale);
+  }
+  pages.forEach((page) => applyResultPdfTableScale(page, scale));
+}
+
+function applyResultPdfTableScale(page, scale) {
+  const table = page.querySelector(".result-pdf-table");
+  if (!table) return;
+  const structured = table.classList.contains("structured-results");
+  const bodyFont = structured ? 10.24 : 16;
+  const headFont = structured ? 10.24 : 12.48;
+  const verticalFont = structured ? 8.64 : 12.48;
+  const paddingY = structured ? 5 : 12;
+  const paddingX = structured ? 4 : 14;
+  table.style.setProperty("--result-pdf-body-font", `${Math.max(6, bodyFont * scale)}px`);
+  table.style.setProperty("--result-pdf-head-font", `${Math.max(6, headFont * scale)}px`);
+  table.style.setProperty("--result-pdf-vertical-font", `${Math.max(5.5, verticalFont * scale)}px`);
+  table.style.setProperty("--result-pdf-padding-y", `${Math.max(1, paddingY * scale)}px`);
+  table.style.setProperty("--result-pdf-padding-x", `${Math.max(1, paddingX * scale)}px`);
 }
 
 function createResultPdfPage({ layout, includeSummary, rows }) {
@@ -3484,6 +3523,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   const tableBody = document.createElement("div");
   tableBody.className = "result-pdf-table-body";
   const table = els.resultsTable.cloneNode(false);
+  table.style.width = "100%";
   table.classList.add("result-pdf-table");
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
@@ -4247,6 +4287,14 @@ function publishCurrentResult() {
   saveState();
   render();
   showToast(`${selectedClass()} ${selectedExam()} published.`);
+}
+
+function toggleResultPublication() {
+  if (isPublished()) {
+    unpublishCurrentResult();
+  } else {
+    publishCurrentResult();
+  }
 }
 
 function unpublishCurrentResult() {
