@@ -4945,6 +4945,22 @@ th:first-child {
   overflow-wrap: anywhere !important;
 }
 
+.result-pdf-page .result-pdf-table tbody td[data-result-role="name"] {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal;
+}
+
+.result-pdf-page .result-pdf-table td[data-result-role="total"],
+.result-pdf-page .result-pdf-table td[data-result-role="percentage"],
+.result-pdf-page .result-pdf-table td[data-result-role="division"] {
+  font-weight: 800;
+}
+
+.result-pdf-page .result-pdf-table td.subject-total {
+  font-weight: 800 !important;
+}
+
 @media print {
   body.print-results .results-table.result-layout-optimized {
     width: 100% !important;

@@ -2887,11 +2887,17 @@ function optimizeResultTableLayout() {
   };
 
   bodyRows.forEach((row) => {
-    [...row.cells].forEach((cell, index) => collectCellFit(cell, columns[index]?.width || 50, columns[index]?.role || "subject"));
+    [...row.cells].forEach((cell, index) => {
+      const role = columns[index]?.role || "subject";
+      cell.dataset.resultRole = role;
+      collectCellFit(cell, columns[index]?.width || 50, role);
+    });
   });
   placements.forEach(({ cell, start, span }) => {
     const width = columns.slice(start, start + span).reduce((sum, column) => sum + column.width, 0);
-    collectCellFit(cell, width, columns[start]?.role || "subject", true);
+    const role = columns[start]?.role || "subject";
+    cell.dataset.resultRole = role;
+    collectCellFit(cell, width, role, true);
   });
 
   const uniformFontSize = Math.max(7, Math.min(10, ...cellFits.map((item) => item.requiredSize)));
@@ -3721,6 +3727,7 @@ function applyResultPdfTableScale(page, scale) {
   const table = page.querySelector(".result-pdf-table");
   if (!table) return;
   const structured = table.classList.contains("structured-results");
+  const highClass = table.classList.contains("result-pdf-high-class");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
@@ -3734,7 +3741,14 @@ function applyResultPdfTableScale(page, scale) {
   table.style.setProperty("--result-pdf-padding-x", `${Math.max(1, paddingX * scale)}px`);
   table.querySelectorAll("[data-result-font-pt]").forEach((cell) => {
     const baseFont = Number(cell.dataset.resultFontPt) || 10;
-    cell.style.setProperty("--result-pdf-cell-font", `${Math.max(7, baseFont * scale)}pt`);
+    const isHeader = Boolean(cell.closest("thead"));
+    const role = cell.dataset.resultRole || "";
+    const highClassTwelvePoint = !isHeader
+      && highClass
+      && ["roll", "name", "subject", "component", "total", "percentage", "division"].includes(role);
+    const pdfBaseFont = highClassTwelvePoint ? 12 : (!isHeader && baseFont === 10 ? 12 : baseFont);
+    const pdfFont = highClassTwelvePoint ? 12 : Math.max(7, pdfBaseFont * scale);
+    cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
   });
 }
 
@@ -3744,17 +3758,16 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   page.style.width = `${layout.contentWidth}mm`;
   page.style.height = `${layout.contentHeight}mm`;
 
-  const header = document.createElement("header");
-  header.className = "result-pdf-header";
-  const heading = document.createElement("div");
-  heading.innerHTML = `
-    <h3>PINEHILL ADVENTIST ACADEMY</h3>
-    <p>${escapeHtml(`${selectedClass()} ${selectedExam()} Result : Academic Session ${formatAcademicSession(state.academicSession)}`)}</p>
-  `;
-  header.appendChild(heading);
-  page.appendChild(header);
-
   if (includeSummary) {
+    const header = document.createElement("header");
+    header.className = "result-pdf-header";
+    const heading = document.createElement("div");
+    heading.innerHTML = `
+      <h3>PINEHILL ADVENTIST ACADEMY</h3>
+      <p>${escapeHtml(`${selectedClass()} ${selectedExam()} Result : Academic Session ${formatAcademicSession(state.academicSession)}`)}</p>
+    `;
+    header.appendChild(heading);
+    page.appendChild(header);
     page.appendChild(createResultPdfSummary(rows));
   }
 
@@ -3766,6 +3779,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   applyResultPdfTableProfile(table, selectedClass(), selectedExam());
   const resultLayoutColumns = els.resultsTable.querySelector('colgroup[data-result-layout="true"]');
   if (resultLayoutColumns) table.appendChild(resultLayoutColumns.cloneNode(true));
+  fitResultPdfNameColumn(table, rows, layout);
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
   if (table.classList.contains("result-pdf-large-one-line")) {
@@ -3782,6 +3796,40 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   return page;
 }
 
+function fitResultPdfNameColumn(table, rows, layout) {
+  const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
+  const nameColumn = columns.find((column) => column.dataset.resultRole === "name");
+  if (!nameColumn || !columns.length) return;
+
+  const names = rows
+    .map((row) => String(row.cells?.[1]?.textContent || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const canvas = fitResultPdfNameColumn.canvas || (fitResultPdfNameColumn.canvas = document.createElement("canvas"));
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.font = "400 16px Arial, sans-serif";
+  const longestNameWidth = names.reduce(
+    (widest, name) => Math.max(widest, context.measureText(name).width),
+    context.measureText("STUDENT NAME").width
+  );
+  const tableWidthPx = layout.contentWidth * (96 / 25.4);
+  const desiredNameWidth = Math.min(280, Math.max(108, Math.ceil(longestNameWidth + 20)));
+  const desiredPercent = Math.min(24, Math.max(8, (desiredNameWidth / tableWidthPx) * 100));
+  const otherColumns = columns.filter((column) => column !== nameColumn);
+  const otherWidthTotal = otherColumns.reduce(
+    (sum, column) => sum + (Number.parseFloat(column.style.width) || 0),
+    0
+  );
+
+  nameColumn.style.width = `${desiredPercent}%`;
+  if (otherWidthTotal <= 0) return;
+  const remainingPercent = 100 - desiredPercent;
+  otherColumns.forEach((column) => {
+    const currentWidth = Number.parseFloat(column.style.width) || 0;
+    column.style.width = `${(currentWidth / otherWidthTotal) * remainingPercent}%`;
+  });
+}
+
 function applyResultPdfTableProfile(table, className, exam) {
   const term = termExams.includes(exam);
   const largeOneLine = (
@@ -3793,6 +3841,7 @@ function applyResultPdfTableProfile(table, className, exam) {
   ].includes(className)
     && primaryUnitTests.includes(exam);
   const highClassAbbreviated = ["Class IX", "Class X"].includes(className) && term;
+  table.classList.toggle("result-pdf-high-class", ["Class IX", "Class X"].includes(className));
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
@@ -4570,9 +4619,10 @@ function emptyResultOutcome() {
 }
 
 function formatResultStatus(result) {
+  const displayResult = result === "Simple Pass" ? "S.P." : result;
   return result === "-"
     ? "-"
-    : `<span class="status-pill ${resultStatusClass(result)}">${escapeHtml(result)}</span>`;
+    : `<span class="status-pill ${resultStatusClass(result)}">${escapeHtml(displayResult)}</span>`;
 }
 
 function getDivision(percentage, failed) {
