@@ -3383,7 +3383,8 @@ async function downloadResultsPDF() {
       orientation: layout.orientation,
       unit: "mm",
       format: "a3",
-      compress: true
+      compress: true,
+      precision: 16
     });
 
     for (const [index, page] of pages.entries()) {
@@ -3551,7 +3552,9 @@ function applyResultPdfTableProfile(table, className, exam) {
     ["LKG", "UKG"].includes(className)
     || ["Class I", "Class II", "Class III", "Class IV", "Class VII", "Class VIII"].includes(className)
   ) && term;
-  const subjectHeadOneLine = ["Class V", "Class VI"].includes(className)
+  const subjectHeadOneLine = [
+    "Class I", "Class II", "Class III", "Class IV", "Class V", "Class VI"
+  ].includes(className)
     && primaryUnitTests.includes(exam);
   const highClassAbbreviated = ["Class IX", "Class X"].includes(className) && term;
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
@@ -3644,10 +3647,12 @@ async function captureResultPdfPage(page) {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return window.html2canvas(page, {
     backgroundColor: "#ffffff",
-    scale: 2,
+    scale: 3,
     useCORS: true,
     allowTaint: true,
     logging: false,
+    imageTimeout: 15000,
+    removeContainer: true,
     scrollX: 0,
     scrollY: 0,
     windowWidth: page.scrollWidth,
@@ -3675,7 +3680,7 @@ function addResultCanvasToPdf(pdf, canvas, layout) {
     imageWidth,
     imageHeight,
     undefined,
-    "FAST"
+    "SLOW"
   );
 }
 
