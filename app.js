@@ -2422,6 +2422,7 @@ function renderResults() {
   const workingDays = getWorkingDays();
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
+  els.resultsTable.classList.toggle("class-v-reference-format", selectedClass() === "Class I");
   els.resultsTable.style.width = "";
   els.resultsTable.style.removeProperty("--student-name-width");
   els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);

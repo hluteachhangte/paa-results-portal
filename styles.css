@@ -1408,6 +1408,12 @@ th:first-child {
   table-layout: auto;
 }
 
+.results-table.class-v-reference-format:not(.structured-results) {
+  width: max(100%, 980px) !important;
+  min-width: 980px;
+  table-layout: auto;
+}
+
 .results-table.structured-results th,
 .results-table.structured-results td {
   padding: 5px 4px;
