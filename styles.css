@@ -2465,6 +2465,20 @@ th:first-child {
   border-bottom: 0 !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-large-one-line th:not(.vertical-header),
+.result-pdf-page .result-pdf-table.result-pdf-large-one-line td,
+.result-pdf-page .result-pdf-table.result-pdf-subject-head-one-line thead th,
+.result-pdf-page .result-pdf-table.result-pdf-high-abbreviated thead th {
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-large-one-line thead th,
+.result-pdf-page .result-pdf-table.result-pdf-subject-head-one-line thead th,
+.result-pdf-page .result-pdf-table.result-pdf-high-abbreviated thead th {
+  letter-spacing: 0 !important;
+}
+
 .result-pdf-page .result-pdf-table thead tr:first-child > th:first-child,
 .result-pdf-page .result-pdf-table tbody td:first-child {
   width: auto !important;

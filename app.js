@@ -3442,7 +3442,7 @@ function resultPdfLayout(className, exam = selectedExam()) {
 function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
-  const rowsPerPage = layout.orientation === "portrait" ? 30 : 28;
+  const rowsPerPage = layout.orientation === "portrait" ? 33 : 28;
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
@@ -3488,9 +3488,10 @@ function applyResultPdfTableScale(page, scale) {
   const table = page.querySelector(".result-pdf-table");
   if (!table) return;
   const structured = table.classList.contains("structured-results");
-  const bodyFont = structured ? 10.24 : 16;
-  const headFont = structured ? 10.24 : 12.48;
-  const verticalFont = structured ? 8.64 : 12.48;
+  const largeOneLine = table.classList.contains("result-pdf-large-one-line");
+  const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
+  const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
+  const verticalFont = structured ? (largeOneLine ? 10 : 8.64) : (largeOneLine ? 16 : 12.48);
   const paddingY = structured ? 5 : 12;
   const paddingX = structured ? 4 : 14;
   table.style.setProperty("--result-pdf-body-font", `${Math.max(6, bodyFont * scale)}px`);
@@ -3525,8 +3526,13 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   const table = els.resultsTable.cloneNode(false);
   table.style.width = "100%";
   table.classList.add("result-pdf-table");
+  applyResultPdfTableProfile(table, selectedClass(), selectedExam());
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
+  if (table.classList.contains("result-pdf-large-one-line")) {
+    table.querySelectorAll("thead th br").forEach((breakElement) => breakElement.replaceWith(" "));
+  }
+  abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   tableBody.appendChild(table);
   page.appendChild(tableBody);
 
@@ -3534,6 +3540,43 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   pageNumber.className = "result-pdf-page-number";
   page.appendChild(pageNumber);
   return page;
+}
+
+function applyResultPdfTableProfile(table, className, exam) {
+  const term = termExams.includes(exam);
+  const largeOneLine = (
+    ["LKG", "UKG"].includes(className)
+    || ["Class I", "Class II", "Class III", "Class IV", "Class VII", "Class VIII"].includes(className)
+  ) && term;
+  const subjectHeadOneLine = ["Class V", "Class VI"].includes(className)
+    && primaryUnitTests.includes(exam);
+  const highClassAbbreviated = ["Class IX", "Class X"].includes(className) && term;
+  table.classList.toggle("result-pdf-large-one-line", largeOneLine);
+  table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
+  table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
+}
+
+function abbreviateHighClassResultPdfHeaders(table, className, exam) {
+  if (!["Class IX", "Class X"].includes(className) || !termExams.includes(exam)) return;
+  const replacements = {
+    ENGLISH: "ENG",
+    MIZO: "MZ",
+    MATHEMATICS: "MATHS",
+    SCIENCE: "SC",
+    "SOCIAL SCIENCE": "S.S.",
+    "SKILL DEVELOPMENT": "SKILL DEV",
+    ATTENDANCE: "ATTD.",
+    "GRAND TOTAL": "G. TOTAL",
+    GRANDTOTAL: "G. TOTAL",
+    PERCENTAGE: "%",
+    DIVISION: "DIV."
+  };
+  table.querySelectorAll("thead th").forEach((cell) => {
+    const label = cell.querySelector("span") || cell;
+    const key = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    const replacement = replacements[key];
+    if (replacement) label.textContent = replacement;
+  });
 }
 
 function createResultPdfSummary(rows) {
