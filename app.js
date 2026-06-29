@@ -3868,7 +3868,18 @@ function applyResultPdfTableProfile(table, className, exam) {
   const highClassAbbreviated = ["Class IX", "Class X"].includes(className) && term;
   table.classList.toggle(
     "result-pdf-reference-twelve-point",
-    ["Class II", "Class IX", "Class X"].includes(className)
+    [
+      "LKG",
+      "UKG",
+      "Class I",
+      "Class II",
+      "Class III",
+      "Class IV",
+      "Class VII",
+      "Class VIII",
+      "Class IX",
+      "Class X"
+    ].includes(className)
   );
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
