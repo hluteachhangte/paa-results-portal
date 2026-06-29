@@ -3757,8 +3757,8 @@ function applyResultPdfTableScale(page, scale) {
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
   const verticalFont = structured ? (largeOneLine ? 10 : 8.64) : (largeOneLine ? 16 : 12.48);
-  const paddingY = structured ? 5 : 12;
-  const paddingX = structured ? 4 : 14;
+  const paddingY = referenceTwelvePoint ? 12 : (structured ? 5 : 12);
+  const paddingX = referenceTwelvePoint ? 14 : (structured ? 4 : 14);
   table.style.setProperty("--result-pdf-body-font", `${Math.max(6, bodyFont * scale)}px`);
   table.style.setProperty("--result-pdf-head-font", `${Math.max(6, headFont * scale)}px`);
   table.style.setProperty("--result-pdf-vertical-font", `${Math.max(5.5, verticalFont * scale)}px`);
@@ -3857,6 +3857,7 @@ function fitResultPdfNameColumn(table, rows, layout) {
 
 function applyResultPdfTableProfile(table, className, exam) {
   const term = termExams.includes(exam);
+  const lowerClassPdf = classNames.slice(0, classNames.indexOf("Class IX")).includes(className);
   const largeOneLine = (
     ["LKG", "UKG"].includes(className)
     || ["Class I", "Class II", "Class III", "Class IV", "Class VII", "Class VIII"].includes(className)
@@ -3881,6 +3882,7 @@ function applyResultPdfTableProfile(table, className, exam) {
       "Class X"
     ].includes(className)
   );
+  table.classList.toggle("result-pdf-lkg-class-viii", lowerClassPdf);
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);

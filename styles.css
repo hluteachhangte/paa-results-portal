@@ -5083,6 +5083,11 @@ th:first-child {
   font-weight: 800 !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td.subject-total,
+.result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td[data-result-role="total"] {
+  font-weight: 900 !important;
+}
+
 @media print {
   body.print-results .results-table.result-layout-optimized {
     width: 100% !important;
