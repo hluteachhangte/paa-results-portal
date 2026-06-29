@@ -1977,18 +1977,25 @@ function isFocusedEntryMarkInput() {
 
 function normalizeNumberInputValue(input, limit, showWarning, message) {
   const rawValue = input.value.trim();
-  if (rawValue === "") return "";
+  if (rawValue === "") {
+    clearContextMessage(input);
+    return "";
+  }
   const numericValue = Number(rawValue);
-  if (!Number.isFinite(numericValue)) return "";
+  if (!Number.isFinite(numericValue)) {
+    if (showWarning) showContextMessage(input, "Enter a valid number.", { type: "error" });
+    return "";
+  }
   if (numericValue > limit) {
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
-      showToast(message);
+      showContextMessage(input, message, { type: "error", duration: 4500 });
       input.dataset.warnedLimit = String(limit);
     }
     input.value = "";
     return "";
   }
   delete input.dataset.warnedLimit;
+  clearContextMessage(input);
   const value = clamp(numericValue, 0, limit);
   if (!showWarning) return rawValue;
   input.value = value;
@@ -1997,7 +2004,7 @@ function normalizeNumberInputValue(input, limit, showWarning, message) {
 
 function saveEntryInputInPlace(input, options = {}) {
   if (selectedMarksEntryLocked()) {
-    showToast("This marks entry is locked by Administrator.");
+    showContextMessage(input, "This marks entry is locked by Administrator.", { type: "error" });
     syncEntryInputsFromState();
     return;
   }
@@ -2035,10 +2042,11 @@ function saveEntryInputInPlace(input, options = {}) {
   if (input.dataset.gradeRoll !== undefined) {
     const value = input.value.trim().toUpperCase().slice(0, 1);
     if (value && !["A", "B", "C", "D", "E"].includes(value)) {
-      if (showWarning) showToast("Enter grade A, B, C, D, or E.");
+      if (showWarning) showContextMessage(input, "Enter grade A, B, C, D, or E.", { type: "error" });
       input.value = "";
       setStudentMark(input.dataset.gradeRoll, { value: "" }, { save: false });
     } else {
+      clearContextMessage(input);
       input.value = value;
       setStudentMark(input.dataset.gradeRoll, { value }, { save: false });
     }
@@ -2070,7 +2078,10 @@ function saveSplitPartInput(input, showWarning = false) {
 
   if (currentValue !== "" && currentNumber + otherNumber > limit) {
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
-      showToast(`Entry value is higher than the limit of ${limit} for ${selectedSubject()}.`);
+      showContextMessage(input, `Entry value is higher than the limit of ${limit} for ${selectedSubject()}.`, {
+        type: "error",
+        duration: 4500
+      });
       input.dataset.warnedLimit = String(limit);
     }
     input.value = "";
@@ -2078,6 +2089,7 @@ function saveSplitPartInput(input, showWarning = false) {
     if (partKey === "partB") partB = "";
   } else {
     delete input.dataset.warnedLimit;
+    clearContextMessage(input);
   }
 
   const hasPartMarks = partA !== "" || partB !== "";
@@ -2202,10 +2214,14 @@ function renderAttendance() {
         ? getStudentMeasurement({ roll: input.dataset.heightRoll }, className, previousTerm).height
         : "";
       if (input.value !== "" && previousHeight !== "" && Number(input.value) < Number(previousHeight)) {
-        showToast(`Height cannot be less than the ${previousTerm} height (${previousHeight} cm).`);
+        showContextMessage(input, `Height cannot be less than the ${previousTerm} height (${previousHeight} cm).`, {
+          type: "error",
+          duration: 4500
+        });
         input.value = getStudentMeasurement({ roll: input.dataset.heightRoll }, className, term).height;
         return;
       }
+      clearContextMessage(input);
       setStudentMeasurement(input.dataset.heightRoll, { height: input.value }, className, term, { save: false });
     });
   });
@@ -3574,6 +3590,7 @@ function printResults() {
 }
 
 async function downloadResultsPDF() {
+  const button = els.downloadResultsPdfBtn;
   if (!canViewResult()) {
     showToast("Publish the result before downloading results.");
     return;
@@ -3589,7 +3606,6 @@ async function downloadResultsPDF() {
     return;
   }
 
-  const button = els.downloadResultsPdfBtn;
   if (button?.disabled) return;
   const previousText = button?.textContent || "Download PDF";
   const layout = resultPdfLayout(selectedClass(), selectedExam());
@@ -3597,10 +3613,11 @@ async function downloadResultsPDF() {
 
   try {
     if (button) {
+      clearContextMessage(button);
       button.disabled = true;
-      button.textContent = "Generating Result Sheet PDF...";
+      button.classList.add("is-downloading");
+      button.textContent = "Downloading Result sheet";
     }
-    showToast("Generating Result Sheet PDF...");
     if (document.fonts?.ready) await document.fonts.ready;
 
     host = document.createElement("div");
@@ -3633,7 +3650,6 @@ async function downloadResultsPDF() {
     }
 
     pdf.save(resultPdfFilename());
-    showToast("Result PDF downloaded.");
   } catch (error) {
     console.error("Could not generate Result PDF", error);
     showToast("Could not generate PDF. Please try again.");
@@ -3641,6 +3657,7 @@ async function downloadResultsPDF() {
     host?.remove();
     if (button) {
       button.disabled = false;
+      button.classList.remove("is-downloading");
       button.textContent = previousText;
     }
   }
@@ -5472,6 +5489,70 @@ function removeStudent(roll) {
 function clamp(value, min, max) {
   if (Number.isNaN(value)) return "";
   return Math.min(Math.max(value, min), max);
+}
+
+function getContextMessageRecord(target) {
+  if (!target || !target.isConnected) return null;
+  showContextMessage.records = showContextMessage.records || new WeakMap();
+  const existing = showContextMessage.records.get(target);
+  if (existing) return existing;
+
+  const isField = target.matches("input, select, textarea");
+  const message = document.createElement("span");
+  message.className = isField ? "context-message context-field-message" : "context-message context-button-message";
+  message.setAttribute("aria-live", "polite");
+  message.hidden = true;
+  if (isField) {
+    const group = target.parentElement;
+    group.classList.add("context-field-message-host");
+    target.insertAdjacentElement("afterend", message);
+    const record = { group, message, timer: null, target, isField: true };
+    showContextMessage.records.set(target, record);
+    return record;
+  } else {
+    const group = document.createElement("span");
+    group.className = "context-message-group context-button-message-group";
+    target.parentNode.insertBefore(group, target);
+    group.appendChild(target);
+    group.insertBefore(message, target);
+    const record = { group, message, timer: null, target, isField: false };
+    showContextMessage.records.set(target, record);
+    return record;
+  }
+}
+
+function showContextMessage(target, text, options = {}) {
+  if (!target || !target.isConnected) {
+    showToast(text);
+    return;
+  }
+  const { type = "info", duration = 3200 } = options;
+  const record = getContextMessageRecord(target);
+  if (!record) {
+    showToast(text);
+    return;
+  }
+  clearTimeout(record.timer);
+  record.message.textContent = text;
+  record.message.className = `${record.message.classList.contains("context-field-message") ? "context-message context-field-message" : "context-message context-button-message"} ${type}`;
+  record.message.setAttribute("role", type === "error" ? "alert" : "status");
+  if (record.isField) {
+    record.message.style.left = `${target.offsetLeft}px`;
+    record.message.style.top = `${target.offsetTop + target.offsetHeight + 4}px`;
+  }
+  record.message.hidden = false;
+  if (duration > 0) {
+    record.timer = setTimeout(() => clearContextMessage(target), duration);
+  }
+}
+
+function clearContextMessage(target) {
+  const record = showContextMessage.records?.get(target);
+  if (!record) return;
+  clearTimeout(record.timer);
+  record.timer = null;
+  record.message.hidden = true;
+  record.message.textContent = "";
 }
 
 function showToast(message) {

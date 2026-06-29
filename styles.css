@@ -3271,6 +3271,106 @@ th:first-child {
   }
 }
 
+.context-message[hidden] {
+  display: none !important;
+}
+
+.context-message-group {
+  min-width: 0;
+}
+
+.context-button-message-group {
+  display: inline-flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+
+.context-button-message-group > button {
+  width: 100%;
+}
+
+.context-button-message {
+  max-width: 230px;
+  padding: 5px 7px;
+  border: 1px solid #9fcfc7;
+  border-radius: 5px;
+  background: #f2fbf9;
+  box-shadow: 0 4px 12px rgba(23, 32, 42, 0.12);
+  color: var(--primary-dark);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+}
+
+.context-field-message-host {
+  position: relative;
+}
+
+.context-field-message {
+  position: absolute;
+  z-index: 30;
+  width: max-content;
+  max-width: min(230px, 72vw);
+  padding: 5px 7px;
+  border: 1px solid #efb3b3;
+  border-radius: 5px;
+  background: #fff7f7;
+  box-shadow: 0 4px 12px rgba(23, 32, 42, 0.14);
+  color: var(--bad);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.context-message.success {
+  color: var(--primary-dark);
+}
+
+.context-message.error {
+  color: var(--bad);
+}
+
+.context-button-message.error {
+  border-color: #efb3b3;
+  background: #fff7f7;
+}
+
+.context-button-message.success {
+  border-color: #9fcfc7;
+  background: #f2fbf9;
+}
+
+@media (max-width: 768px) {
+  .inline-actions .context-button-message-group {
+    flex: 1 1 150px;
+  }
+
+  .context-button-message {
+    max-width: none;
+    font-size: 0.76rem;
+  }
+
+  #downloadResultsPdfBtn {
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    padding-inline: 8px;
+    line-height: 1.1;
+    white-space: normal;
+  }
+
+  #downloadResultsPdfBtn.is-downloading {
+    font-size: 0.72rem;
+  }
+}
+
 @media (max-width: 480px) {
   .login-screen,
   .sidebar,
