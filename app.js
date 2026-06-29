@@ -2527,7 +2527,7 @@ function renderResults() {
           : ""}
         <td>${record.total}/${record.maximumTotal}</td>
         <td>${record.percent}%</td>
-        <td>${record.outcome.division}</td>
+        <td>${formatDivisionLabel(record.outcome.division)}</td>
         <td>${formatResultStatus(record.outcome.result)}</td>
       </tr>
     `;
@@ -2685,7 +2685,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       <td>${record.attendance === "" ? "-" : `${record.attendance}/${workingDays}`}</td>
       <td><strong>${record.total}/${record.maximumTotal}</strong></td>
       <td>${record.percentage}%</td>
-      <td>${record.outcome.division}</td>
+      <td>${formatDivisionLabel(record.outcome.division)}</td>
       <td>${formatResultStatus(record.outcome.result)}</td>
     </tr>
   `).join("");
@@ -2950,25 +2950,33 @@ function updateResultStickyHeaderMetrics() {
 
 function renderResultSummary(records, studentCount) {
   const appearedRecords = records.filter((record) => record.appeared);
-  const appeared = appearedRecords.length;
-  const absent = studentCount - appeared;
+  const present = appearedRecords.length;
   const passCount = appearedRecords.filter((record) => record.outcome.result !== "Fail").length;
-  const failCount = appeared - passCount;
-  const passPercentage = appeared ? Math.round((passCount / appeared) * 10000) / 100 : 0;
+  const passSummary = calculateClassPassSummary(studentCount, present, passCount);
   const divisionCount = (division) => appearedRecords.filter((record) => record.outcome.division === division).length;
 
   els.resultSummary.innerHTML = `
-    ${summaryItem("No. of Students", studentCount)}
-    ${summaryItem("Absent", absent)}
-    ${summaryItem("Appeared", appeared)}
-    ${summaryItem("Pass Percentage", `${passPercentage}%`)}
-    ${summaryItem("No. of Passed", passCount)}
-    ${summaryItem("No. of Failed", failCount)}
+    ${summaryItem("Total Students", passSummary.total)}
+    ${summaryItem("Present", passSummary.present)}
+    ${summaryItem("Absent", passSummary.absent)}
+    ${summaryItem("Passed", passSummary.passed)}
+    ${summaryItem("Failed", passSummary.failed)}
+    ${summaryItem("Pass Percentage", `${passSummary.passPercentage.toFixed(2)}%`)}
     ${summaryItem("No. of Distinction", divisionCount("Dist."))}
     ${summaryItem("No. of First Division", divisionCount("I"))}
     ${summaryItem("No. of Second Division", divisionCount("II"))}
     ${summaryItem("No. of Third Division", divisionCount("III"))}
   `;
+}
+
+function calculateClassPassSummary(totalStudents, presentStudents, passedStudents) {
+  const total = Math.max(0, Number(totalStudents) || 0);
+  const present = Math.min(total, Math.max(0, Number(presentStudents) || 0));
+  const passed = Math.min(present, Math.max(0, Number(passedStudents) || 0));
+  const absent = total - present;
+  const failed = total - passed;
+  const passPercentage = total ? Math.round((passed / total) * 10000) / 100 : 0;
+  return { total, present, absent, passed, failed, passPercentage };
 }
 
 function getStructuredSubjectResult(student, group) {
@@ -3744,7 +3752,7 @@ function applyResultPdfTableScale(page, scale) {
   const table = page.querySelector(".result-pdf-table");
   if (!table) return;
   const structured = table.classList.contains("structured-results");
-  const highClass = table.classList.contains("result-pdf-high-class");
+  const referenceTwelvePoint = table.classList.contains("result-pdf-reference-twelve-point");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
@@ -3760,11 +3768,11 @@ function applyResultPdfTableScale(page, scale) {
     const baseFont = Number(cell.dataset.resultFontPt) || 10;
     const isHeader = Boolean(cell.closest("thead"));
     const role = cell.dataset.resultRole || "";
-    const highClassTwelvePoint = !isHeader
-      && highClass
+    const referenceCellTwelvePoint = !isHeader
+      && referenceTwelvePoint
       && ["roll", "name", "subject", "component", "total", "percentage", "division"].includes(role);
-    const pdfBaseFont = highClassTwelvePoint ? 12 : (!isHeader && baseFont === 10 ? 12 : baseFont);
-    const pdfFont = highClassTwelvePoint ? 12 : Math.max(7, pdfBaseFont * scale);
+    const pdfBaseFont = referenceCellTwelvePoint ? 12 : (!isHeader && baseFont === 10 ? 12 : baseFont);
+    const pdfFont = referenceCellTwelvePoint ? 12 : Math.max(7, pdfBaseFont * scale);
     cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
   });
 }
@@ -3858,7 +3866,10 @@ function applyResultPdfTableProfile(table, className, exam) {
   ].includes(className)
     && primaryUnitTests.includes(exam);
   const highClassAbbreviated = ["Class IX", "Class X"].includes(className) && term;
-  table.classList.toggle("result-pdf-high-class", ["Class IX", "Class X"].includes(className));
+  table.classList.toggle(
+    "result-pdf-reference-twelve-point",
+    ["Class II", "Class IX", "Class X"].includes(className)
+  );
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
@@ -3923,20 +3934,18 @@ function createResultPdfSummary(rows) {
     };
   });
   const appearedRecords = records.filter((record) => record.result && record.result !== "-");
-  const appeared = appearedRecords.length;
-  const absent = records.length - appeared;
+  const present = appearedRecords.length;
   const passed = appearedRecords.filter((record) => record.result !== "Fail").length;
-  const failed = appeared - passed;
-  const passPercentage = appeared ? Math.round((passed / appeared) * 10000) / 100 : 0;
+  const passSummary = calculateClassPassSummary(records.length, present, passed);
   const divisionCount = (division) => appearedRecords.filter((record) => record.division === division).length;
 
   summary.innerHTML = `
-    ${summaryItem("No. of Students", records.length)}
-    ${summaryItem("Absent", absent)}
-    ${summaryItem("Appeared", appeared)}
-    ${summaryItem("Pass Percentage", `${passPercentage}%`)}
-    ${summaryItem("No. of Passed", passed)}
-    ${summaryItem("No. of Failed", failed)}
+    ${summaryItem("Total Students", passSummary.total)}
+    ${summaryItem("Present", passSummary.present)}
+    ${summaryItem("Absent", passSummary.absent)}
+    ${summaryItem("Passed", passSummary.passed)}
+    ${summaryItem("Failed", passSummary.failed)}
+    ${summaryItem("Pass Percentage", `${passSummary.passPercentage.toFixed(2)}%`)}
     ${summaryItem("No. of Distinction", divisionCount("Dist."))}
     ${summaryItem("No. of First Division", divisionCount("I"))}
     ${summaryItem("No. of Second Division", divisionCount("II"))}
@@ -4640,6 +4649,19 @@ function formatResultStatus(result) {
   return result === "-"
     ? "-"
     : `<span class="status-pill ${resultStatusClass(result)}">${escapeHtml(displayResult)}</span>`;
+}
+
+function formatDivisionLabel(division) {
+  const classNames = {
+    "Dist.": "distinction",
+    I: "first",
+    II: "second",
+    III: "third"
+  };
+  const className = classNames[division];
+  return className
+    ? `<span class="division-label ${className}">${escapeHtml(division)}</span>`
+    : escapeHtml(division);
 }
 
 function getDivision(percentage, failed) {

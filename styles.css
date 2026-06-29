@@ -1390,6 +1390,28 @@ th:first-child {
   color: #8a5a00;
 }
 
+.results-table .division-label {
+  font-weight: 800;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.results-table .division-label.distinction {
+  color: #7b2cbf;
+}
+
+.results-table .division-label.first {
+  color: #157347;
+}
+
+.results-table .division-label.second {
+  color: #1769aa;
+}
+
+.results-table .division-label.third {
+  color: #c45a00;
+}
+
 .results-table th:nth-child(2),
 .results-table td:nth-child(2) {
   width: var(--student-name-width, auto);
