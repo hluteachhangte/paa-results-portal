@@ -3696,7 +3696,7 @@ function resultPdfLayout(className, exam = selectedExam()) {
 function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
-  const rowsPerPage = layout.orientation === "portrait" ? 33 : 28;
+  const rowsPerPage = layout.orientation === "portrait" ? 30 : 28;
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
