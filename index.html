@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=bold-lower-total-pdf-20260629">
+  <link rel="stylesheet" href="./styles.css?v=mobile-menu-groups-20260630">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -51,22 +51,47 @@
       </div>
       <div class="mobile-menu-group">
         <span>Home</span>
-        <button type="button" data-mobile-view="entry">Marks Entry</button>
+        <button type="button" data-mobile-view="entry">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9998;</span>
+          <span>Marks Entry</span>
+        </button>
+        <button type="button" data-mobile-view="attendance">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9783;</span>
+          <span>Attendance &amp; Physical Measurement</span>
+        </button>
       </div>
       <div class="mobile-menu-group">
         <span>Students</span>
-        <button type="button" data-mobile-view="students">Students</button>
-        <a href="./attendance.html">100% Attendance</a>
+        <button type="button" data-mobile-view="students">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9787;</span>
+          <span>Students</span>
+        </button>
+        <a href="./attendance.html">
+          <span class="mobile-nav-icon" aria-hidden="true">&#10003;</span>
+          <span>100% Attendance</span>
+        </a>
       </div>
       <div class="mobile-menu-group">
         <span>Results</span>
-        <button type="button" data-mobile-view="results">Result Portal</button>
-        <button type="button" data-mobile-view="marksheet">Marksheet Printing</button>
+        <button type="button" data-mobile-view="results">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9636;</span>
+          <span>Result Portal</span>
+        </button>
+        <button type="button" data-mobile-view="marksheet">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9633;</span>
+          <span>Marksheet</span>
+        </button>
+        <button type="button" data-mobile-view="analysis">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9783;</span>
+          <span>Academic Analysis</span>
+        </button>
       </div>
       <div class="mobile-menu-group">
         <span>Administration</span>
-        <button type="button" data-mobile-view="attendance">Attendance & Physical Measurement</button>
-        <button class="hidden" type="button" data-mobile-view="entryAccess" data-admin-only="true">Settings</button>
+        <button class="hidden" type="button" data-mobile-view="entryAccess" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9881;</span>
+          <span>Settings</span>
+        </button>
       </div>
     </nav>
     <aside class="sidebar" aria-label="Application navigation">
@@ -99,13 +124,17 @@
           <span aria-hidden="true">＋</span>
           Students
         </button>
+        <a class="nav-tab-link nav-link" href="./attendance.html" title="100% attendance students">
+          100% Attendance
+        </a>
+        <button class="nav-tab" data-view="analysis" type="button" title="Academic analysis dashboard">
+          <span aria-hidden="true">&#9636;</span>
+          Academic Analysis
+        </button>
         <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
           <span aria-hidden="true">&#128274;</span>
           Entry Access Control
         </button>
-        <a class="nav-tab-link nav-link" href="./attendance.html" title="100% attendance students">
-          100% Attendance
-        </a>
       </nav>
 
       <section class="publish-panel" aria-label="Publish status">
@@ -310,6 +339,95 @@
         </div>
       </section>
 
+      <section id="analysisView" class="view" aria-label="Academic analysis">
+        <div class="section-head analysis-page-head">
+          <div>
+            <h3>Academic Analysis</h3>
+            <p>School, class, subject, attendance, and student performance dashboard.</p>
+          </div>
+          <div class="inline-actions analysis-actions">
+            <button id="downloadAnalysisPdfBtn" class="primary-button" type="button">Download Analysis PDF</button>
+            <button id="exportAnalysisExcelBtn" class="ghost-button" type="button" data-admin-only="true">Export Excel</button>
+            <button id="printAnalysisBtn" class="ghost-button" type="button" data-admin-only="true">Print Analysis</button>
+          </div>
+        </div>
+
+        <div class="analysis-filters" aria-label="Academic analysis filters">
+          <label>Academic Session<select id="analysisSessionSelect"></select></label>
+          <label>Class<select id="analysisClassSelect"></select></label>
+          <label>Examination<select id="analysisExamSelect"></select></label>
+          <label>Subject<select id="analysisSubjectSelect"></select></label>
+          <label>
+            Student Status
+            <select id="analysisStatusSelect">
+              <option value="all">All</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+            </select>
+          </label>
+          <label>Support Below %<input id="analysisSupportThreshold" type="number" min="0" max="100" step="1" value="50"></label>
+        </div>
+
+        <div id="analysisReport" class="analysis-report">
+          <header class="analysis-report-title">
+            <h3>PINEHILL ADVENTIST ACADEMY</h3>
+            <p id="analysisReportSubtitle">Academic Analysis</p>
+          </header>
+          <div id="analysisOverview" class="analysis-overview"></div>
+
+          <div class="analysis-grid analysis-grid-two">
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Class Analysis</h4><span id="analysisClassHighlight"></span></div>
+              <div id="analysisClassChart"></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Result Trend</h4></div>
+              <div id="analysisTrendChart"></div>
+            </section>
+          </div>
+
+          <section class="analysis-panel">
+            <div class="analysis-panel-head"><h4>Subject Analysis</h4><span id="analysisSubjectHighlight"></span></div>
+            <div class="analysis-grid analysis-grid-two">
+              <div id="analysisSubjectChart"></div>
+              <div class="analysis-table-wrap">
+                <table class="analysis-table">
+                  <thead><tr><th>Subject</th><th>Highest</th><th>Lowest</th><th>Average</th><th>Pass %</th><th>Passed</th><th>Failed</th></tr></thead>
+                  <tbody id="analysisSubjectBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-three">
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Division Analysis</h4></div><div id="analysisDivisionChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Pass / Fail</h4></div><div id="analysisPassFailChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Attendance Analysis</h4></div><div id="analysisAttendance"></div></section>
+          </div>
+
+          <div class="analysis-grid analysis-grid-two">
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Performance Distribution</h4></div><div id="analysisDistributionChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Top 10 Students</h4></div><div id="analysisTopStudents"></div></section>
+          </div>
+
+          <section class="analysis-panel">
+            <div class="analysis-panel-head"><h4>Students Needing Support</h4></div>
+            <div class="analysis-table-wrap">
+              <table class="analysis-table support-table">
+                <thead><tr><th>Roll No.</th><th>Student Name</th><th>Class</th><th>Status</th><th>Percentage</th><th>Reason</th></tr></thead>
+                <tbody id="analysisSupportBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-three analysis-insights">
+            <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="analysisStrengths"></ul></section>
+            <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="analysisWeaknesses"></ul></section>
+            <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommendations</h4></div><ul id="analysisRecommendations"></ul></section>
+          </div>
+        </div>
+      </section>
+
       <section id="studentsView" class="view" aria-label="Student management">
         <div class="section-head">
           <div>
@@ -396,6 +514,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=bold-lower-total-pdf-20260629"></script>
+  <script src="./app.js?v=academic-analysis-subject-chart-20260630"></script>
 </body>
 </html>

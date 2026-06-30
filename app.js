@@ -155,6 +155,7 @@ let entryAccessSaveInProgress = false;
 let activePrintClass = "";
 let printCleanupTimer = null;
 let restoreMarksheetsAfterPrint = false;
+let analysisCurrentData = null;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -228,6 +229,33 @@ const els = {
   zoomInMarksheetBtn: document.querySelector("#zoomInMarksheetBtn"),
   printResultsBtn: document.querySelector("#printResultsBtn"),
   downloadResultsPdfBtn: document.querySelector("#downloadResultsPdfBtn"),
+  analysisSessionSelect: document.querySelector("#analysisSessionSelect"),
+  analysisClassSelect: document.querySelector("#analysisClassSelect"),
+  analysisExamSelect: document.querySelector("#analysisExamSelect"),
+  analysisSubjectSelect: document.querySelector("#analysisSubjectSelect"),
+  analysisStatusSelect: document.querySelector("#analysisStatusSelect"),
+  analysisSupportThreshold: document.querySelector("#analysisSupportThreshold"),
+  analysisReport: document.querySelector("#analysisReport"),
+  analysisReportSubtitle: document.querySelector("#analysisReportSubtitle"),
+  analysisOverview: document.querySelector("#analysisOverview"),
+  analysisClassChart: document.querySelector("#analysisClassChart"),
+  analysisClassHighlight: document.querySelector("#analysisClassHighlight"),
+  analysisTrendChart: document.querySelector("#analysisTrendChart"),
+  analysisSubjectChart: document.querySelector("#analysisSubjectChart"),
+  analysisSubjectHighlight: document.querySelector("#analysisSubjectHighlight"),
+  analysisSubjectBody: document.querySelector("#analysisSubjectBody"),
+  analysisDivisionChart: document.querySelector("#analysisDivisionChart"),
+  analysisPassFailChart: document.querySelector("#analysisPassFailChart"),
+  analysisAttendance: document.querySelector("#analysisAttendance"),
+  analysisDistributionChart: document.querySelector("#analysisDistributionChart"),
+  analysisTopStudents: document.querySelector("#analysisTopStudents"),
+  analysisSupportBody: document.querySelector("#analysisSupportBody"),
+  analysisStrengths: document.querySelector("#analysisStrengths"),
+  analysisWeaknesses: document.querySelector("#analysisWeaknesses"),
+  analysisRecommendations: document.querySelector("#analysisRecommendations"),
+  downloadAnalysisPdfBtn: document.querySelector("#downloadAnalysisPdfBtn"),
+  exportAnalysisExcelBtn: document.querySelector("#exportAnalysisExcelBtn"),
+  printAnalysisBtn: document.querySelector("#printAnalysisBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -670,7 +698,7 @@ function loadSavedUiState() {
 
   try {
     const parsed = JSON.parse(saved);
-    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "entryAccess"];
+    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "entryAccess"];
     return {
       ...parsed,
       activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
@@ -683,7 +711,7 @@ function loadSavedUiState() {
 function viewFromLocationHash() {
   const hash = window.location.hash.replace(/^#/, "");
   const routeView = new URLSearchParams(hash).get("view") || hash.replace(/^view=/, "");
-  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "entryAccess"];
+  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "entryAccess"];
   return allowedViews.includes(routeView) ? routeView : "";
 }
 
@@ -697,7 +725,13 @@ function saveUiState() {
     studentsClass: els.studentsClassSelect?.value || selectedClass(),
     attendanceClass: selectedAttendanceClass(),
     attendanceTerm: selectedAttendanceTerm(),
-    marksheetNameSearch: els.marksheetNameSearchInput?.value || ""
+    marksheetNameSearch: els.marksheetNameSearchInput?.value || "",
+    analysisSession: els.analysisSessionSelect?.value || state.academicSession,
+    analysisClass: els.analysisClassSelect?.value || "All Classes",
+    analysisExam: els.analysisExamSelect?.value || "First Term",
+    analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
+    analysisStatus: els.analysisStatusSelect?.value || "all",
+    analysisThreshold: els.analysisSupportThreshold?.value || "50"
   }));
 }
 
@@ -873,6 +907,7 @@ function applyRemoteStateToCurrentView(uiState) {
     els.marksheetNameSearchInput.value = uiState.marksheetNameSearch || "";
   }
   updateAttendanceInputs();
+  initializeAnalysisFilters(savedUiState);
 
   if (isFocusedEntryMarkInput()) {
     renderPublishStatus();
@@ -904,6 +939,8 @@ function renderActiveViewOnly() {
     renderMarksheets();
   } else if (activeView === "students") {
     renderStudents();
+  } else if (activeView === "analysis") {
+    renderAcademicAnalysis();
   } else {
     render();
   }
@@ -1555,6 +1592,24 @@ function init() {
   els.downloadMarksheetPdfBtn?.addEventListener("click", downloadMarksheetPDF);
   els.printResultsBtn.addEventListener("click", printResults);
   els.downloadResultsPdfBtn?.addEventListener("click", downloadResultsPDF);
+  [
+    els.analysisSessionSelect,
+    els.analysisClassSelect,
+    els.analysisExamSelect,
+    els.analysisSubjectSelect,
+    els.analysisStatusSelect,
+    els.analysisSupportThreshold
+  ].filter(Boolean).forEach((control) => {
+    control.addEventListener("change", () => {
+      if (control === els.analysisClassSelect) updateAnalysisExamOptions();
+      if (control === els.analysisClassSelect || control === els.analysisExamSelect) updateAnalysisSubjectOptions();
+      saveUiState();
+      renderAcademicAnalysis();
+    });
+  });
+  els.downloadAnalysisPdfBtn?.addEventListener("click", downloadAnalysisPDF);
+  els.exportAnalysisExcelBtn?.addEventListener("click", exportAnalysisExcel);
+  els.printAnalysisBtn?.addEventListener("click", printAcademicAnalysis);
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetNameSearchInput?.addEventListener("input", () => {
@@ -1785,6 +1840,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("results-active", activeView === "results");
   document.body.classList.toggle("students-active", activeView === "students");
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
+  document.body.classList.toggle("analysis-active", activeView === "analysis");
   document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
@@ -1795,6 +1851,7 @@ function renderActiveViewChrome() {
     results: "Results",
     marksheet: "Marksheets",
     students: "Students",
+    analysis: "Academic Analysis",
     entryAccess: "Entry Access Control"
   };
   els.viewTitle.textContent = titles[activeView] || "Marks Entry";
@@ -1808,13 +1865,14 @@ function render() {
   renderResults();
   renderMarksheets();
   renderStudents();
+  renderAcademicAnalysis();
   renderEntryAccessControl();
 }
 
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = activeView !== "attendance" && activeView !== "students" && activeView !== "entryAccess";
+  const showMainFilters = !["attendance", "students", "analysis", "entryAccess"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -3585,6 +3643,588 @@ function formatResultMark(subject, value, passMarks) {
     : escapeHtml(displayValue)}</td>`;
 }
 
+function initializeAnalysisFilters(savedFilters = null) {
+  if (!els.analysisSessionSelect) return;
+  syncActiveSessionData();
+  const previousSession = savedFilters?.analysisSession || els.analysisSessionSelect.value || state.academicSession;
+  const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})])].sort();
+  populateSelect(els.analysisSessionSelect, sessions);
+  setSelectValueIfAvailable(els.analysisSessionSelect, previousSession);
+
+  const previousClass = savedFilters?.analysisClass || els.analysisClassSelect.value || "All Classes";
+  populateSelect(els.analysisClassSelect, ["All Classes", ...classNames]);
+  setSelectValueIfAvailable(els.analysisClassSelect, previousClass);
+  updateAnalysisExamOptions();
+  setSelectValueIfAvailable(els.analysisExamSelect, savedFilters?.analysisExam);
+  updateAnalysisSubjectOptions();
+  setSelectValueIfAvailable(els.analysisSubjectSelect, savedFilters?.analysisSubject);
+  setSelectValueIfAvailable(els.analysisStatusSelect, savedFilters?.analysisStatus);
+  if (savedFilters?.analysisThreshold !== undefined) {
+    els.analysisSupportThreshold.value = savedFilters.analysisThreshold;
+  }
+}
+
+function updateAnalysisExamOptions() {
+  if (!els.analysisExamSelect) return;
+  const previous = els.analysisExamSelect.value || selectedExam() || "First Term";
+  const className = els.analysisClassSelect.value;
+  const exams = className && className !== "All Classes"
+    ? currentExams(className)
+    : [...new Set(classNames.flatMap((name) => currentExams(name)))];
+  populateSelect(els.analysisExamSelect, exams);
+  setSelectValueIfAvailable(els.analysisExamSelect, previous);
+  if (!els.analysisExamSelect.value && exams.length) els.analysisExamSelect.value = exams[0];
+}
+
+function analysisSubjectNames(className, exam) {
+  if (!currentExams(className).includes(exam)) return [];
+  const subjects = currentSubjects(className, exam);
+  if (isStructuredResultSheet(className, exam)) {
+    if (exam === "Third Term") {
+      return subjects.filter((subject) => subject !== "W.E." && !isGradeSubject(subject, className));
+    }
+    return [...new Set(subjects.map((subject) => subject.replace(/\s+\((Activities|Exam)\)$/, "")))]
+      .filter((subject) => subject !== "W.E." && !isGradeSubject(subject, className));
+  }
+  return subjects
+    .filter((subject) => subject !== "W.E." && !isGradeSubject(subject, className))
+    .map((subject) => baseSubjectName(subject));
+}
+
+function updateAnalysisSubjectOptions() {
+  if (!els.analysisSubjectSelect) return;
+  const previous = els.analysisSubjectSelect.value || "All Subjects";
+  const classFilter = els.analysisClassSelect.value;
+  const exam = els.analysisExamSelect.value;
+  const classes = classFilter && classFilter !== "All Classes" ? [classFilter] : classNames;
+  const subjects = [...new Set(classes.flatMap((className) => analysisSubjectNames(className, exam)))];
+  populateSelect(els.analysisSubjectSelect, ["All Subjects", ...subjects]);
+  setSelectValueIfAvailable(els.analysisSubjectSelect, previous);
+}
+
+function runWithAnalysisSession(session, callback) {
+  syncActiveSessionData();
+  const previousSession = state.academicSession;
+  const previousData = getActiveSessionData();
+  const nextSession = currentSessionKey(session || previousSession);
+  const nextData = nextSession === previousSession
+    ? previousData
+    : normalizeSessionData(state.sessions?.[nextSession] || createEmptySessionData());
+  state.academicSession = nextSession;
+  setActiveSessionData(state, nextData);
+  try {
+    return callback();
+  } finally {
+    state.academicSession = previousSession;
+    setActiveSessionData(state, previousData);
+  }
+}
+
+function analysisSubjectEntries(student, resultRecord) {
+  if (resultRecord.structured) {
+    const passMark = isHighThirdTermResult() ? 33 : 50;
+    const grouped = resultRecord.structure.groups.map((group, index) => {
+      const result = resultRecord.subjectResults[index];
+      return {
+        name: group.name,
+        value: result.hasMark ? numericMark(result.total) : "",
+        maximum: 100,
+        passMark,
+        present: result.hasMark,
+        passed: result.hasMark && numericMark(result.total) >= passMark
+      };
+    });
+    const standalone = resultRecord.standaloneResults
+      .filter((result) => !result.graded)
+      .map((result) => ({
+        name: result.subject,
+        value: result.value,
+        maximum: result.maxMarks,
+        passMark: result.countsForResult ? 50 : 0,
+        present: result.value !== "",
+        passed: result.value !== "" && (!result.countsForResult || numericMark(result.value) >= 50)
+      }));
+    return [...grouped, ...standalone];
+  }
+
+  return currentSubjects()
+    .filter((subject) => !isGradeSubject(subject))
+    .map((subject) => {
+      const mark = getStudentMark(student, subject);
+      const maximum = getSubjectMaxMarks(selectedClass(), selectedExam(), subject);
+      const passMark = getSubjectPassMarks(selectedClass(), selectedExam(), subject);
+      const noPassMark = isNoPassMarkSubject(selectedClass(), selectedExam(), subject);
+      return {
+        name: baseSubjectName(subject),
+        value: mark.value,
+        maximum,
+        passMark: noPassMark ? 0 : passMark,
+        present: mark.value !== "",
+        passed: mark.value !== "" && (noPassMark || numericMark(mark.value) >= passMark)
+      };
+    });
+}
+
+function buildAcademicAnalysisRecords(session, classes, exam) {
+  return runWithAnalysisSession(session, () => {
+    const records = [];
+    classes.filter((className) => currentExams(className).includes(exam)).forEach((className) => {
+      runWithExportSelection(className, exam, () => {
+        const workingDays = getWorkingDays(exam);
+        (state.classes[className] || []).forEach((student) => {
+          const resultRecord = calculateExcelResultRecord(student);
+          const percentage = resultRecord.appeared ? Number(resultRecord.percentage) || 0 : 0;
+          const attendance = getStudentAttendance(student, className, exam);
+          records.push({
+            roll: student.roll,
+            name: student.name,
+            className,
+            exam,
+            appeared: resultRecord.appeared,
+            percentage,
+            result: resultRecord.outcome.result,
+            division: resultRecord.outcome.division,
+            attendance,
+            workingDays,
+            subjects: analysisSubjectEntries(student, resultRecord)
+          });
+        });
+      });
+    });
+    return records;
+  });
+}
+
+function filteredAnalysisRecord(record, subjectFilter) {
+  if (!subjectFilter || subjectFilter === "All Subjects") return record;
+  const subject = record.subjects.find((entry) => entry.name === subjectFilter);
+  if (!subject) return { ...record, appeared: false, percentage: 0, result: "-", division: "-" };
+  const percentage = subject.present && subject.maximum
+    ? Math.round((numericMark(subject.value) / subject.maximum) * 10000) / 100
+    : 0;
+  return {
+    ...record,
+    appeared: subject.present,
+    percentage,
+    result: subject.present ? (subject.passed ? "Pass" : "Fail") : "-",
+    division: subject.present && subject.passed
+      ? (isHighClass(record.className) ? getDivision(percentage, false) : getPrimaryDivision(percentage))
+      : "-"
+  };
+}
+
+function average(values) {
+  const numbers = values.map(Number).filter(Number.isFinite);
+  return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : 0;
+}
+
+function analysisOverviewMetrics(records) {
+  const total = records.length;
+  const presentRecords = records.filter((record) => record.appeared);
+  const passed = presentRecords.filter((record) => record.result !== "Fail").length;
+  const summary = calculateClassPassSummary(total, presentRecords.length, passed);
+  const divisionCount = (division) => presentRecords.filter((record) => record.division === division).length;
+  return {
+    ...summary,
+    schoolAverage: average(presentRecords.map((record) => record.percentage)),
+    distinction: divisionCount("Dist."),
+    first: divisionCount("I"),
+    second: divisionCount("II"),
+    third: divisionCount("III"),
+    simplePass: presentRecords.filter((record) => record.result === "Simple Pass").length
+  };
+}
+
+function analysisClassMetrics(records) {
+  return [...new Set(records.map((record) => record.className))].map((className) => {
+    const classRecords = records.filter((record) => record.className === className);
+    const present = classRecords.filter((record) => record.appeared);
+    const passed = present.filter((record) => record.result !== "Fail").length;
+    const summary = calculateClassPassSummary(classRecords.length, present.length, passed);
+    const percentages = present.map((record) => record.percentage);
+    return {
+      className,
+      passPercentage: summary.passPercentage,
+      average: average(percentages),
+      highest: percentages.length ? Math.max(...percentages) : 0,
+      lowest: percentages.length ? Math.min(...percentages) : 0
+    };
+  });
+}
+
+function analysisSubjectMetrics(records, subjectFilter) {
+  const entries = new Map();
+  records.forEach((record) => {
+    record.subjects.forEach((subject) => {
+      if (subject.name === "W.E.") return;
+      if (subjectFilter !== "All Subjects" && subject.name !== subjectFilter) return;
+      const key = subject.name;
+      if (!entries.has(key)) entries.set(key, { name: key, values: [], total: 0, present: 0, passed: 0 });
+      const metric = entries.get(key);
+      metric.total += 1;
+      if (subject.present) {
+        metric.present += 1;
+        metric.values.push(subject.maximum ? (numericMark(subject.value) / subject.maximum) * 100 : 0);
+        if (subject.passed) metric.passed += 1;
+      }
+    });
+  });
+  return [...entries.values()].map((metric) => ({
+    name: metric.name,
+    highest: metric.values.length ? Math.max(...metric.values) : 0,
+    lowest: metric.values.length ? Math.min(...metric.values) : 0,
+    average: average(metric.values),
+    passPercentage: metric.total ? (metric.passed / metric.total) * 100 : 0,
+    passed: metric.passed,
+    failed: metric.total - metric.passed
+  }));
+}
+
+function analysisBarChart(items, valueKey, labelKey, suffix = "%") {
+  if (!items.length) return '<p class="analysis-empty">No data available.</p>';
+  const max = Math.max(100, ...items.map((item) => Number(item[valueKey]) || 0));
+  return `<div class="analysis-bar-chart">${items.map((item) => {
+    const value = Number(item[valueKey]) || 0;
+    return `<div class="analysis-bar-row">
+      <span>${escapeHtml(item[labelKey])}</span>
+      <div class="analysis-bar-track"><i style="width:${Math.min(100, (value / max) * 100)}%"></i></div>
+      <strong>${value.toFixed(2)}${suffix}</strong>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function analysisColumnChart(items, valueKey, labelKey) {
+  if (!items.length) return '<p class="analysis-empty">No data available.</p>';
+  return `<div class="analysis-column-chart">${items.map((item) => {
+    const value = Math.max(0, Math.min(100, Number(item[valueKey]) || 0));
+    const label = String(item[labelKey] ?? "");
+    const columnWidth = Math.max(58, Math.min(118, Math.ceil(label.length * 6.2)));
+    return `<div class="analysis-column-item" style="--analysis-column-width:${columnWidth}px">
+      <strong>${value.toFixed(1)}%</strong>
+      <div class="analysis-column-track"><i style="height:${value}%"></i></div>
+      <span>${escapeHtml(label)}</span>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function analysisDonutChart(items, centerText) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  let cursor = 0;
+  const segments = items.map((item) => {
+    const start = total ? (cursor / total) * 360 : 0;
+    cursor += item.value;
+    const end = total ? (cursor / total) * 360 : 0;
+    return `${item.color} ${start}deg ${end}deg`;
+  });
+  return `<div class="analysis-donut-layout">
+    <div class="analysis-donut" style="background:conic-gradient(${segments.join(",") || "#d9e1e8 0deg 360deg"})"><strong>${escapeHtml(centerText)}</strong></div>
+    <div class="analysis-legend">${items.map((item) => `<span><i style="background:${item.color}"></i>${escapeHtml(item.label)} <strong>${item.value}</strong></span>`).join("")}</div>
+  </div>`;
+}
+
+function analysisLineChart(items) {
+  if (!items.length) return '<p class="analysis-empty">No trend data available.</p>';
+  const width = 720;
+  const height = 220;
+  const padX = 42;
+  const padY = 26;
+  const step = items.length > 1 ? (width - (padX * 2)) / (items.length - 1) : 0;
+  const points = items.map((item, index) => {
+    const x = padX + (index * step);
+    const y = height - padY - ((Math.max(0, Math.min(100, item.average)) / 100) * (height - (padY * 2)));
+    return { ...item, x, y };
+  });
+  return `<div class="analysis-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage trend">
+    <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" class="chart-axis"/>
+    <polyline points="${points.map((point) => `${point.x},${point.y}`).join(" ")}" class="chart-line"/>
+    ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4" class="chart-point"/><text x="${point.x}" y="${point.y - 10}" class="chart-value">${point.average.toFixed(1)}%</text><text x="${point.x}" y="${height - 7}" class="chart-label">${escapeHtml(point.label)}</text>`).join("")}
+  </svg></div>`;
+}
+
+function analysisDistribution(records) {
+  const bands = [
+    { label: "90-100", min: 90, max: 100 },
+    { label: "80-89", min: 80, max: 89.999 },
+    { label: "70-79", min: 70, max: 79.999 },
+    { label: "60-69", min: 60, max: 69.999 },
+    { label: "50-59", min: 50, max: 59.999 },
+    { label: "40-49", min: 40, max: 49.999 },
+    { label: "Below 40", min: 0, max: 39.999 }
+  ];
+  const present = records.filter((record) => record.appeared);
+  return bands.map((band) => ({
+    label: band.label,
+    value: present.filter((record) => record.percentage >= band.min && record.percentage <= band.max).length
+  }));
+}
+
+function analysisHistogram(items) {
+  const max = Math.max(1, ...items.map((item) => item.value));
+  return `<div class="analysis-histogram">${items.map((item) => `<div class="analysis-histogram-item">
+    <strong>${item.value}</strong><div><i style="height:${(item.value / max) * 100}%"></i></div><span>${escapeHtml(item.label)}</span>
+  </div>`).join("")}</div>`;
+}
+
+function buildAnalysisTrend(session, classes, subjectFilter, status) {
+  const availableExams = new Set(classes.flatMap((className) => currentExams(className)));
+  const trendExamOrder = [
+    "FT Unit Test 1",
+    "FT Unit Test 2",
+    "CT1",
+    "CT2",
+    "First Term",
+    "ST Unit Test 1",
+    "ST Unit Test 2",
+    "Second Term",
+    "Third Term"
+  ];
+  const exams = trendExamOrder.filter((exam) => availableExams.has(exam));
+  return exams.map((exam) => {
+    const records = buildAcademicAnalysisRecords(session, classes, exam)
+      .map((record) => filteredAnalysisRecord(record, subjectFilter))
+      .filter((record) => status === "all"
+        || (status === "present" && record.appeared)
+        || (status === "absent" && !record.appeared))
+      .filter((record) => record.appeared);
+    return { label: exam.replace(" Unit Test ", " UT "), average: average(records.map((record) => record.percentage)) };
+  }).filter((item) => item.average > 0);
+}
+
+function renderAcademicAnalysis() {
+  if (!els.analysisReport || activeView !== "analysis") return;
+  initializeAnalysisFilters();
+  const session = els.analysisSessionSelect.value || state.academicSession;
+  const classFilter = els.analysisClassSelect.value || "All Classes";
+  const exam = els.analysisExamSelect.value || "First Term";
+  const subjectFilter = els.analysisSubjectSelect.value || "All Subjects";
+  const status = els.analysisStatusSelect.value || "all";
+  const threshold = Math.max(0, Math.min(100, Number(els.analysisSupportThreshold.value) || 50));
+  const classes = classFilter === "All Classes" ? classNames : [classFilter];
+  const baseRecords = buildAcademicAnalysisRecords(session, classes, exam);
+  const subjectAdjusted = baseRecords.map((record) => filteredAnalysisRecord(record, subjectFilter));
+  const records = subjectAdjusted.filter((record) => status === "all"
+    || (status === "present" && record.appeared)
+    || (status === "absent" && !record.appeared));
+  const overview = analysisOverviewMetrics(records);
+  const classMetrics = analysisClassMetrics(records);
+  const subjectMetrics = analysisSubjectMetrics(baseRecords.filter((record) => status === "all"
+    || (status === "present" && record.appeared)
+    || (status === "absent" && !record.appeared)), subjectFilter);
+  const topStudents = records.filter((record) => record.appeared).sort((a, b) => b.percentage - a.percentage).slice(0, 10);
+  const support = records.filter((record) => !record.appeared
+    || record.result === "Fail"
+    || record.result === "Simple Pass"
+    || record.percentage < threshold);
+  const bestClass = [...classMetrics].sort((a, b) => b.average - a.average)[0];
+  const weakClass = [...classMetrics].sort((a, b) => a.average - b.average)[0];
+  const strongSubject = [...subjectMetrics].sort((a, b) => b.passPercentage - a.passPercentage)[0];
+  const weakSubject = [...subjectMetrics].sort((a, b) => a.passPercentage - b.passPercentage)[0];
+  const workingDays = Math.max(...baseRecords.map((record) => Number(record.workingDays) || 0), 0);
+  const attendancePossible = workingDays * baseRecords.length;
+  const attendanceTotal = baseRecords.reduce((sum, record) => sum + (Number(record.attendance) || 0), 0);
+  const attendancePercentage = attendancePossible ? (attendanceTotal / attendancePossible) * 100 : 0;
+  const trend = buildAnalysisTrend(session, classes, subjectFilter, status);
+
+  analysisCurrentData = {
+    session, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
+    overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage
+  };
+  els.analysisReportSubtitle.textContent = `${classFilter} ${exam} | Academic Session ${formatAcademicSession(session)}`;
+  const cards = [
+    ["Total Enrolment", overview.total],
+    ["Present", overview.present],
+    ["Absent", overview.absent],
+    ["Passed", overview.passed],
+    ["Failed", overview.failed],
+    ["Pass Percentage", `${overview.passPercentage.toFixed(2)}%`],
+    ["School Average", `${overview.schoolAverage.toFixed(2)}%`],
+    ["Distinction Rate", `${overview.total ? ((overview.distinction / overview.total) * 100).toFixed(2) : "0.00"}%`],
+    ["Failure Rate", `${overview.total ? ((overview.failed / overview.total) * 100).toFixed(2) : "0.00"}%`],
+    ["Distinction", overview.distinction],
+    ["First Division", overview.first],
+    ["Second Division", overview.second],
+    ["Third Division", overview.third],
+    ["Simple Pass", overview.simplePass]
+  ];
+  els.analysisOverview.innerHTML = cards.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  els.analysisClassChart.innerHTML = `${analysisBarChart(classMetrics, "passPercentage", "className")}
+    <div class="analysis-table-wrap analysis-class-table-wrap"><table class="analysis-table">
+      <thead><tr><th>Class</th><th>Pass %</th><th>Average</th><th>Highest</th><th>Lowest</th></tr></thead>
+      <tbody>${classMetrics.map((metric) => `<tr><td>${metric.className}</td><td>${metric.passPercentage.toFixed(2)}%</td><td>${metric.average.toFixed(2)}%</td><td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td></tr>`).join("") || '<tr><td colspan="5">No class data available.</td></tr>'}</tbody>
+    </table></div>`;
+  els.analysisClassHighlight.textContent = bestClass
+    ? `Best: ${bestClass.className} | Needs focus: ${weakClass.className}`
+    : "No class data";
+  els.analysisTrendChart.innerHTML = analysisLineChart(trend);
+  els.analysisSubjectChart.innerHTML = `${analysisColumnChart(subjectMetrics, "average", "name")}
+    <h5 class="analysis-subchart-title">Subject Pass Percentage</h5>
+    ${analysisBarChart(subjectMetrics, "passPercentage", "name")}`;
+  els.analysisSubjectHighlight.textContent = strongSubject
+    ? `Strongest: ${strongSubject.name} | Weakest: ${weakSubject.name}`
+    : "No subject data";
+  els.analysisSubjectBody.innerHTML = subjectMetrics.length
+    ? subjectMetrics.map((metric) => `<tr><td>${escapeHtml(metric.name)}</td><td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td><td>${metric.average.toFixed(2)}%</td><td>${metric.passPercentage.toFixed(2)}%</td><td>${metric.passed}</td><td>${metric.failed}</td></tr>`).join("")
+    : '<tr><td colspan="7">No subject data available.</td></tr>';
+  els.analysisDivisionChart.innerHTML = analysisDonutChart([
+    { label: "Distinction", value: overview.distinction, color: "#7b2cbf" },
+    { label: "First", value: overview.first, color: "#157347" },
+    { label: "Second", value: overview.second, color: "#1769aa" },
+    { label: "Third", value: overview.third, color: "#c45a00" },
+    { label: "Simple Pass", value: overview.simplePass, color: "#8a5a00" },
+    { label: "Fail", value: overview.failed, color: "#b42318" }
+  ], `${overview.total} Students`);
+  els.analysisPassFailChart.innerHTML = analysisDonutChart([
+    { label: "Passed", value: overview.passed, color: "#157347" },
+    { label: "Failed", value: overview.failed, color: "#b42318" }
+  ], `${overview.passPercentage.toFixed(1)}% Pass`);
+  els.analysisAttendance.innerHTML = `<div class="attendance-analysis-value"><strong>${attendancePercentage.toFixed(2)}%</strong><span>Attendance</span></div>
+    <dl><div><dt>Total Students</dt><dd>${baseRecords.length}</dd></div><div><dt>Present Results</dt><dd>${overview.present}</dd></div><div><dt>Absent Results</dt><dd>${overview.absent}</dd></div></dl>`;
+  els.analysisDistributionChart.innerHTML = analysisHistogram(analysisDistribution(records));
+  els.analysisTopStudents.innerHTML = analysisBarChart(topStudents.map((record, index) => ({
+    label: `${index + 1}. ${record.name} (${record.className})`,
+    value: record.percentage
+  })), "value", "label");
+  els.analysisSupportBody.innerHTML = support.length
+    ? support.map((record) => {
+      const reasons = [];
+      if (!record.appeared) reasons.push("Absent");
+      if (record.result === "Fail") reasons.push("Failed");
+      if (record.result === "Simple Pass") reasons.push("Simple Pass");
+      if (record.appeared && record.percentage < threshold) reasons.push(`Below ${threshold}%`);
+      return `<tr><td>${record.roll}</td><td>${escapeHtml(record.name)}</td><td>${record.className}</td><td>${record.appeared ? formatResultStatus(record.result) : "Absent"}</td><td>${record.appeared ? `${record.percentage.toFixed(2)}%` : "-"}</td><td>${escapeHtml(reasons.join(", "))}</td></tr>`;
+    }).join("")
+    : '<tr><td colspan="6">No students currently meet the support criteria.</td></tr>';
+
+  if (status === "absent") {
+    els.analysisStrengths.innerHTML = "";
+    els.analysisWeaknesses.innerHTML = "";
+    els.analysisRecommendations.innerHTML = "";
+    return;
+  }
+
+  const strengths = [];
+  const weaknesses = [];
+  const recommendations = [];
+  if (strongSubject) strengths.push(`${strongSubject.name} has the highest pass percentage (${strongSubject.passPercentage.toFixed(2)}%).`);
+  if (bestClass) strengths.push(`${bestClass.className} has the highest average percentage (${bestClass.average.toFixed(2)}%).`);
+  if (overview.distinction) strengths.push(`${overview.distinction} student(s) achieved Distinction.`);
+  if (weakSubject) {
+    weaknesses.push(`${weakSubject.name} has the lowest pass percentage (${weakSubject.passPercentage.toFixed(2)}%).`);
+    recommendations.push(`Provide focused practice and remedial support in ${weakSubject.name}.`);
+  }
+  if (weakClass) {
+    weaknesses.push(`${weakClass.className} has the lowest average percentage (${weakClass.average.toFixed(2)}%).`);
+    recommendations.push(`Review learning gaps and intervention plans for ${weakClass.className}.`);
+  }
+  if (overview.absent) {
+    weaknesses.push(`${overview.absent} student(s) are absent from the selected result.`);
+    recommendations.push("Follow up on attendance and missed assessments.");
+  }
+  if (support.length) recommendations.push(`Monitor the ${support.length} student(s) listed under Students Needing Support.`);
+  if (!strengths.length) strengths.push("More completed result data is needed to identify strengths.");
+  if (!weaknesses.length) weaknesses.push("No major weakness is visible in the selected data.");
+  if (!recommendations.length) recommendations.push("Continue regular monitoring and enrichment activities.");
+  els.analysisStrengths.innerHTML = strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  els.analysisWeaknesses.innerHTML = weaknesses.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  els.analysisRecommendations.innerHTML = recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+}
+
+async function downloadAnalysisPDF() {
+  if (!analysisCurrentData || !window.html2canvas || !window.jspdf?.jsPDF) {
+    showToast("Academic analysis is not ready for PDF download.");
+    return;
+  }
+  const button = els.downloadAnalysisPdfBtn;
+  if (button?.disabled) return;
+  const previousText = button.textContent;
+  let captureSource = null;
+  try {
+    button.disabled = true;
+    button.textContent = "Generating Analysis PDF...";
+    captureSource = els.analysisReport.cloneNode(true);
+    captureSource.classList.add("analysis-pdf-capture");
+    document.body.appendChild(captureSource);
+    const canvas = await window.html2canvas(captureSource, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a3", compress: true });
+    const margin = 7;
+    const pageWidth = 297;
+    const pageHeight = 420;
+    const imageWidth = pageWidth - (margin * 2);
+    const imageHeight = (canvas.height * imageWidth) / canvas.width;
+    const printableHeight = pageHeight - (margin * 2);
+    const image = canvas.toDataURL("image/jpeg", 0.94);
+    let offset = 0;
+    let page = 0;
+    while (offset < imageHeight) {
+      if (page > 0) pdf.addPage("a3", "portrait");
+      pdf.addImage(image, "JPEG", margin, margin - offset, imageWidth, imageHeight, undefined, "FAST");
+      offset += printableHeight;
+      page += 1;
+    }
+    pdf.save(`Academic_Analysis_${fileSafeName(analysisCurrentData.classFilter)}_${fileSafeName(analysisCurrentData.exam)}_${fileSafeName(analysisCurrentData.session)}.pdf`);
+  } catch (error) {
+    console.error("Could not generate Academic Analysis PDF", error);
+    showToast("Could not generate analysis PDF. Please try again.");
+  } finally {
+    captureSource?.remove();
+    button.disabled = false;
+    button.textContent = previousText;
+  }
+}
+
+function exportAnalysisExcel() {
+  if (!analysisCurrentData || !window.XLSX) {
+    showToast("Academic analysis is not ready for Excel export.");
+    return;
+  }
+  const data = analysisCurrentData;
+  const workbook = window.XLSX.utils.book_new();
+  const overviewRows = Object.entries(data.overview).map(([metric, value]) => ({ Metric: formatFirebaseFieldName(metric), Value: value }));
+  const classRows = data.classMetrics.map((item) => ({
+    Class: item.className,
+    "Pass Percentage": item.passPercentage,
+    "Average Percentage": item.average,
+    Highest: item.highest,
+    Lowest: item.lowest
+  }));
+  const subjectRows = data.subjectMetrics.map((item) => ({
+    Subject: item.name,
+    Highest: item.highest,
+    Lowest: item.lowest,
+    Average: item.average,
+    "Pass Percentage": item.passPercentage,
+    Passed: item.passed,
+    Failed: item.failed
+  }));
+  const supportRows = data.support.map((record) => ({
+    "Roll Number": record.roll,
+    Name: record.name,
+    Class: record.className,
+    Present: record.appeared ? "Yes" : "No",
+    Percentage: record.appeared ? record.percentage : "",
+    Result: record.result
+  }));
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(overviewRows), "Overview");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(classRows), "Class Analysis");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(subjectRows), "Subject Analysis");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(supportRows), "Students Needing Support");
+  window.XLSX.writeFile(workbook, `Academic_Analysis_${fileSafeName(data.session)}.xlsx`);
+}
+
+function printAcademicAnalysis() {
+  if (!analysisCurrentData) {
+    showToast("Academic analysis is not ready to print.");
+    return;
+  }
+  startPrintMode("print-analysis");
+}
+
 function printResults() {
   if (!isAdmin()) {
     showToast("Only Admin can print results.");
@@ -4266,7 +4906,7 @@ function clearCurrentPrintTarget() {
 
 function startPrintMode(printClass, extraClass = "") {
   clearTimeout(printCleanupTimer);
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis");
   activePrintClass = printClass;
   document.body.classList.add(printClass);
   if (extraClass) document.body.classList.add(extraClass);
@@ -4281,7 +4921,7 @@ function startPrintMode(printClass, extraClass = "") {
 function clearPrintMode() {
   clearTimeout(printCleanupTimer);
   printCleanupTimer = null;
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis");
   clearCurrentPrintTarget();
   activePrintClass = "";
   if (restoreMarksheetsAfterPrint) {
