@@ -27,8 +27,8 @@ const analysisSectionClasses = {
   "All Classes": classNames,
   "Foundational Stage": ["LKG", "UKG", "Class I", "Class II"],
   "Preparatory Stage": ["Class III", "Class IV", "Class V"],
-  "Elementary": ["Class VI", "Class VII", "Class VIII"],
-  "High School": ["Class IX", "Class X"]
+  "Elementary Stage": ["Class VI", "Class VII", "Class VIII"],
+  "Secondary Stage": ["Class IX", "Class X"]
 };
 
 const analysisExamAll = "All Exams";
@@ -3679,7 +3679,12 @@ function initializeAnalysisFilters(savedFilters = null) {
   populateSelect(els.analysisSessionSelect, sessions);
   setSelectValueIfAvailable(els.analysisSessionSelect, previousSession);
 
-  const previousSection = savedFilters?.analysisSection || els.analysisSectionSelect.value || "All Classes";
+  const savedSectionAliases = {
+    Elementary: "Elementary Stage",
+    "High School": "Secondary Stage"
+  };
+  const savedSection = savedFilters?.analysisSection || els.analysisSectionSelect.value || "All Classes";
+  const previousSection = savedSectionAliases[savedSection] || savedSection;
   populateSelect(els.analysisSectionSelect, Object.keys(analysisSectionClasses));
   setSelectValueIfAvailable(els.analysisSectionSelect, previousSection);
 
@@ -4148,10 +4153,8 @@ function renderAcademicAnalysis() {
     || (status === "present" && record.appeared)
     || (status === "absent" && !record.appeared)), subjectFilter);
   const topStudents = records.filter((record) => record.appeared).sort((a, b) => b.percentage - a.percentage).slice(0, 10);
-  const support = records.filter((record) => !record.appeared
-    || record.result === "Fail"
-    || record.result === "Simple Pass"
-    || record.percentage < threshold);
+  const support = records.filter((record) =>
+    (record.appeared ? record.percentage : 0) < threshold);
   const bestClass = [...classMetrics].sort((a, b) => b.average - a.average)[0];
   const weakClass = [...classMetrics].sort((a, b) => a.average - b.average)[0];
   const strongSubject = [...subjectMetrics].sort((a, b) => b.passPercentage - a.passPercentage)[0];

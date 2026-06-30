@@ -5451,7 +5451,17 @@ th:first-child {
 .analysis-class-table th:first-child,
 .analysis-class-table td:first-child {
   width: 1%;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: white;
   text-align: left;
+  box-shadow: 5px 0 7px -7px rgba(23, 32, 42, 0.7);
+}
+
+.analysis-class-table thead th:first-child {
+  z-index: 3;
+  background: #edf3f5;
 }
 
 .analysis-subject-table-wrap {
@@ -5478,7 +5488,45 @@ th:first-child {
 .analysis-subject-table th:first-child,
 .analysis-subject-table td:first-child {
   min-width: 120px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: white;
   text-align: left;
+  box-shadow: 5px 0 7px -7px rgba(23, 32, 42, 0.7);
+}
+
+.analysis-subject-table thead th:first-child {
+  z-index: 3;
+  background: #edf3f5;
+}
+
+.analysis-subject-pass-scroll .analysis-bar-row > span {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  padding: 3px 6px 3px 0;
+  background: white;
+  box-shadow: 5px 0 7px -7px rgba(23, 32, 42, 0.7);
+}
+
+.support-table th:nth-child(2),
+.support-table td:nth-child(2) {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 160px;
+  max-width: 220px;
+  background: white;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  box-shadow: 5px 0 7px -7px rgba(23, 32, 42, 0.7);
+}
+
+.support-table thead th:nth-child(2) {
+  z-index: 3;
+  background: #edf3f5;
 }
 
 .analysis-top-students-chart .analysis-bar-row {
