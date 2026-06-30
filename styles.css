@@ -5342,6 +5342,24 @@ th:first-child {
   padding: 4px 2px;
 }
 
+#analysisSubjectChart {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.analysis-subject-column-scroll,
+.analysis-subject-pass-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.analysis-subject-pass-scroll .analysis-bar-chart {
+  min-width: 440px;
+}
+
 .analysis-subchart-title {
   margin: 12px 0 8px;
   color: var(--ink);
@@ -5412,6 +5430,79 @@ th:first-child {
 .analysis-table td:first-child,
 .analysis-table td:nth-child(2) {
   text-align: left;
+}
+
+.analysis-class-table {
+  min-width: 420px;
+  table-layout: auto;
+}
+
+.analysis-class-table th,
+.analysis-class-table td {
+  width: auto;
+  white-space: nowrap;
+}
+
+.analysis-class-table th:not(:first-child),
+.analysis-class-table td:not(:first-child) {
+  text-align: center;
+}
+
+.analysis-class-table th:first-child,
+.analysis-class-table td:first-child {
+  width: 1%;
+  text-align: left;
+}
+
+.analysis-subject-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  touch-action: pan-x pan-y;
+}
+
+.analysis-subject-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.analysis-subject-table th,
+.analysis-subject-table td {
+  width: auto;
+  min-width: 78px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.analysis-subject-table th:first-child,
+.analysis-subject-table td:first-child {
+  min-width: 120px;
+  text-align: left;
+}
+
+.analysis-top-students-chart .analysis-bar-row {
+  grid-template-columns: minmax(130px, 1.8fr) minmax(60px, 1.4fr) 58px;
+  align-items: center;
+}
+
+.analysis-top-students-chart .analysis-bar-row > span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.analysis-top-students-chart .analysis-bar-row > span b,
+.analysis-top-students-chart .analysis-bar-row > span small {
+  display: block;
+}
+
+.analysis-top-students-chart .analysis-bar-row > span small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
 }
 
 .analysis-donut-layout {

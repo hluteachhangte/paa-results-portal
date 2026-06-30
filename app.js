@@ -3893,6 +3893,18 @@ function analysisBarChart(items, valueKey, labelKey, suffix = "%") {
   }).join("")}</div>`;
 }
 
+function analysisTopStudentsChart(records) {
+  if (!records.length) return '<p class="analysis-empty">No data available.</p>';
+  return `<div class="analysis-bar-chart analysis-top-students-chart">${records.map((record, index) => {
+    const value = Math.max(0, Math.min(100, Number(record.percentage) || 0));
+    return `<div class="analysis-bar-row">
+      <span><b>${index + 1}. ${escapeHtml(record.name)}</b><small>(${escapeHtml(record.className)})</small></span>
+      <div class="analysis-bar-track"><i style="width:${value}%"></i></div>
+      <strong>${value.toFixed(2)}%</strong>
+    </div>`;
+  }).join("")}</div>`;
+}
+
 function analysisColumnChart(items, valueKey, labelKey) {
   if (!items.length) return '<p class="analysis-empty">No data available.</p>';
   return `<div class="analysis-column-chart">${items.map((item) => {
@@ -4048,7 +4060,7 @@ function renderAcademicAnalysis() {
   ];
   els.analysisOverview.innerHTML = cards.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   els.analysisClassChart.innerHTML = `${analysisBarChart(classMetrics, "passPercentage", "className")}
-    <div class="analysis-table-wrap analysis-class-table-wrap"><table class="analysis-table">
+    <div class="analysis-table-wrap analysis-class-table-wrap"><table class="analysis-table analysis-class-table">
       <thead><tr><th>Class</th><th>Pass %</th><th>Average</th><th>Highest</th><th>Lowest</th></tr></thead>
       <tbody>${classMetrics.map((metric) => `<tr><td>${metric.className}</td><td>${metric.passPercentage.toFixed(2)}%</td><td>${metric.average.toFixed(2)}%</td><td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td></tr>`).join("") || '<tr><td colspan="5">No class data available.</td></tr>'}</tbody>
     </table></div>`;
@@ -4056,9 +4068,9 @@ function renderAcademicAnalysis() {
     ? `Best: ${bestClass.className} | Needs focus: ${weakClass.className}`
     : "No class data";
   els.analysisTrendChart.innerHTML = analysisLineChart(trend);
-  els.analysisSubjectChart.innerHTML = `${analysisColumnChart(subjectMetrics, "average", "name")}
+  els.analysisSubjectChart.innerHTML = `<div class="analysis-subject-column-scroll">${analysisColumnChart(subjectMetrics, "average", "name")}</div>
     <h5 class="analysis-subchart-title">Subject Pass Percentage</h5>
-    ${analysisBarChart(subjectMetrics, "passPercentage", "name")}`;
+    <div class="analysis-subject-pass-scroll">${analysisBarChart(subjectMetrics, "passPercentage", "name")}</div>`;
   els.analysisSubjectHighlight.textContent = strongSubject
     ? `Strongest: ${strongSubject.name} | Weakest: ${weakSubject.name}`
     : "No subject data";
@@ -4080,10 +4092,7 @@ function renderAcademicAnalysis() {
   els.analysisAttendance.innerHTML = `<div class="attendance-analysis-value"><strong>${attendancePercentage.toFixed(2)}%</strong><span>Attendance</span></div>
     <dl><div><dt>Total Students</dt><dd>${baseRecords.length}</dd></div><div><dt>Present Results</dt><dd>${overview.present}</dd></div><div><dt>Absent Results</dt><dd>${overview.absent}</dd></div></dl>`;
   els.analysisDistributionChart.innerHTML = analysisHistogram(analysisDistribution(records));
-  els.analysisTopStudents.innerHTML = analysisBarChart(topStudents.map((record, index) => ({
-    label: `${index + 1}. ${record.name} (${record.className})`,
-    value: record.percentage
-  })), "value", "label");
+  els.analysisTopStudents.innerHTML = analysisTopStudentsChart(topStudents);
   els.analysisSupportBody.innerHTML = support.length
     ? support.map((record) => {
       const reasons = [];
