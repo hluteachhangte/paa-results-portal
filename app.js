@@ -23,6 +23,27 @@ const classNames = [
   "Class X"
 ];
 
+const analysisSectionClasses = {
+  "All Classes": classNames,
+  "Foundational Stage": ["LKG", "UKG", "Class I", "Class II"],
+  "Preparatory Stage": ["Class III", "Class IV", "Class V"],
+  "Elementary": ["Class VI", "Class VII", "Class VIII"],
+  "High School": ["Class IX", "Class X"]
+};
+
+const analysisExamAll = "All Exams";
+
+const analysisSubjectReasonAbbreviations = {
+  English: "E",
+  Mizo: "Mz",
+  Hindi: "H",
+  Mathematics: "M",
+  "E.V.S.": "Ev",
+  Science: "Sc",
+  "Social Science": "SS",
+  Moral: "Mo"
+};
+
 const examNames = [
   "FT Unit Test 1",
   "FT Unit Test 2",
@@ -230,6 +251,7 @@ const els = {
   printResultsBtn: document.querySelector("#printResultsBtn"),
   downloadResultsPdfBtn: document.querySelector("#downloadResultsPdfBtn"),
   analysisSessionSelect: document.querySelector("#analysisSessionSelect"),
+  analysisSectionSelect: document.querySelector("#analysisSectionSelect"),
   analysisClassSelect: document.querySelector("#analysisClassSelect"),
   analysisExamSelect: document.querySelector("#analysisExamSelect"),
   analysisSubjectSelect: document.querySelector("#analysisSubjectSelect"),
@@ -727,6 +749,7 @@ function saveUiState() {
     attendanceTerm: selectedAttendanceTerm(),
     marksheetNameSearch: els.marksheetNameSearchInput?.value || "",
     analysisSession: els.analysisSessionSelect?.value || state.academicSession,
+    analysisSection: els.analysisSectionSelect?.value || "All Classes",
     analysisClass: els.analysisClassSelect?.value || "All Classes",
     analysisExam: els.analysisExamSelect?.value || "First Term",
     analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
@@ -1594,6 +1617,7 @@ function init() {
   els.downloadResultsPdfBtn?.addEventListener("click", downloadResultsPDF);
   [
     els.analysisSessionSelect,
+    els.analysisSectionSelect,
     els.analysisClassSelect,
     els.analysisExamSelect,
     els.analysisSubjectSelect,
@@ -1601,8 +1625,12 @@ function init() {
     els.analysisSupportThreshold
   ].filter(Boolean).forEach((control) => {
     control.addEventListener("change", () => {
+      if (control === els.analysisSectionSelect) updateAnalysisClassOptions();
+      if (control === els.analysisSectionSelect) updateAnalysisExamOptions();
       if (control === els.analysisClassSelect) updateAnalysisExamOptions();
-      if (control === els.analysisClassSelect || control === els.analysisExamSelect) updateAnalysisSubjectOptions();
+      if (control === els.analysisSectionSelect || control === els.analysisClassSelect || control === els.analysisExamSelect) {
+        updateAnalysisSubjectOptions();
+      }
       saveUiState();
       renderAcademicAnalysis();
     });
@@ -3651,9 +3679,12 @@ function initializeAnalysisFilters(savedFilters = null) {
   populateSelect(els.analysisSessionSelect, sessions);
   setSelectValueIfAvailable(els.analysisSessionSelect, previousSession);
 
+  const previousSection = savedFilters?.analysisSection || els.analysisSectionSelect.value || "All Classes";
+  populateSelect(els.analysisSectionSelect, Object.keys(analysisSectionClasses));
+  setSelectValueIfAvailable(els.analysisSectionSelect, previousSection);
+
   const previousClass = savedFilters?.analysisClass || els.analysisClassSelect.value || "All Classes";
-  populateSelect(els.analysisClassSelect, ["All Classes", ...classNames]);
-  setSelectValueIfAvailable(els.analysisClassSelect, previousClass);
+  updateAnalysisClassOptions(previousClass);
   updateAnalysisExamOptions();
   setSelectValueIfAvailable(els.analysisExamSelect, savedFilters?.analysisExam);
   updateAnalysisSubjectOptions();
@@ -3664,19 +3695,35 @@ function initializeAnalysisFilters(savedFilters = null) {
   }
 }
 
+function analysisClassesForSection(section = els.analysisSectionSelect?.value || "All Classes") {
+  return analysisSectionClasses[section] || classNames;
+}
+
+function updateAnalysisClassOptions(preferredClass = "") {
+  if (!els.analysisClassSelect) return;
+  const previous = preferredClass || els.analysisClassSelect.value || "All Classes";
+  populateSelect(els.analysisClassSelect, ["All Classes", ...analysisClassesForSection()]);
+  setSelectValueIfAvailable(els.analysisClassSelect, previous);
+}
+
+function selectedAnalysisClasses() {
+  const className = els.analysisClassSelect?.value || "All Classes";
+  return className === "All Classes" ? analysisClassesForSection() : [className];
+}
+
 function updateAnalysisExamOptions() {
   if (!els.analysisExamSelect) return;
   const previous = els.analysisExamSelect.value || selectedExam() || "First Term";
-  const className = els.analysisClassSelect.value;
-  const exams = className && className !== "All Classes"
-    ? currentExams(className)
-    : [...new Set(classNames.flatMap((name) => currentExams(name)))];
-  populateSelect(els.analysisExamSelect, exams);
+  const exams = [...new Set(selectedAnalysisClasses().flatMap((name) => currentExams(name)))];
+  populateSelect(els.analysisExamSelect, [analysisExamAll, ...exams]);
   setSelectValueIfAvailable(els.analysisExamSelect, previous);
   if (!els.analysisExamSelect.value && exams.length) els.analysisExamSelect.value = exams[0];
 }
 
 function analysisSubjectNames(className, exam) {
+  if (exam === analysisExamAll) {
+    return [...new Set(currentExams(className).flatMap((examName) => analysisSubjectNames(className, examName)))];
+  }
   if (!currentExams(className).includes(exam)) return [];
   const subjects = currentSubjects(className, exam);
   if (isStructuredResultSheet(className, exam)) {
@@ -3694,10 +3741,8 @@ function analysisSubjectNames(className, exam) {
 function updateAnalysisSubjectOptions() {
   if (!els.analysisSubjectSelect) return;
   const previous = els.analysisSubjectSelect.value || "All Subjects";
-  const classFilter = els.analysisClassSelect.value;
   const exam = els.analysisExamSelect.value;
-  const classes = classFilter && classFilter !== "All Classes" ? [classFilter] : classNames;
-  const subjects = [...new Set(classes.flatMap((className) => analysisSubjectNames(className, exam)))];
+  const subjects = [...new Set(selectedAnalysisClasses().flatMap((className) => analysisSubjectNames(className, exam)))];
   populateSelect(els.analysisSubjectSelect, ["All Subjects", ...subjects]);
   setSelectValueIfAvailable(els.analysisSubjectSelect, previous);
 }
@@ -3775,6 +3820,7 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
           const resultRecord = calculateExcelResultRecord(student);
           const percentage = resultRecord.appeared ? Number(resultRecord.percentage) || 0 : 0;
           const attendance = getStudentAttendance(student, className, exam);
+          const subjects = analysisSubjectEntries(student, resultRecord);
           records.push({
             roll: student.roll,
             name: student.name,
@@ -3786,7 +3832,10 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
             division: resultRecord.outcome.division,
             attendance,
             workingDays,
-            subjects: analysisSubjectEntries(student, resultRecord)
+            subjects,
+            failedSubjects: subjects
+              .filter((subject) => subject.present && !subject.passed)
+              .map((subject) => subject.name)
           });
         });
       });
@@ -3795,10 +3844,78 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
   });
 }
 
+function aggregateAcademicAnalysisRecords(records) {
+  const students = new Map();
+  records.forEach((record) => {
+    const key = `${record.className}\u0000${record.roll}`;
+    if (!students.has(key)) students.set(key, []);
+    students.get(key).push(record);
+  });
+
+  return [...students.values()].map((studentRecords) => {
+    const first = studentRecords[0];
+    const appearedRecords = studentRecords.filter((record) => record.appeared);
+    const percentage = average(appearedRecords.map((record) => record.percentage));
+    const result = !appearedRecords.length
+      ? "-"
+      : appearedRecords.some((record) => record.result === "Fail")
+        ? "Fail"
+        : appearedRecords.some((record) => record.result === "Simple Pass")
+          ? "Simple Pass"
+          : "Pass";
+    const subjectGroups = new Map();
+
+    studentRecords.forEach((record) => {
+      record.subjects.forEach((subject) => {
+        if (!subjectGroups.has(subject.name)) subjectGroups.set(subject.name, []);
+        subjectGroups.get(subject.name).push(subject);
+      });
+    });
+
+    const subjects = [...subjectGroups.entries()].map(([name, entries]) => {
+      const present = entries.filter((entry) => entry.present);
+      const percentages = present.map((entry) =>
+        entry.maximum ? (numericMark(entry.value) / entry.maximum) * 100 : 0);
+      return {
+        name,
+        value: average(percentages),
+        maximum: 100,
+        passMark: 50,
+        present: present.length > 0,
+        passed: present.length > 0 && present.every((entry) => entry.passed)
+      };
+    });
+
+    return {
+      ...first,
+      exam: analysisExamAll,
+      appeared: appearedRecords.length > 0,
+      percentage,
+      result,
+      division: result === "Fail" || !appearedRecords.length
+        ? "-"
+        : (isHighClass(first.className) ? getDivision(percentage, false) : getPrimaryDivision(percentage)),
+      attendance: studentRecords.reduce((sum, record) => sum + (Number(record.attendance) || 0), 0),
+      workingDays: studentRecords.reduce((sum, record) => sum + (Number(record.workingDays) || 0), 0),
+      subjects,
+      failedSubjects: [...new Set(studentRecords.flatMap((record) => record.failedSubjects || []))]
+    };
+  });
+}
+
+function buildAcademicAnalysisSelectionRecords(session, classes, exam) {
+  if (exam !== analysisExamAll) return buildAcademicAnalysisRecords(session, classes, exam);
+  const exams = [...new Set(classes.flatMap((className) => currentExams(className)))];
+  const records = exams.flatMap((examName) => buildAcademicAnalysisRecords(session, classes, examName));
+  return aggregateAcademicAnalysisRecords(records);
+}
+
 function filteredAnalysisRecord(record, subjectFilter) {
   if (!subjectFilter || subjectFilter === "All Subjects") return record;
   const subject = record.subjects.find((entry) => entry.name === subjectFilter);
-  if (!subject) return { ...record, appeared: false, percentage: 0, result: "-", division: "-" };
+  if (!subject) {
+    return { ...record, appeared: false, percentage: 0, result: "-", division: "-", failedSubjects: [] };
+  }
   const percentage = subject.present && subject.maximum
     ? Math.round((numericMark(subject.value) / subject.maximum) * 10000) / 100
     : 0;
@@ -3807,6 +3924,7 @@ function filteredAnalysisRecord(record, subjectFilter) {
     appeared: subject.present,
     percentage,
     result: subject.present ? (subject.passed ? "Pass" : "Fail") : "-",
+    failedSubjects: subject.present && !subject.passed ? [subject.name] : [],
     division: subject.present && subject.passed
       ? (isHighClass(record.className) ? getDivision(percentage, false) : getPrimaryDivision(percentage))
       : "-"
@@ -3816,6 +3934,12 @@ function filteredAnalysisRecord(record, subjectFilter) {
 function average(values) {
   const numbers = values.map(Number).filter(Number.isFinite);
   return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : 0;
+}
+
+function abbreviatedAnalysisFailedSubjects(record) {
+  return [...new Set(record.failedSubjects || [])]
+    .map((subject) => analysisSubjectReasonAbbreviations[subject] || subject)
+    .join(", ");
 }
 
 function analysisOverviewMetrics(records) {
@@ -4006,13 +4130,14 @@ function renderAcademicAnalysis() {
   if (!els.analysisReport || activeView !== "analysis") return;
   initializeAnalysisFilters();
   const session = els.analysisSessionSelect.value || state.academicSession;
+  const sectionFilter = els.analysisSectionSelect.value || "All Classes";
   const classFilter = els.analysisClassSelect.value || "All Classes";
   const exam = els.analysisExamSelect.value || "First Term";
   const subjectFilter = els.analysisSubjectSelect.value || "All Subjects";
   const status = els.analysisStatusSelect.value || "all";
   const threshold = Math.max(0, Math.min(100, Number(els.analysisSupportThreshold.value) || 50));
-  const classes = classFilter === "All Classes" ? classNames : [classFilter];
-  const baseRecords = buildAcademicAnalysisRecords(session, classes, exam);
+  const classes = selectedAnalysisClasses();
+  const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam);
   const subjectAdjusted = baseRecords.map((record) => filteredAnalysisRecord(record, subjectFilter));
   const records = subjectAdjusted.filter((record) => status === "all"
     || (status === "present" && record.appeared)
@@ -4038,10 +4163,11 @@ function renderAcademicAnalysis() {
   const trend = buildAnalysisTrend(session, classes, subjectFilter, status);
 
   analysisCurrentData = {
-    session, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
+    session, sectionFilter, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
     overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage
   };
-  els.analysisReportSubtitle.textContent = `${classFilter} ${exam} | Academic Session ${formatAcademicSession(session)}`;
+  const scopeLabel = classFilter === "All Classes" ? sectionFilter : classFilter;
+  els.analysisReportSubtitle.textContent = `${scopeLabel} ${exam} | Academic Session ${formatAcademicSession(session)}`;
   const cards = [
     ["Total Enrolment", overview.total],
     ["Present", overview.present],
@@ -4096,9 +4222,11 @@ function renderAcademicAnalysis() {
   els.analysisSupportBody.innerHTML = support.length
     ? support.map((record) => {
       const reasons = [];
+      const failedSubjects = abbreviatedAnalysisFailedSubjects(record);
       if (!record.appeared) reasons.push("Absent");
-      if (record.result === "Fail") reasons.push("Failed");
-      if (record.result === "Simple Pass") reasons.push("Simple Pass");
+      if (failedSubjects) reasons.push(`Failed: ${failedSubjects}`);
+      else if (record.result === "Fail") reasons.push("Failed");
+      else if (record.result === "Simple Pass") reasons.push("Simple Pass");
       if (record.appeared && record.percentage < threshold) reasons.push(`Below ${threshold}%`);
       return `<tr><td>${record.roll}</td><td>${escapeHtml(record.name)}</td><td>${record.className}</td><td>${record.appeared ? formatResultStatus(record.result) : "Absent"}</td><td>${record.appeared ? `${record.percentage.toFixed(2)}%` : "-"}</td><td>${escapeHtml(reasons.join(", "))}</td></tr>`;
     }).join("")
