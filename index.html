@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=analysis-exam-attendance-pie-20260630">
+  <link rel="stylesheet" href="./styles.css?v=analysis-growth-exam-controls-20260701">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -411,6 +411,40 @@
             <section class="analysis-panel"><div class="analysis-panel-head"><h4>Top 10 Students</h4></div><div id="analysisTopStudents"></div></section>
           </div>
 
+          <div class="analysis-comparison-controls" aria-label="Growth and early-warning examination comparison">
+            <strong>Growth &amp; Early-Warning Exams</strong>
+            <label>First Exam<select id="analysisProgressFromExamSelect"></select></label>
+            <label>Compare With<select id="analysisProgressToExamSelect"></select></label>
+          </div>
+
+          <section class="analysis-panel analysis-growth-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Student Growth Analysis</h4><span>Comparison of the two selected examinations</span></div>
+              <button id="toggleAnalysisGrowthListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisGrowthTableWrap">Show List</button>
+            </div>
+            <div id="analysisGrowthSummary" class="analysis-mini-metrics"></div>
+            <div id="analysisGrowthTableWrap" class="analysis-table-wrap analysis-growth-table-wrap hidden">
+              <table class="analysis-table analysis-growth-table">
+                <thead><tr><th>Student Name</th><th>Class</th><th>First Exam</th><th>Latest Exam</th><th>First %</th><th>Latest %</th><th>Change</th><th>Trend</th></tr></thead>
+                <tbody id="analysisGrowthBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="analysis-panel analysis-risk-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Early-Warning Students</h4><span>Risk indicators from the two selected examinations</span></div>
+              <button id="toggleAnalysisRiskListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisRiskTableWrap">Show List</button>
+            </div>
+            <div id="analysisEarlyWarningSummary" class="analysis-mini-metrics"></div>
+            <div id="analysisRiskTableWrap" class="analysis-table-wrap analysis-risk-table-wrap hidden">
+              <table class="analysis-table analysis-risk-table">
+                <thead><tr><th>Student Name</th><th>Class</th><th>Latest %</th><th>Change</th><th>Missed Exams</th><th>Failed Exams</th><th>Weak Subjects</th><th>Risk</th><th>Reasons</th></tr></thead>
+                <tbody id="analysisEarlyWarningBody"></tbody>
+              </table>
+            </div>
+          </section>
+
           <section class="analysis-panel">
             <div class="analysis-panel-head"><h4>Students Needing Support</h4></div>
             <div class="analysis-table-wrap">
@@ -515,6 +549,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=analysis-exam-attendance-pie-20260630"></script>
+  <script src="./app.js?v=analysis-growth-exam-controls-20260701"></script>
 </body>
 </html>

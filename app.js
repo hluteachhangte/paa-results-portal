@@ -271,6 +271,16 @@ const els = {
   analysisAttendance: document.querySelector("#analysisAttendance"),
   analysisDistributionChart: document.querySelector("#analysisDistributionChart"),
   analysisTopStudents: document.querySelector("#analysisTopStudents"),
+  analysisProgressFromExamSelect: document.querySelector("#analysisProgressFromExamSelect"),
+  analysisProgressToExamSelect: document.querySelector("#analysisProgressToExamSelect"),
+  analysisGrowthSummary: document.querySelector("#analysisGrowthSummary"),
+  analysisGrowthBody: document.querySelector("#analysisGrowthBody"),
+  analysisGrowthTableWrap: document.querySelector("#analysisGrowthTableWrap"),
+  toggleAnalysisGrowthListBtn: document.querySelector("#toggleAnalysisGrowthListBtn"),
+  analysisEarlyWarningSummary: document.querySelector("#analysisEarlyWarningSummary"),
+  analysisEarlyWarningBody: document.querySelector("#analysisEarlyWarningBody"),
+  analysisRiskTableWrap: document.querySelector("#analysisRiskTableWrap"),
+  toggleAnalysisRiskListBtn: document.querySelector("#toggleAnalysisRiskListBtn"),
   analysisSupportBody: document.querySelector("#analysisSupportBody"),
   analysisStrengths: document.querySelector("#analysisStrengths"),
   analysisWeaknesses: document.querySelector("#analysisWeaknesses"),
@@ -754,7 +764,9 @@ function saveUiState() {
     analysisExam: els.analysisExamSelect?.value || "First Term",
     analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
     analysisStatus: els.analysisStatusSelect?.value || "all",
-    analysisThreshold: els.analysisSupportThreshold?.value || "50"
+    analysisThreshold: els.analysisSupportThreshold?.value || "50",
+    analysisProgressFromExam: els.analysisProgressFromExamSelect?.value || "",
+    analysisProgressToExam: els.analysisProgressToExamSelect?.value || ""
   }));
 }
 
@@ -1631,6 +1643,9 @@ function init() {
       if (control === els.analysisSectionSelect || control === els.analysisClassSelect || control === els.analysisExamSelect) {
         updateAnalysisSubjectOptions();
       }
+      if (control === els.analysisSectionSelect || control === els.analysisClassSelect) {
+        updateAnalysisProgressExamOptions();
+      }
       saveUiState();
       renderAcademicAnalysis();
     });
@@ -1638,6 +1653,18 @@ function init() {
   els.downloadAnalysisPdfBtn?.addEventListener("click", downloadAnalysisPDF);
   els.exportAnalysisExcelBtn?.addEventListener("click", exportAnalysisExcel);
   els.printAnalysisBtn?.addEventListener("click", printAcademicAnalysis);
+  els.analysisProgressFromExamSelect?.addEventListener("change", () => {
+    saveUiState();
+    renderAcademicAnalysis();
+  });
+  els.analysisProgressToExamSelect?.addEventListener("change", () => {
+    saveUiState();
+    renderAcademicAnalysis();
+  });
+  els.toggleAnalysisGrowthListBtn?.addEventListener("click", () =>
+    toggleAnalysisStudentList(els.toggleAnalysisGrowthListBtn, els.analysisGrowthTableWrap));
+  els.toggleAnalysisRiskListBtn?.addEventListener("click", () =>
+    toggleAnalysisStudentList(els.toggleAnalysisRiskListBtn, els.analysisRiskTableWrap));
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetNameSearchInput?.addEventListener("input", () => {
@@ -3694,6 +3721,11 @@ function initializeAnalysisFilters(savedFilters = null) {
   setSelectValueIfAvailable(els.analysisExamSelect, savedFilters?.analysisExam);
   updateAnalysisSubjectOptions();
   setSelectValueIfAvailable(els.analysisSubjectSelect, savedFilters?.analysisSubject);
+  if (savedFilters) {
+    els.analysisProgressFromExamSelect.dataset.preferredValue = savedFilters.analysisProgressFromExam || "";
+    els.analysisProgressToExamSelect.dataset.preferredValue = savedFilters.analysisProgressToExam || "";
+  }
+  updateAnalysisProgressExamOptions();
   setSelectValueIfAvailable(els.analysisStatusSelect, savedFilters?.analysisStatus);
   if (savedFilters?.analysisThreshold !== undefined) {
     els.analysisSupportThreshold.value = savedFilters.analysisThreshold;
@@ -3714,6 +3746,30 @@ function updateAnalysisClassOptions(preferredClass = "") {
 function selectedAnalysisClasses() {
   const className = els.analysisClassSelect?.value || "All Classes";
   return className === "All Classes" ? analysisClassesForSection() : [className];
+}
+
+function updateAnalysisProgressExamOptions() {
+  if (!els.analysisProgressFromExamSelect || !els.analysisProgressToExamSelect) return;
+  const availableExams = new Set(selectedAnalysisClasses().flatMap((className) => currentExams(className)));
+  const exams = examNames.filter((exam) => exam !== "Third Term" && availableExams.has(exam));
+  const preferredFrom = els.analysisProgressFromExamSelect.value
+    || els.analysisProgressFromExamSelect.dataset.preferredValue
+    || exams[0]
+    || "";
+  const preferredTo = els.analysisProgressToExamSelect.value
+    || els.analysisProgressToExamSelect.dataset.preferredValue
+    || exams[1]
+    || exams[0]
+    || "";
+  populateSelect(els.analysisProgressFromExamSelect, exams);
+  populateSelect(els.analysisProgressToExamSelect, exams);
+  setSelectValueIfAvailable(els.analysisProgressFromExamSelect, preferredFrom);
+  setSelectValueIfAvailable(els.analysisProgressToExamSelect, preferredTo);
+  if (exams.length > 1 && els.analysisProgressFromExamSelect.value === els.analysisProgressToExamSelect.value) {
+    els.analysisProgressToExamSelect.value = exams.find((exam) => exam !== els.analysisProgressFromExamSelect.value) || exams[1];
+  }
+  delete els.analysisProgressFromExamSelect.dataset.preferredValue;
+  delete els.analysisProgressToExamSelect.dataset.preferredValue;
 }
 
 function updateAnalysisExamOptions() {
@@ -4084,20 +4140,42 @@ function analysisPieChart(items, ariaLabel) {
 
 function analysisLineChart(items) {
   if (!items.length) return '<p class="analysis-empty">No trend data available.</p>';
-  const width = 720;
-  const height = 220;
-  const padX = 42;
-  const padY = 26;
-  const step = items.length > 1 ? (width - (padX * 2)) / (items.length - 1) : 0;
+  const width = Math.max(720, ((items.length - 1) * 82) + 86);
+  const height = 250;
+  const padLeft = 48;
+  const padRight = 20;
+  const padTop = 30;
+  const padBottom = 42;
+  const plotBottom = height - padBottom;
+  const plotHeight = plotBottom - padTop;
+  const step = items.length > 1 ? (width - padLeft - padRight) / (items.length - 1) : 0;
+  const yPosition = (value) => plotBottom - ((Math.max(0, Math.min(100, value)) / 100) * plotHeight);
   const points = items.map((item, index) => {
-    const x = padX + (index * step);
-    const y = height - padY - ((Math.max(0, Math.min(100, item.average)) / 100) * (height - (padY * 2)));
+    const x = items.length > 1 ? padLeft + (index * step) : width / 2;
+    const y = yPosition(item.average);
     return { ...item, x, y };
   });
-  return `<div class="analysis-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage trend">
-    <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" class="chart-axis"/>
+  const guideValues = [0, 25, 50, 75, 100];
+  const areaPoints = points.length
+    ? `${points[0].x},${plotBottom} ${points.map((point) => `${point.x},${point.y}`).join(" ")} ${points[points.length - 1].x},${plotBottom}`
+    : "";
+  return `<div class="analysis-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage result trend">
+    <g class="chart-grid">${guideValues.map((value) => {
+      const y = yPosition(value);
+      return `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" class="chart-grid-line"/>
+        <text x="${padLeft - 9}" y="${y + 3}" class="chart-y-label">${value}%</text>`;
+    }).join("")}</g>
+    <line x1="${padLeft}" y1="${plotBottom}" x2="${width - padRight}" y2="${plotBottom}" class="chart-axis"/>
+    <polygon points="${areaPoints}" class="chart-area"/>
     <polyline points="${points.map((point) => `${point.x},${point.y}`).join(" ")}" class="chart-line"/>
-    ${points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4" class="chart-point"/><text x="${point.x}" y="${point.y - 10}" class="chart-value">${point.average.toFixed(1)}%</text><text x="${point.x}" y="${height - 7}" class="chart-label">${escapeHtml(point.label)}</text>`).join("")}
+    ${points.map((point) => `<g class="chart-data-point">
+      <title>${escapeHtml(point.label)}: ${point.average.toFixed(2)}%</title>
+      <circle cx="${point.x}" cy="${point.y}" r="5" class="chart-point"/>
+      <rect x="${point.x - 24}" y="${point.y - 27}" width="48" height="17" rx="4" class="chart-value-bg"/>
+      <text x="${point.x}" y="${point.y - 15}" class="chart-value">${point.average.toFixed(1)}%</text>
+      <line x1="${point.x}" y1="${plotBottom}" x2="${point.x}" y2="${plotBottom + 5}" class="chart-tick"/>
+      <text x="${point.x}" y="${height - 12}" class="chart-label">${escapeHtml(point.label)}</text>
+    </g>`).join("")}
   </svg></div>`;
 }
 
@@ -4150,6 +4228,119 @@ function buildAnalysisTrend(session, classes, subjectFilter, status) {
   }).filter((item) => item.average > 0);
 }
 
+function buildAnalysisStudentProgress(session, classes, subjectFilter, status, threshold, fromExam, toExam) {
+  if (!fromExam || !toExam || fromExam === toExam) return [];
+  const eligibleClasses = classes.filter((className) =>
+    currentExams(className).includes(fromExam) && currentExams(className).includes(toExam));
+  if (!eligibleClasses.length) return [];
+
+  const grouped = new Map();
+  const comparisonData = [fromExam, toExam].map((exam) => ({
+    exam,
+    records: buildAcademicAnalysisRecords(session, eligibleClasses, exam)
+      .filter((record) => subjectFilter === "All Subjects"
+        || record.subjects.some((subject) => subject.name === subjectFilter))
+      .map((record) => filteredAnalysisRecord(record, subjectFilter))
+  }));
+  if (comparisonData.some((item) => !item.records.some((record) => record.appeared))) return [];
+
+  comparisonData.forEach(({ records }) => {
+    records.forEach((record) => {
+      const key = `${record.className}\u0000${record.roll}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(record);
+    });
+  });
+
+  return [...grouped.values()].map((attempts) => {
+    const firstRecord = attempts[0];
+    const appeared = attempts.filter((record) => record.appeared);
+    const first = appeared[0] || null;
+    const latest = appeared[appeared.length - 1] || null;
+    const delta = first && latest && appeared.length > 1 ? latest.percentage - first.percentage : 0;
+    const missedExams = attempts.length - appeared.length;
+    const failedExams = appeared.filter((record) => record.result === "Fail").length;
+    const weakSubjects = [...new Set(attempts.flatMap((record) => record.failedSubjects || []))];
+    const trend = appeared.length < 2 ? "Insufficient Data" : delta >= 5 ? "Improving" : delta <= -5 ? "Declining" : "Stable";
+    const riskReasons = [];
+    let riskScore = 0;
+
+    if (!appeared.length) {
+      riskScore += 4;
+      riskReasons.push("No examination result");
+    }
+    if (failedExams >= 2) {
+      riskScore += 2;
+      riskReasons.push("Repeated exam failure");
+    } else if (failedExams === 1) {
+      riskScore += 1;
+      riskReasons.push("Failed one examination");
+    }
+    if (delta <= -10 && appeared.length > 1) {
+      riskScore += 2;
+      riskReasons.push("Sharp performance decline");
+    } else if (delta <= -5 && appeared.length > 1) {
+      riskScore += 1;
+      riskReasons.push("Declining performance");
+    }
+    if (missedExams >= 1) {
+      riskScore += 1;
+      riskReasons.push(missedExams === 1 ? "Missed one examination" : "Missed both examinations");
+    }
+    if (weakSubjects.length >= 2) {
+      riskScore += 1;
+      riskReasons.push("Multiple weak subjects");
+    }
+    if (latest && latest.percentage < threshold) {
+      riskScore += 1;
+      riskReasons.push(`Below ${threshold}%`);
+    }
+
+    const riskLevel = riskScore >= 3 ? "High" : riskScore === 2 ? "Medium" : riskScore === 1 ? "Watch" : "Low";
+    return {
+      roll: firstRecord.roll,
+      name: firstRecord.name,
+      className: firstRecord.className,
+      attempts,
+      appearedCount: appeared.length,
+      first,
+      latest,
+      delta,
+      trend,
+      missedExams,
+      failedExams,
+      weakSubjects,
+      riskScore,
+      riskLevel,
+      riskReasons
+    };
+  }).filter((record) => status === "all"
+    || (status === "present" && record.appearedCount > 0)
+    || (status === "absent" && record.appearedCount === 0));
+}
+
+function analysisTrendClass(trend) {
+  if (trend === "Improving") return "is-improving";
+  if (trend === "Declining") return "is-declining";
+  if (trend === "Stable") return "is-stable";
+  return "is-insufficient";
+}
+
+function analysisRiskClass(level) {
+  if (level === "High") return "is-high";
+  if (level === "Medium") return "is-medium";
+  if (level === "Watch") return "is-watch";
+  return "is-low";
+}
+
+function toggleAnalysisStudentList(button, list) {
+  if (!button || !list) return;
+  const willShow = list.classList.contains("hidden");
+  list.classList.toggle("hidden", !willShow);
+  button.textContent = willShow ? "Hide List" : "Show List";
+  button.setAttribute("aria-expanded", String(willShow));
+}
+
 function renderAcademicAnalysis() {
   if (!els.analysisReport || activeView !== "analysis") return;
   initializeAnalysisFilters();
@@ -4158,24 +4349,32 @@ function renderAcademicAnalysis() {
   const classFilter = els.analysisClassSelect.value || "All Classes";
   const exam = els.analysisExamSelect.value || "First Term";
   const subjectFilter = els.analysisSubjectSelect.value || "All Subjects";
+  const isSingleSubjectAnalysis = subjectFilter !== "All Subjects";
   const status = els.analysisStatusSelect.value || "all";
   const threshold = Math.max(0, Math.min(100, Number(els.analysisSupportThreshold.value) || 50));
   const classes = selectedAnalysisClasses();
-  const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam);
+  const progressFromExam = els.analysisProgressFromExamSelect.value;
+  const progressToExam = els.analysisProgressToExamSelect.value;
+  const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam)
+    .filter((record) => subjectFilter === "All Subjects"
+      || record.subjects.some((subject) => subject.name === subjectFilter));
   const subjectAdjusted = baseRecords.map((record) => filteredAnalysisRecord(record, subjectFilter));
   const records = subjectAdjusted.filter((record) => status === "all"
     || (status === "present" && record.appeared)
     || (status === "absent" && !record.appeared));
   const overview = analysisOverviewMetrics(records);
   const classMetrics = analysisClassMetrics(records);
+  const hasClassComparison = classMetrics.length > 1;
   const subjectMetrics = analysisSubjectMetrics(baseRecords.filter((record) => status === "all"
     || (status === "present" && record.appeared)
     || (status === "absent" && !record.appeared)), subjectFilter);
   const topStudents = records.filter((record) => record.appeared).sort((a, b) => b.percentage - a.percentage).slice(0, 10);
   const support = records.filter((record) =>
     (record.appeared ? record.percentage : 0) < threshold);
-  const bestClass = [...classMetrics].sort((a, b) => b.average - a.average)[0];
-  const weakClass = [...classMetrics].sort((a, b) => a.average - b.average)[0];
+  const bestClass = [...classMetrics].sort((a, b) =>
+    (b.passPercentage - a.passPercentage) || (b.average - a.average))[0];
+  const weakClass = [...classMetrics].sort((a, b) =>
+    (a.passPercentage - b.passPercentage) || (a.average - b.average))[0];
   const strongSubject = [...subjectMetrics].sort((a, b) => b.passPercentage - a.passPercentage)[0];
   const weakSubject = [...subjectMetrics].sort((a, b) => a.passPercentage - b.passPercentage)[0];
   const examOpportunities = baseRecords.reduce((sum, record) =>
@@ -4185,11 +4384,28 @@ function renderAcademicAnalysis() {
   const examAbsences = Math.max(0, examOpportunities - examAppearances);
   const attendancePercentage = examOpportunities ? (examAppearances / examOpportunities) * 100 : 0;
   const trend = buildAnalysisTrend(session, classes, subjectFilter, status);
+  const studentProgress = buildAnalysisStudentProgress(
+    session,
+    classes,
+    subjectFilter,
+    status,
+    threshold,
+    progressFromExam,
+    progressToExam
+  );
+  const growthRecords = studentProgress
+    .filter((record) => record.appearedCount >= 2)
+    .sort((a, b) => a.delta - b.delta);
+  const earlyWarning = studentProgress
+    .filter((record) => record.riskScore > 0)
+    .sort((a, b) => (b.riskScore - a.riskScore)
+      || ((a.latest?.percentage ?? 0) - (b.latest?.percentage ?? 0)));
 
   analysisCurrentData = {
     session, sectionFilter, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
     overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage,
-    examAppearances, examOpportunities, examAbsences
+    examAppearances, examOpportunities, examAbsences, growthRecords, earlyWarning,
+    progressFromExam, progressToExam
   };
   const scopeLabel = classFilter === "All Classes" ? sectionFilter : classFilter;
   els.analysisReportSubtitle.textContent = `${scopeLabel} ${exam} | Academic Session ${formatAcademicSession(session)}`;
@@ -4216,14 +4432,18 @@ function renderAcademicAnalysis() {
       <tbody>${classMetrics.map((metric) => `<tr><td>${metric.className}</td><td>${metric.passPercentage.toFixed(2)}%</td><td>${metric.average.toFixed(2)}%</td><td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td></tr>`).join("") || '<tr><td colspan="5">No class data available.</td></tr>'}</tbody>
     </table></div>`;
   els.analysisClassHighlight.textContent = bestClass
-    ? `Best: ${bestClass.className} | Needs focus: ${weakClass.className}`
+    ? hasClassComparison
+      ? `Best: ${bestClass.className} (${bestClass.passPercentage.toFixed(2)}%) | Needs focus: ${weakClass.className} (${weakClass.passPercentage.toFixed(2)}%)`
+      : `${bestClass.className}: ${bestClass.passPercentage.toFixed(2)}% pass | ${bestClass.average.toFixed(2)}% average`
     : "No class data";
   els.analysisTrendChart.innerHTML = analysisLineChart(trend);
   els.analysisSubjectChart.innerHTML = `<div class="analysis-subject-column-scroll">${analysisColumnChart(subjectMetrics, "average", "name")}</div>
     <h5 class="analysis-subchart-title">Subject Pass Percentage</h5>
     <div class="analysis-subject-pass-scroll">${analysisBarChart(subjectMetrics, "passPercentage", "name")}</div>`;
   els.analysisSubjectHighlight.textContent = strongSubject
-    ? `Strongest: ${strongSubject.name} | Weakest: ${weakSubject.name}`
+    ? isSingleSubjectAnalysis
+      ? `${strongSubject.name}: ${strongSubject.passPercentage.toFixed(2)}% pass | ${strongSubject.average.toFixed(2)}% average`
+      : `Strongest: ${strongSubject.name} | Weakest: ${weakSubject.name}`
     : "No subject data";
   els.analysisSubjectBody.innerHTML = subjectMetrics.length
     ? subjectMetrics.map((metric) => `<tr><td>${escapeHtml(metric.name)}</td><td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td><td>${metric.average.toFixed(2)}%</td><td>${metric.passPercentage.toFixed(2)}%</td><td>${metric.passed}</td><td>${metric.failed}</td></tr>`).join("")
@@ -4254,6 +4474,62 @@ function renderAcademicAnalysis() {
   </div>`;
   els.analysisDistributionChart.innerHTML = analysisHistogram(analysisDistribution(records));
   els.analysisTopStudents.innerHTML = analysisTopStudentsChart(topStudents);
+  const growthCounts = {
+    improving: growthRecords.filter((record) => record.trend === "Improving").length,
+    stable: growthRecords.filter((record) => record.trend === "Stable").length,
+    declining: growthRecords.filter((record) => record.trend === "Declining").length
+  };
+  els.analysisGrowthSummary.innerHTML = [
+    ["Compared Students", growthRecords.length, "is-neutral"],
+    ["Improving", growthCounts.improving, "is-positive"],
+    ["Stable", growthCounts.stable, "is-steady"],
+    ["Declining", growthCounts.declining, "is-negative"]
+  ].map(([label, value, className]) => `<article class="${className}"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  els.analysisGrowthBody.innerHTML = growthRecords.length
+    ? growthRecords.map((record) => `<tr>
+      <td>${escapeHtml(record.name)}</td>
+      <td>${escapeHtml(record.className)}</td>
+      <td>${escapeHtml(record.first.exam.replace(" Unit Test ", " UT "))}</td>
+      <td>${escapeHtml(record.latest.exam.replace(" Unit Test ", " UT "))}</td>
+      <td>${record.first.percentage.toFixed(2)}%</td>
+      <td>${record.latest.percentage.toFixed(2)}%</td>
+      <td class="${record.delta > 0 ? "analysis-positive-value" : record.delta < 0 ? "analysis-negative-value" : ""}">${record.delta > 0 ? "+" : ""}${record.delta.toFixed(2)}%</td>
+      <td><span class="analysis-status-badge ${analysisTrendClass(record.trend)}">${record.trend}</span></td>
+    </tr>`).join("")
+    : `<tr><td colspan="8">Comparable ${escapeHtml(progressFromExam)} and ${escapeHtml(progressToExam)} results are required for growth analysis.</td></tr>`;
+
+  const riskCounts = {
+    high: earlyWarning.filter((record) => record.riskLevel === "High").length,
+    medium: earlyWarning.filter((record) => record.riskLevel === "Medium").length,
+    watch: earlyWarning.filter((record) => record.riskLevel === "Watch").length
+  };
+  els.analysisEarlyWarningSummary.innerHTML = [
+    ["Flagged Students", earlyWarning.length, "is-neutral"],
+    ["High Risk", riskCounts.high, "is-negative"],
+    ["Medium Risk", riskCounts.medium, "is-warning"],
+    ["Watch", riskCounts.watch, "is-watch"]
+  ].map(([label, value, className]) => `<article class="${className}"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  els.analysisEarlyWarningBody.innerHTML = earlyWarning.length
+    ? earlyWarning.map((record) => {
+      const weakSubjects = record.weakSubjects
+        .map((subject) => analysisSubjectReasonAbbreviations[subject] || subject)
+        .join(", ") || "-";
+      return `<tr>
+        <td>${escapeHtml(record.name)}</td>
+        <td>${escapeHtml(record.className)}</td>
+        <td>${record.latest ? `${record.latest.percentage.toFixed(2)}%` : "-"}</td>
+        <td class="${record.delta > 0 ? "analysis-positive-value" : record.delta < 0 ? "analysis-negative-value" : ""}">${record.appearedCount >= 2 ? `${record.delta > 0 ? "+" : ""}${record.delta.toFixed(2)}%` : "-"}</td>
+        <td>${record.missedExams}</td>
+        <td>${record.failedExams}</td>
+        <td>${escapeHtml(weakSubjects)}</td>
+        <td><span class="analysis-status-badge ${analysisRiskClass(record.riskLevel)}">${record.riskLevel}</span></td>
+        <td>${escapeHtml(record.riskReasons.join(", "))}</td>
+      </tr>`;
+    }).join("")
+    : `<tr><td colspan="9">${studentProgress.length
+      ? "No students currently meet the early-warning criteria."
+      : `Comparable ${escapeHtml(progressFromExam)} and ${escapeHtml(progressToExam)} results are required.`}</td></tr>`;
+
   els.analysisSupportBody.innerHTML = support.length
     ? support.map((record) => {
       const reasons = [];
@@ -4277,16 +4553,32 @@ function renderAcademicAnalysis() {
   const strengths = [];
   const weaknesses = [];
   const recommendations = [];
-  if (strongSubject) strengths.push(`${strongSubject.name} has the highest pass percentage (${strongSubject.passPercentage.toFixed(2)}%).`);
-  if (bestClass) strengths.push(`${bestClass.className} has the highest average percentage (${bestClass.average.toFixed(2)}%).`);
+  if (strongSubject && !isSingleSubjectAnalysis) {
+    strengths.push(`${strongSubject.name} has the highest pass percentage (${strongSubject.passPercentage.toFixed(2)}%).`);
+  } else if (strongSubject) {
+    strengths.push(`${strongSubject.name} pass percentage is ${strongSubject.passPercentage.toFixed(2)}%.`);
+  }
+  if (bestClass && hasClassComparison) {
+    strengths.push(`${bestClass.className} has the highest pass percentage (${bestClass.passPercentage.toFixed(2)}%).`);
+  }
   if (overview.distinction) strengths.push(`${overview.distinction} student(s) achieved Distinction.`);
-  if (weakSubject) {
+  if (weakSubject && !isSingleSubjectAnalysis) {
     weaknesses.push(`${weakSubject.name} has the lowest pass percentage (${weakSubject.passPercentage.toFixed(2)}%).`);
     recommendations.push(`Provide focused practice and remedial support in ${weakSubject.name}.`);
+  } else if (weakSubject?.failed) {
+    weaknesses.push(`${weakSubject.failed} student(s) did not pass ${weakSubject.name}.`);
+    recommendations.push(`Provide focused support to students who did not pass ${weakSubject.name}.`);
   }
-  if (weakClass) {
-    weaknesses.push(`${weakClass.className} has the lowest average percentage (${weakClass.average.toFixed(2)}%).`);
+  if (weakClass && hasClassComparison) {
+    weaknesses.push(`${weakClass.className} has the lowest pass percentage (${weakClass.passPercentage.toFixed(2)}%).`);
     recommendations.push(`Review learning gaps and intervention plans for ${weakClass.className}.`);
+  }
+  if (growthCounts.declining) {
+    weaknesses.push(`${growthCounts.declining} student(s) show a declining performance trend.`);
+    recommendations.push("Review declining students individually and set short-term improvement targets.");
+  }
+  if (riskCounts.high) {
+    recommendations.push(`Prioritize immediate intervention plans for ${riskCounts.high} high-risk student(s).`);
   }
   if (overview.absent) {
     weaknesses.push(`${overview.absent} student(s) are absent from the selected result.`);
@@ -4315,6 +4607,9 @@ async function downloadAnalysisPDF() {
     button.textContent = "Generating Analysis PDF...";
     captureSource = els.analysisReport.cloneNode(true);
     captureSource.classList.add("analysis-pdf-capture");
+    captureSource.querySelectorAll(".analysis-growth-table-wrap, .analysis-risk-table-wrap")
+      .forEach((table) => table.classList.remove("hidden"));
+    captureSource.querySelectorAll(".analysis-list-toggle").forEach((toggle) => toggle.remove());
     document.body.appendChild(captureSource);
     const canvas = await window.html2canvas(captureSource, {
       backgroundColor: "#ffffff",
@@ -4357,7 +4652,11 @@ function exportAnalysisExcel() {
   }
   const data = analysisCurrentData;
   const workbook = window.XLSX.utils.book_new();
-  const overviewRows = Object.entries(data.overview).map(([metric, value]) => ({ Metric: formatFirebaseFieldName(metric), Value: value }));
+  const overviewRows = [
+    { Metric: "Growth First Exam", Value: data.progressFromExam },
+    { Metric: "Growth Compare With", Value: data.progressToExam },
+    ...Object.entries(data.overview).map(([metric, value]) => ({ Metric: formatFirebaseFieldName(metric), Value: value }))
+  ];
   const classRows = data.classMetrics.map((item) => ({
     Class: item.className,
     "Pass Percentage": item.passPercentage,
@@ -4382,9 +4681,34 @@ function exportAnalysisExcel() {
     Percentage: record.appeared ? record.percentage : "",
     Result: record.result
   }));
+  const growthRows = data.growthRecords.map((record) => ({
+    "Roll Number": record.roll,
+    Name: record.name,
+    Class: record.className,
+    "First Exam": record.first.exam,
+    "Latest Exam": record.latest.exam,
+    "First Percentage": record.first.percentage,
+    "Latest Percentage": record.latest.percentage,
+    Change: record.delta,
+    Trend: record.trend
+  }));
+  const warningRows = data.earlyWarning.map((record) => ({
+    "Roll Number": record.roll,
+    Name: record.name,
+    Class: record.className,
+    "Latest Percentage": record.latest?.percentage ?? "",
+    Change: record.appearedCount >= 2 ? record.delta : "",
+    "Missed Exams": record.missedExams,
+    "Failed Exams": record.failedExams,
+    "Weak Subjects": record.weakSubjects.join(", "),
+    Risk: record.riskLevel,
+    Reasons: record.riskReasons.join(", ")
+  }));
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(overviewRows), "Overview");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(classRows), "Class Analysis");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(subjectRows), "Subject Analysis");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(growthRows), "Student Growth");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(warningRows), "Early Warning");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(supportRows), "Students Needing Support");
   window.XLSX.writeFile(workbook, `Academic_Analysis_${fileSafeName(data.session)}.xlsx`);
 }
