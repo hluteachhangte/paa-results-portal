@@ -271,6 +271,7 @@ const els = {
   analysisAttendance: document.querySelector("#analysisAttendance"),
   analysisDistributionChart: document.querySelector("#analysisDistributionChart"),
   analysisTopStudents: document.querySelector("#analysisTopStudents"),
+  analysisProgressClassSelect: document.querySelector("#analysisProgressClassSelect"),
   analysisProgressFromExamSelect: document.querySelector("#analysisProgressFromExamSelect"),
   analysisProgressToExamSelect: document.querySelector("#analysisProgressToExamSelect"),
   analysisGrowthSummary: document.querySelector("#analysisGrowthSummary"),
@@ -282,6 +283,8 @@ const els = {
   analysisRiskTableWrap: document.querySelector("#analysisRiskTableWrap"),
   toggleAnalysisRiskListBtn: document.querySelector("#toggleAnalysisRiskListBtn"),
   analysisSupportBody: document.querySelector("#analysisSupportBody"),
+  analysisSupportTableWrap: document.querySelector("#analysisSupportTableWrap"),
+  toggleAnalysisSupportListBtn: document.querySelector("#toggleAnalysisSupportListBtn"),
   analysisStrengths: document.querySelector("#analysisStrengths"),
   analysisWeaknesses: document.querySelector("#analysisWeaknesses"),
   analysisRecommendations: document.querySelector("#analysisRecommendations"),
@@ -765,6 +768,7 @@ function saveUiState() {
     analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
     analysisStatus: els.analysisStatusSelect?.value || "all",
     analysisThreshold: els.analysisSupportThreshold?.value || "50",
+    analysisProgressClass: els.analysisProgressClassSelect?.value || "All Classes",
     analysisProgressFromExam: els.analysisProgressFromExamSelect?.value || "",
     analysisProgressToExam: els.analysisProgressToExamSelect?.value || ""
   }));
@@ -1644,6 +1648,7 @@ function init() {
         updateAnalysisSubjectOptions();
       }
       if (control === els.analysisSectionSelect || control === els.analysisClassSelect) {
+        updateAnalysisProgressClassOptions();
         updateAnalysisProgressExamOptions();
       }
       saveUiState();
@@ -1653,6 +1658,11 @@ function init() {
   els.downloadAnalysisPdfBtn?.addEventListener("click", downloadAnalysisPDF);
   els.exportAnalysisExcelBtn?.addEventListener("click", exportAnalysisExcel);
   els.printAnalysisBtn?.addEventListener("click", printAcademicAnalysis);
+  els.analysisProgressClassSelect?.addEventListener("change", () => {
+    updateAnalysisProgressExamOptions();
+    saveUiState();
+    renderAcademicAnalysis();
+  });
   els.analysisProgressFromExamSelect?.addEventListener("change", () => {
     saveUiState();
     renderAcademicAnalysis();
@@ -1665,6 +1675,8 @@ function init() {
     toggleAnalysisStudentList(els.toggleAnalysisGrowthListBtn, els.analysisGrowthTableWrap));
   els.toggleAnalysisRiskListBtn?.addEventListener("click", () =>
     toggleAnalysisStudentList(els.toggleAnalysisRiskListBtn, els.analysisRiskTableWrap));
+  els.toggleAnalysisSupportListBtn?.addEventListener("click", () =>
+    toggleAnalysisStudentList(els.toggleAnalysisSupportListBtn, els.analysisSupportTableWrap));
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
   els.marksheetNameSearchInput?.addEventListener("input", () => {
@@ -3722,9 +3734,11 @@ function initializeAnalysisFilters(savedFilters = null) {
   updateAnalysisSubjectOptions();
   setSelectValueIfAvailable(els.analysisSubjectSelect, savedFilters?.analysisSubject);
   if (savedFilters) {
+    els.analysisProgressClassSelect.dataset.preferredValue = savedFilters.analysisProgressClass || "All Classes";
     els.analysisProgressFromExamSelect.dataset.preferredValue = savedFilters.analysisProgressFromExam || "";
     els.analysisProgressToExamSelect.dataset.preferredValue = savedFilters.analysisProgressToExam || "";
   }
+  updateAnalysisProgressClassOptions();
   updateAnalysisProgressExamOptions();
   setSelectValueIfAvailable(els.analysisStatusSelect, savedFilters?.analysisStatus);
   if (savedFilters?.analysisThreshold !== undefined) {
@@ -3748,9 +3762,25 @@ function selectedAnalysisClasses() {
   return className === "All Classes" ? analysisClassesForSection() : [className];
 }
 
+function updateAnalysisProgressClassOptions() {
+  if (!els.analysisProgressClassSelect) return;
+  const classes = selectedAnalysisClasses();
+  const preferred = els.analysisProgressClassSelect.value
+    || els.analysisProgressClassSelect.dataset.preferredValue
+    || "All Classes";
+  populateSelect(els.analysisProgressClassSelect, ["All Classes", ...classes]);
+  setSelectValueIfAvailable(els.analysisProgressClassSelect, preferred);
+  delete els.analysisProgressClassSelect.dataset.preferredValue;
+}
+
+function selectedAnalysisProgressClasses() {
+  const className = els.analysisProgressClassSelect?.value || "All Classes";
+  return className === "All Classes" ? selectedAnalysisClasses() : [className];
+}
+
 function updateAnalysisProgressExamOptions() {
   if (!els.analysisProgressFromExamSelect || !els.analysisProgressToExamSelect) return;
-  const availableExams = new Set(selectedAnalysisClasses().flatMap((className) => currentExams(className)));
+  const availableExams = new Set(selectedAnalysisProgressClasses().flatMap((className) => currentExams(className)));
   const exams = examNames.filter((exam) => exam !== "Third Term" && availableExams.has(exam));
   const preferredFrom = els.analysisProgressFromExamSelect.value
     || els.analysisProgressFromExamSelect.dataset.preferredValue
@@ -4353,6 +4383,8 @@ function renderAcademicAnalysis() {
   const status = els.analysisStatusSelect.value || "all";
   const threshold = Math.max(0, Math.min(100, Number(els.analysisSupportThreshold.value) || 50));
   const classes = selectedAnalysisClasses();
+  const progressClassFilter = els.analysisProgressClassSelect.value || "All Classes";
+  const progressClasses = selectedAnalysisProgressClasses();
   const progressFromExam = els.analysisProgressFromExamSelect.value;
   const progressToExam = els.analysisProgressToExamSelect.value;
   const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam)
@@ -4386,7 +4418,7 @@ function renderAcademicAnalysis() {
   const trend = buildAnalysisTrend(session, classes, subjectFilter, status);
   const studentProgress = buildAnalysisStudentProgress(
     session,
-    classes,
+    progressClasses,
     subjectFilter,
     status,
     threshold,
@@ -4405,7 +4437,7 @@ function renderAcademicAnalysis() {
     session, sectionFilter, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
     overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage,
     examAppearances, examOpportunities, examAbsences, growthRecords, earlyWarning,
-    progressFromExam, progressToExam
+    progressClassFilter, progressFromExam, progressToExam
   };
   const scopeLabel = classFilter === "All Classes" ? sectionFilter : classFilter;
   els.analysisReportSubtitle.textContent = `${scopeLabel} ${exam} | Academic Session ${formatAcademicSession(session)}`;
@@ -4607,7 +4639,7 @@ async function downloadAnalysisPDF() {
     button.textContent = "Generating Analysis PDF...";
     captureSource = els.analysisReport.cloneNode(true);
     captureSource.classList.add("analysis-pdf-capture");
-    captureSource.querySelectorAll(".analysis-growth-table-wrap, .analysis-risk-table-wrap")
+    captureSource.querySelectorAll(".analysis-growth-table-wrap, .analysis-risk-table-wrap, #analysisSupportTableWrap")
       .forEach((table) => table.classList.remove("hidden"));
     captureSource.querySelectorAll(".analysis-list-toggle").forEach((toggle) => toggle.remove());
     document.body.appendChild(captureSource);
@@ -4653,6 +4685,7 @@ function exportAnalysisExcel() {
   const data = analysisCurrentData;
   const workbook = window.XLSX.utils.book_new();
   const overviewRows = [
+    { Metric: "Growth Focus Class", Value: data.progressClassFilter },
     { Metric: "Growth First Exam", Value: data.progressFromExam },
     { Metric: "Growth Compare With", Value: data.progressToExam },
     ...Object.entries(data.overview).map(([metric, value]) => ({ Metric: formatFirebaseFieldName(metric), Value: value }))

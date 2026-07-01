@@ -5564,7 +5564,7 @@ th:first-child {
 
 .analysis-comparison-controls {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) repeat(2, minmax(150px, 220px));
+  grid-template-columns: minmax(190px, 1fr) repeat(3, minmax(135px, 200px));
   align-items: end;
   gap: 10px;
   padding: 10px 12px;
@@ -6248,7 +6248,8 @@ th:first-child {
   }
 
   body.print-analysis .analysis-growth-table-wrap.hidden,
-  body.print-analysis .analysis-risk-table-wrap.hidden {
+  body.print-analysis .analysis-risk-table-wrap.hidden,
+  body.print-analysis #analysisSupportTableWrap.hidden {
     display: block !important;
   }
 }

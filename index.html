@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=analysis-growth-exam-controls-20260701">
+  <link rel="stylesheet" href="./styles.css?v=analysis-focused-lists-20260701">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -411,8 +411,28 @@
             <section class="analysis-panel"><div class="analysis-panel-head"><h4>Top 10 Students</h4></div><div id="analysisTopStudents"></div></section>
           </div>
 
+          <section class="analysis-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Students Needing Support</h4><span>Students below the selected support percentage</span></div>
+              <button id="toggleAnalysisSupportListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisSupportTableWrap">Show List</button>
+            </div>
+            <div id="analysisSupportTableWrap" class="analysis-table-wrap hidden">
+              <table class="analysis-table support-table">
+                <thead><tr><th>Roll No.</th><th>Student Name</th><th>Class</th><th>Status</th><th>Percentage</th><th>Reason</th></tr></thead>
+                <tbody id="analysisSupportBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-three analysis-insights">
+            <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="analysisStrengths"></ul></section>
+            <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="analysisWeaknesses"></ul></section>
+            <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommendations</h4></div><ul id="analysisRecommendations"></ul></section>
+          </div>
+
           <div class="analysis-comparison-controls" aria-label="Growth and early-warning examination comparison">
             <strong>Growth &amp; Early-Warning Exams</strong>
+            <label>Class<select id="analysisProgressClassSelect"></select></label>
             <label>First Exam<select id="analysisProgressFromExamSelect"></select></label>
             <label>Compare With<select id="analysisProgressToExamSelect"></select></label>
           </div>
@@ -445,21 +465,6 @@
             </div>
           </section>
 
-          <section class="analysis-panel">
-            <div class="analysis-panel-head"><h4>Students Needing Support</h4></div>
-            <div class="analysis-table-wrap">
-              <table class="analysis-table support-table">
-                <thead><tr><th>Roll No.</th><th>Student Name</th><th>Class</th><th>Status</th><th>Percentage</th><th>Reason</th></tr></thead>
-                <tbody id="analysisSupportBody"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <div class="analysis-grid analysis-grid-three analysis-insights">
-            <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="analysisStrengths"></ul></section>
-            <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="analysisWeaknesses"></ul></section>
-            <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommendations</h4></div><ul id="analysisRecommendations"></ul></section>
-          </div>
         </div>
       </section>
 
@@ -549,6 +554,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=analysis-growth-exam-controls-20260701"></script>
+  <script src="./app.js?v=analysis-focused-lists-20260701"></script>
 </body>
 </html>
