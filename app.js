@@ -3837,6 +3837,8 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
             division: resultRecord.outcome.division,
             attendance,
             workingDays,
+            examAppearances: resultRecord.appeared ? 1 : 0,
+            examOpportunities: 1,
             subjects,
             failedSubjects: subjects
               .filter((subject) => subject.present && !subject.passed)
@@ -3902,6 +3904,8 @@ function aggregateAcademicAnalysisRecords(records) {
         : (isHighClass(first.className) ? getDivision(percentage, false) : getPrimaryDivision(percentage)),
       attendance: studentRecords.reduce((sum, record) => sum + (Number(record.attendance) || 0), 0),
       workingDays: studentRecords.reduce((sum, record) => sum + (Number(record.workingDays) || 0), 0),
+      examAppearances: studentRecords.reduce((sum, record) => sum + (Number(record.examAppearances) || 0), 0),
+      examOpportunities: studentRecords.reduce((sum, record) => sum + (Number(record.examOpportunities) || 0), 0),
       subjects,
       failedSubjects: [...new Set(studentRecords.flatMap((record) => record.failedSubjects || []))]
     };
@@ -4063,6 +4067,21 @@ function analysisDonutChart(items, centerText) {
   </div>`;
 }
 
+function analysisPieChart(items, ariaLabel) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  let cursor = 0;
+  const segments = items.map((item) => {
+    const start = total ? (cursor / total) * 360 : 0;
+    cursor += item.value;
+    const end = total ? (cursor / total) * 360 : 0;
+    return `${item.color} ${start}deg ${end}deg`;
+  });
+  return `<div class="analysis-pie-layout">
+    <div class="analysis-pie" role="img" aria-label="${escapeHtml(ariaLabel)}" style="background:conic-gradient(${segments.join(",") || "#d9e1e8 0deg 360deg"})"></div>
+    <div class="analysis-legend">${items.map((item) => `<span><i style="background:${item.color}"></i>${escapeHtml(item.label)} <strong>${item.value}</strong></span>`).join("")}</div>
+  </div>`;
+}
+
 function analysisLineChart(items) {
   if (!items.length) return '<p class="analysis-empty">No trend data available.</p>';
   const width = 720;
@@ -4159,15 +4178,18 @@ function renderAcademicAnalysis() {
   const weakClass = [...classMetrics].sort((a, b) => a.average - b.average)[0];
   const strongSubject = [...subjectMetrics].sort((a, b) => b.passPercentage - a.passPercentage)[0];
   const weakSubject = [...subjectMetrics].sort((a, b) => a.passPercentage - b.passPercentage)[0];
-  const workingDays = Math.max(...baseRecords.map((record) => Number(record.workingDays) || 0), 0);
-  const attendancePossible = workingDays * baseRecords.length;
-  const attendanceTotal = baseRecords.reduce((sum, record) => sum + (Number(record.attendance) || 0), 0);
-  const attendancePercentage = attendancePossible ? (attendanceTotal / attendancePossible) * 100 : 0;
+  const examOpportunities = baseRecords.reduce((sum, record) =>
+    sum + (Number(record.examOpportunities) || 1), 0);
+  const examAppearances = baseRecords.reduce((sum, record) =>
+    sum + (Number(record.examAppearances) || 0), 0);
+  const examAbsences = Math.max(0, examOpportunities - examAppearances);
+  const attendancePercentage = examOpportunities ? (examAppearances / examOpportunities) * 100 : 0;
   const trend = buildAnalysisTrend(session, classes, subjectFilter, status);
 
   analysisCurrentData = {
     session, sectionFilter, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
-    overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage
+    overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage,
+    examAppearances, examOpportunities, examAbsences
   };
   const scopeLabel = classFilter === "All Classes" ? sectionFilter : classFilter;
   els.analysisReportSubtitle.textContent = `${scopeLabel} ${exam} | Academic Session ${formatAcademicSession(session)}`;
@@ -4218,8 +4240,18 @@ function renderAcademicAnalysis() {
     { label: "Passed", value: overview.passed, color: "#157347" },
     { label: "Failed", value: overview.failed, color: "#b42318" }
   ], `${overview.passPercentage.toFixed(1)}% Pass`);
-  els.analysisAttendance.innerHTML = `<div class="attendance-analysis-value"><strong>${attendancePercentage.toFixed(2)}%</strong><span>Attendance</span></div>
-    <dl><div><dt>Total Students</dt><dd>${baseRecords.length}</dd></div><div><dt>Present Results</dt><dd>${overview.present}</dd></div><div><dt>Absent Results</dt><dd>${overview.absent}</dd></div></dl>`;
+  const attendanceTotalLabel = exam === analysisExamAll ? "Possible Appearances" : "Total Students";
+  const attendancePie = analysisPieChart([
+    { label: "Appeared", value: examAppearances, color: "#157347" },
+    { label: "Absent", value: examAbsences, color: "#b42318" }
+  ], `Exam attendance: ${attendancePercentage.toFixed(2)} percent`);
+  els.analysisAttendance.innerHTML = `<div class="attendance-analysis-layout">
+    ${attendancePie}
+    <div class="attendance-analysis-details">
+      <div class="attendance-analysis-value"><strong>${attendancePercentage.toFixed(2)}%</strong><span>Exam Attendance</span></div>
+      <dl><div><dt>${attendanceTotalLabel}</dt><dd>${examOpportunities}</dd></div><div><dt>Appeared</dt><dd>${examAppearances}</dd></div><div><dt>Absent</dt><dd>${examAbsences}</dd></div></dl>
+    </div>
+  </div>`;
   els.analysisDistributionChart.innerHTML = analysisHistogram(analysisDistribution(records));
   els.analysisTopStudents.innerHTML = analysisTopStudentsChart(topStudents);
   els.analysisSupportBody.innerHTML = support.length

@@ -5585,6 +5585,20 @@ th:first-child {
   text-align: center;
 }
 
+.analysis-pie-layout {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.analysis-pie {
+  width: 126px;
+  height: 126px;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 5px 14px rgba(23, 32, 42, 0.12);
+}
+
 .analysis-legend {
   display: grid;
   gap: 5px;
@@ -5684,6 +5698,17 @@ th:first-child {
   place-items: center;
   align-content: center;
   border-bottom: 1px solid var(--line);
+}
+
+.attendance-analysis-layout {
+  display: grid;
+  grid-template-columns: 146px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.attendance-analysis-details {
+  min-width: 0;
 }
 
 .attendance-analysis-value strong {
@@ -5827,6 +5852,10 @@ th:first-child {
 
   .analysis-legend {
     width: 100%;
+  }
+
+  .attendance-analysis-layout {
+    grid-template-columns: 1fr;
   }
 }
 
