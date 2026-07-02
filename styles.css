@@ -1193,6 +1193,11 @@ th:first-child {
   color: #8a5a00;
 }
 
+.status-pill.not-enrolled {
+  background: #eef2f5;
+  color: #52606d;
+}
+
 .status-pill.locked {
   background: #eef1f4;
   color: #697586;
@@ -1464,6 +1469,10 @@ th:first-child {
 
 .results-table .status-pill.absent {
   color: #8a5a00;
+}
+
+.results-table .status-pill.not-enrolled {
+  color: #52606d;
 }
 
 .results-table .division-label {

@@ -693,6 +693,25 @@ async function saveAttendanceData() {
     showToast("Save marks before saving attendance.");
     return;
   }
+  if (els.workingDaysInput && els.workingDaysInput.value.trim() === "") {
+    showContextMessage(els.workingDaysInput, "No. of Working Days cannot be blank.", {
+      type: "error",
+      duration: 5000
+    });
+    els.workingDaysInput.focus();
+    return;
+  }
+  const blankAttendanceInput = [...document.querySelectorAll(
+    "#attendanceView.active [data-attendance-roll], #attendanceView.active [data-height-roll], #attendanceView.active [data-weight-roll]"
+  )].find((input) => !input.disabled && input.value.trim() === "");
+  if (blankAttendanceInput) {
+    showContextMessage(blankAttendanceInput, "This field cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.", {
+      type: "error",
+      duration: 5000
+    });
+    blankAttendanceInput.focus();
+    return;
+  }
   if (!unsavedAttendanceChanges) {
     showToast("No attendance changes to save.");
     return;
@@ -760,6 +779,16 @@ async function saveAllMarks() {
   if (marksSaveInProgress) return;
   if (selectedMarksEntryLocked()) {
     showToast("This marks entry is locked by Administrator.");
+    return;
+  }
+  const blankMarkInput = [...document.querySelectorAll("#entryView.active .mark-input")]
+    .find((input) => !input.disabled && input.value.trim() === "");
+  if (blankMarkInput) {
+    showContextMessage(blankMarkInput, "This field cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.", {
+      type: "error",
+      duration: 5000
+    });
+    blankMarkInput.focus();
     return;
   }
   const lockedChange = [...unsavedMarkChanges.values()].find((change) => !isEntryAccessOpen(change.className, change.exam));
@@ -1518,7 +1547,7 @@ function getStudentMark(student, subject = selectedSubject()) {
     ...stored,
     project,
     attendanceMarks,
-    value: project === "" ? "" : Number(project) + attendanceMarks
+    value: project === "" || isEntryStatusValue(project) ? project : Number(project) + attendanceMarks
   };
 }
 
@@ -1529,6 +1558,7 @@ function isActivitiesSubject(subject = selectedSubject(), className = selectedCl
 function getActivityProjectMark(mark, attendanceMarks) {
   if (mark.project !== undefined && mark.project !== null && mark.project !== "") return mark.project;
   if (mark.value === "" || mark.value === undefined || mark.value === null) return "";
+  if (isEntryStatusValue(mark.value)) return mark.value;
   return clamp(Number(mark.value) - attendanceMarks, 0, 15);
 }
 
@@ -1562,11 +1592,16 @@ function normalizeSplitPartMark(mark, className = selectedClass(), subject = sel
   const partB = mark.partB ?? "";
   const hasPartMarks = partA !== "" || partB !== "";
   if (!hasPartMarks) return { ...mark, partA, partB, value: mark.value ?? "" };
+  const statusValue = isNotEnrolledEntry(partA) && isNotEnrolledEntry(partB)
+    ? -2
+    : isAbsentEntry(partA) || isAbsentEntry(partB)
+      ? -1
+      : null;
   return {
     ...mark,
     partA,
     partB,
-    value: roundMarkTotal(numericMark(partA) + numericMark(partB))
+    value: statusValue ?? roundMarkTotal(numericMark(partA) + numericMark(partB))
   };
 }
 
@@ -1599,7 +1634,7 @@ function setStudentAttendance(roll, value, className = selectedClass(), exam = s
 }
 
 function getAttendanceMarks(attendance, workingDays, className) {
-  if (!workingDays || attendance === "") return 0;
+  if (!workingDays || attendance === "" || isEntryStatusValue(attendance)) return 0;
   const percentage = (Number(attendance) / Number(workingDays)) * 100;
 
   if (className === "Class IX" || className === "Class X") {
@@ -2156,6 +2191,7 @@ function renderEntry() {
   const noPassMark = isNoPassMarkSubject();
   const locked = selectedMarksEntryLocked();
   let entered = 0;
+  let scored = 0;
   let total = 0;
   let highest = 0;
   let lowest = Infinity;
@@ -2180,19 +2216,16 @@ function renderEntry() {
     const mark = getStudentMark(student);
     const value = mark.value ?? "";
     const numericValue = Number(value);
-    const hasNumber = !gradeSubject && value !== "" && !Number.isNaN(numericValue);
-    const status = gradeSubject
-      ? getGradeStatus(value)
-      : noPassMark
-        ? { label: value === "" ? "Pending" : "Entered", className: value === "" ? "" : "pass" }
-        : getStatus(value, passMarks);
+    const hasNumber = !gradeSubject && isScoredEntry(value) && !Number.isNaN(numericValue);
+    const status = getEntryStatus(value, passMarks, { gradeSubject, noPassMark });
 
     if (hasNumber) {
       entered += 1;
+      scored += 1;
       total += numericValue;
       highest = Math.max(highest, numericValue);
       lowest = Math.min(lowest, numericValue);
-    } else if (gradeSubject && value !== "") {
+    } else if (value !== "") {
       entered += 1;
     }
 
@@ -2201,23 +2234,23 @@ function renderEntry() {
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
         ${activitiesSubject
-          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="15" step="0.01" tabindex="${index + 1}"
+          ? `<td><input class="mark-input activity-project-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="15" step="0.01" tabindex="${index + 1}"
                 value="${escapeAttr(mark.project ?? "")}" data-project-roll="${student.roll}"
                 aria-label="Project, assignment, and book maintenance marks for ${escapeAttr(student.name)}"></td>
             <td><strong>${mark.attendanceMarks}</strong></td>
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : splitPartSubject
-            ? `<td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
+            ? `<td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${escapeAttr(mark.partA ?? "")}" data-part-roll="${student.roll}" data-part-key="partA"
                 aria-label="Part A marks for ${escapeAttr(student.name)}"></td>
-            <td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${students.length + index + 1}"
+            <td><input class="mark-input split-part-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="${maxMarks}" step="0.01" tabindex="${students.length + index + 1}"
                 value="${escapeAttr(mark.partB ?? "")}" data-part-roll="${student.roll}" data-part-key="partB"
                 aria-label="Part B marks for ${escapeAttr(student.name)}"></td>
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : `<td>
           ${gradeSubject
-            ? `<input class="mark-input" type="text" maxlength="1" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
-            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
+            ? `<input class="mark-input" type="text" maxlength="2" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
+            : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
         <td><span class="status-pill ${locked ? "locked" : status.className}">${locked ? "Locked" : status.label}</span></td>
@@ -2227,9 +2260,9 @@ function renderEntry() {
 
   els.studentCount.textContent = students.length;
   els.enteredCount.textContent = entered;
-  els.averageMarks.textContent = gradeSubject ? "Grade" : entered ? `${Math.round((total / (entered * maxMarks)) * 100)}%` : "0%";
-  els.highestMarks.textContent = gradeSubject ? "-" : entered ? `${highest}/${maxMarks}` : "0";
-  els.lowestMarks.textContent = gradeSubject ? "-" : entered ? `${lowest}/${maxMarks}` : "0";
+  els.averageMarks.textContent = gradeSubject ? "Grade" : scored ? `${Math.round((total / (scored * maxMarks)) * 100)}%` : "0%";
+  els.highestMarks.textContent = gradeSubject ? "-" : scored ? `${highest}/${maxMarks}` : "0";
+  els.lowestMarks.textContent = gradeSubject ? "-" : scored ? `${lowest}/${maxMarks}` : "0";
   refreshMarksSaveControls();
   applyMarksEntryAccessState();
 
@@ -2291,6 +2324,17 @@ function normalizeNumberInputValue(input, limit, showWarning, message) {
     if (showWarning) showContextMessage(input, "Enter a valid number.", { type: "error" });
     return "";
   }
+  if (numericValue === -1 || numericValue === -2) {
+    delete input.dataset.warnedLimit;
+    clearContextMessage(input);
+    input.value = String(numericValue);
+    return numericValue;
+  }
+  if (numericValue < 0) {
+    if (showWarning) showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error" });
+    input.value = "";
+    return "";
+  }
   if (numericValue > limit) {
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
       showContextMessage(input, message, { type: "error", duration: 4500 });
@@ -2332,7 +2376,7 @@ function saveEntryInputInPlace(input, options = {}) {
     );
     setStudentMark(input.dataset.projectRoll, {
       project,
-      value: project === "" ? "" : Number(project) + attendanceMarks
+      value: project === "" || isEntryStatusValue(project) ? project : Number(project) + attendanceMarks
     }, { save: false });
     updateEntryRow(input);
     return;
@@ -2345,9 +2389,9 @@ function saveEntryInputInPlace(input, options = {}) {
   }
 
   if (input.dataset.gradeRoll !== undefined) {
-    const value = input.value.trim().toUpperCase().slice(0, 1);
-    if (value && !["A", "B", "C", "D", "E"].includes(value)) {
-      if (showWarning) showContextMessage(input, "Enter grade A, B, C, D, or E.", { type: "error" });
+    const value = input.value.trim().toUpperCase().slice(0, 2);
+    if (value && !["A", "B", "C", "D", "E", "-1", "-2"].includes(value)) {
+      if (showWarning) showContextMessage(input, "Enter grade A-E, -1 for Absent, or -2 for Not yet enrolled.", { type: "error" });
       input.value = "";
       setStudentMark(input.dataset.gradeRoll, { value: "" }, { save: false });
     } else {
@@ -2375,13 +2419,16 @@ function saveSplitPartInput(input, showWarning = false) {
 
   if (currentValue !== "" && !Number.isFinite(currentNumber)) return;
 
-  if (currentNumber < 0) {
-    input.value = "0";
-    if (partKey === "partA") partA = "0";
-    if (partKey === "partB") partB = "0";
+  if (currentNumber < 0 && currentNumber !== -1 && currentNumber !== -2) {
+    input.value = "";
+    if (partKey === "partA") partA = "";
+    if (partKey === "partB") partB = "";
+    if (showWarning) showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error" });
+    return;
   }
 
-  if (currentValue !== "" && currentNumber + otherNumber > limit) {
+  if (currentValue !== "" && !isEntryStatusValue(currentValue) && !isEntryStatusValue(otherValue)
+    && currentNumber + otherNumber > limit) {
     if (showWarning || input.dataset.warnedLimit !== String(limit)) {
       showContextMessage(input, `Entry value is higher than the limit of ${limit} for ${selectedSubject()}.`, {
         type: "error",
@@ -2398,10 +2445,15 @@ function saveSplitPartInput(input, showWarning = false) {
   }
 
   const hasPartMarks = partA !== "" || partB !== "";
+  const combinedValue = isNotEnrolledEntry(partA) && isNotEnrolledEntry(partB)
+    ? -2
+    : isAbsentEntry(partA) || isAbsentEntry(partB)
+      ? -1
+      : hasPartMarks ? roundMarkTotal(numericMark(partA) + numericMark(partB)) : "";
   setStudentMark(input.dataset.partRoll, {
     partA,
     partB,
-    value: hasPartMarks ? roundMarkTotal(numericMark(partA) + numericMark(partB)) : ""
+    value: combinedValue
   }, { save: false });
 }
 
@@ -2414,11 +2466,7 @@ function updateEntryRow(input) {
   const gradeSubject = isGradeSubject();
   const noPassMark = isNoPassMarkSubject();
   const passMarks = getPassMarks();
-  const status = gradeSubject
-    ? getGradeStatus(value)
-    : noPassMark
-      ? { label: value === "" ? "Pending" : "Entered", className: value === "" ? "" : "pass" }
-      : getStatus(value, passMarks);
+  const status = getEntryStatus(value, passMarks, { gradeSubject, noPassMark });
   const statusPill = row.querySelector(".status-pill");
   if (statusPill) {
     statusPill.className = `status-pill ${status.className}`.trim();
@@ -2441,7 +2489,7 @@ function updateEntrySummaryFromState() {
   students.forEach((student) => {
     const value = getStudentMark(student).value ?? "";
     const numericValue = Number(value);
-    if (!gradeSubject && value !== "" && !Number.isNaN(numericValue)) {
+    if (!gradeSubject && isScoredEntry(value) && !Number.isNaN(numericValue)) {
       entered += 1;
       total += numericValue;
       highest = Math.max(highest, numericValue);
@@ -2492,12 +2540,12 @@ function renderAttendance() {
       <tr>
         <td>${student.roll}</td>
         <td>${escapeHtml(student.name)}</td>
-        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="0" max="${workingDays}" step="1" tabindex="${index + 1}" ${locked ? "disabled" : ""}
+        <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="-2" max="${workingDays}" step="1" tabindex="${index + 1}" ${locked ? "disabled" : ""}
           value="${attendance}" data-attendance-roll="${student.roll}" aria-label="Attendance for ${escapeAttr(student.name)}"></td>
         <td><strong>${attendanceMarks}</strong></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="${previousHeight === "" ? 0 : previousHeight}" step="0.1" tabindex="${students.length + index + 1}" ${locked ? "disabled" : ""}
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" step="0.1" tabindex="${students.length + index + 1}" ${locked ? "disabled" : ""}
           value="${measurement.height}" data-height-roll="${student.roll}" aria-label="Height for ${escapeAttr(student.name)}"></td>
-        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" tabindex="${(students.length * 2) + index + 1}" ${locked ? "disabled" : ""}
+        <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" step="0.1" tabindex="${(students.length * 2) + index + 1}" ${locked ? "disabled" : ""}
           value="${measurement.weight}" data-weight-roll="${student.roll}" aria-label="Weight for ${escapeAttr(student.name)}"></td>
       </tr>
     `;
@@ -2505,7 +2553,12 @@ function renderAttendance() {
 
   document.querySelectorAll("[data-attendance-roll]").forEach((input) => {
     input.addEventListener("change", () => {
-      const value = input.value === "" ? "" : clamp(Number(input.value), 0, getWorkingDays(term));
+      const number = Number(input.value);
+      const value = input.value === ""
+        ? ""
+        : number === -1 || number === -2
+          ? number
+          : clamp(number, 0, getWorkingDays(term));
       input.value = value;
       setStudentAttendance(input.dataset.attendanceRoll, value, className, term, { save: false });
       renderAttendance();
@@ -2518,7 +2571,13 @@ function renderAttendance() {
       const previousHeight = previousTerm
         ? getStudentMeasurement({ roll: input.dataset.heightRoll }, className, previousTerm).height
         : "";
-      if (input.value !== "" && previousHeight !== "" && Number(input.value) < Number(previousHeight)) {
+      const height = Number(input.value);
+      if (input.value !== "" && height < 0 && height !== -1 && height !== -2) {
+        showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
+        input.value = "";
+        return;
+      }
+      if (isScoredEntry(input.value) && isScoredEntry(previousHeight) && height < Number(previousHeight)) {
         showContextMessage(input, `Height cannot be less than the ${previousTerm} height (${previousHeight} cm).`, {
           type: "error",
           duration: 4500
@@ -2533,6 +2592,12 @@ function renderAttendance() {
 
   document.querySelectorAll("[data-weight-roll]").forEach((input) => {
     input.addEventListener("change", () => {
+      const weight = Number(input.value);
+      if (input.value !== "" && weight < 0 && weight !== -1 && weight !== -2) {
+        showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
+        input.value = "";
+        return;
+      }
       setStudentMeasurement(input.dataset.weightRoll, { weight: input.value }, className, term, { save: false });
     });
   });
@@ -2794,11 +2859,12 @@ function renderResults() {
     const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
-    const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+    const numbers = markValues.filter(isScoredEntry).map(Number).filter((value) => !Number.isNaN(value));
     const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
     const maximumTotal = marksMaximum(subjectsForMarks);
     const percent = roundUpPercentage(total, maximumTotal);
-    const appeared = subjectValues.some((value) => value !== "");
+    const notEnrolled = subjectValues.length > 0 && subjectValues.every(isNotEnrolledEntry);
+    const appeared = !notEnrolled && subjectValues.some(isScoredEntry);
     const calculatedOutcome = calculateOutcome(resultMarkValues, passMarks, Number(percent), selectedClass(), selectedExam(), gradeValues);
     const outcome = appeared ? calculatedOutcome : emptyResultOutcome();
     const attendance = getStudentAttendance(student);
@@ -2813,25 +2879,29 @@ function renderResults() {
       outcome,
       attendance,
       measurement,
-      appeared
+      appeared,
+      notEnrolled
     };
   });
 
-  els.resultsBody.innerHTML = records.map((record) => {
+  els.resultsBody.innerHTML = records.filter((record) => !record.notEnrolled).map((record) => {
     return `
-      <tr>
+      <tr data-not-enrolled="${record.notEnrolled ? "true" : "false"}">
         <td>${record.student.roll}</td>
         <td>${escapeHtml(record.student.name)}</td>
         ${record.subjectValues.map((value, index) => formatResultMark(subjects[index], value, passMarks)).join("")}
         ${term
-          ? `<td>${record.attendance === "" ? "-" : `${record.attendance}/${workingDays}`}</td>`
+          ? `<td>${formatResultAuxiliaryEntry(
+            record.attendance,
+            isScoredEntry(record.attendance) ? `${record.attendance}/${workingDays}` : "-"
+          )}</td>`
           : ""}
         ${showMeasurements
-          ? `<td>${record.measurement.height === "" ? "-" : record.measurement.height}</td>
-            <td>${record.measurement.weight === "" ? "-" : record.measurement.weight}</td>`
+          ? `<td>${formatResultAuxiliaryEntry(record.measurement.height)}</td>
+            <td>${formatResultAuxiliaryEntry(record.measurement.weight)}</td>`
           : ""}
-        <td>${record.total}/${record.maximumTotal}</td>
-        <td>${record.percent}%</td>
+        <td>${record.notEnrolled ? "NE" : `${record.total}/${record.maximumTotal}`}</td>
+        <td>${record.notEnrolled ? "-" : `${record.percent}%`}</td>
         <td>${formatDivisionLabel(record.outcome.division)}</td>
         <td>${formatResultStatus(record.outcome.result)}</td>
       </tr>
@@ -2943,6 +3013,8 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
   }
 
   const records = students.map((student) => {
+    const enrollmentValues = subjects.map((subject) => getStudentMark(student, subject).value);
+    const notEnrolled = enrollmentValues.length > 0 && enrollmentValues.every(isNotEnrolledEntry);
     const subjectResults = structure.groups.map((group) => getStructuredSubjectResult(student, group));
     const standaloneResults = structure.standalone.map((subject) => getStructuredStandaloneResult(student, subject));
     const resultSubjects = highThirdTermSheet
@@ -2960,8 +3032,7 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       + standaloneResults.filter((subjectResult) => subjectResult.countsForTotal)
         .reduce((sum, subjectResult) => sum + subjectResult.maxMarks, 0);
     const percentage = roundUpPercentage(total, maximumTotal);
-    const appeared = subjectResults.some((subjectResult) => subjectResult.hasMark)
-      || standaloneResults.some((subjectResult) => subjectResult.value !== "");
+    const appeared = !notEnrolled && enrollmentValues.some(isScoredEntry);
     const calculatedOutcome = calculateStructuredTermOutcome(resultSubjects, Number(percentage), gradeValues);
     return {
       student,
@@ -2972,12 +3043,13 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
       percentage,
       outcome: appeared ? calculatedOutcome : emptyResultOutcome(),
       appeared,
+      notEnrolled,
       attendance: getStudentAttendance(student)
     };
   });
 
-  els.resultsBody.innerHTML = records.map((record) => `
-    <tr>
+  els.resultsBody.innerHTML = records.filter((record) => !record.notEnrolled).map((record) => `
+    <tr data-not-enrolled="${record.notEnrolled ? "true" : "false"}">
       <td>${record.student.roll}</td>
       <td>${escapeHtml(record.student.name)}</td>
       ${record.subjectResults.map((subjectResult) => {
@@ -2987,16 +3059,18 @@ function renderStructuredTermResults(students, published, subjects, subjectsForM
           ${formatStructuredTotal(subjectResult.total, highThirdTermSheet ? 33 : 50)}`;
       }).join("")}
       ${record.standaloneResults.map((subjectResult) => formatStructuredStandalone(subjectResult)).join("")}
-      <td>${record.attendance === "" ? "-" : `${record.attendance}/${workingDays}`}</td>
-      <td><strong>${record.total}/${record.maximumTotal}</strong></td>
-      <td>${record.percentage}%</td>
+      <td>${formatResultAuxiliaryEntry(
+        record.attendance,
+        isScoredEntry(record.attendance) ? `${record.attendance}/${workingDays}` : "-"
+      )}</td>
+      <td><strong>${record.notEnrolled ? "NE" : `${record.total}/${record.maximumTotal}`}</strong></td>
+      <td>${record.notEnrolled ? "-" : `${record.percentage}%`}</td>
       <td>${formatDivisionLabel(record.outcome.division)}</td>
       <td>${formatResultStatus(record.outcome.result)}</td>
     </tr>
   `).join("");
 
-  const appearedRecords = records.filter((record) => record.appeared);
-  renderResultSummary(appearedRecords.map((record) => ({ ...record, appeared: true })), students.length);
+  renderResultSummary(records, students.length);
   optimizeResultTableLayout();
   updateResultStickyHeaderMetrics();
 }
@@ -3254,14 +3328,21 @@ function updateResultStickyHeaderMetrics() {
 }
 
 function renderResultSummary(records, studentCount) {
-  const appearedRecords = records.filter((record) => record.appeared);
+  const notEnrolledCount = records.filter((record) => record.notEnrolled).length;
+  const eligibleRecords = records.filter((record) => !record.notEnrolled);
+  const appearedRecords = eligibleRecords.filter((record) => record.appeared);
   const present = appearedRecords.length;
   const passCount = appearedRecords.filter((record) => record.outcome.result !== "Fail").length;
-  const passSummary = calculateClassPassSummary(studentCount, present, passCount);
+  const passSummary = calculateClassPassSummary(
+    Math.max(0, Number(studentCount) - notEnrolledCount),
+    present,
+    passCount
+  );
   const divisionCount = (division) => appearedRecords.filter((record) => record.outcome.division === division).length;
 
   els.resultSummary.innerHTML = `
     ${summaryItem("Total Students", passSummary.total)}
+    ${notEnrolledCount ? summaryItem("Not Yet Enrolled", notEnrolledCount) : ""}
     ${summaryItem("Present", passSummary.present)}
     ${summaryItem("Absent", passSummary.absent)}
     ${summaryItem("Passed", passSummary.passed)}
@@ -3320,13 +3401,16 @@ function getStructuredSubjectResult(student, group) {
     const exam = getStoredStudentMark(student, selectedClass(), "Third Term", group.name).value;
     const firstTerm = weightedTermMark(firstTermTotal);
     const secondTerm = weightedTermMark(secondTermTotal);
-    const hasMark = firstTermTotal !== "" || secondTermTotal !== "" || exam !== "";
+    const values = [firstTerm, secondTerm, exam];
+    const hasMark = values.some((value) => value !== "");
     return {
       activities: firstTerm,
       unitTest: secondTerm,
       exam,
       hasMark,
-      total: hasMark ? Math.round(numericMark(firstTerm) + numericMark(secondTerm) + numericMark(exam)) : ""
+      total: hasMark ? (isEntryStatusValue(sumEntryValues(values))
+        ? sumEntryValues(values)
+        : Math.round(sumEntryValues(values))) : ""
     };
   }
 
@@ -3334,12 +3418,13 @@ function getStructuredSubjectResult(student, group) {
   const exam = getStudentMark(student, group.exam).value;
   const unitTest = getStructuredUnitTestMark(student, group.name);
   const hasMark = activities !== "" || unitTest !== "" || exam !== "";
+  const totalValue = sumEntryValues([activities, unitTest, exam]);
   return {
     activities,
     unitTest,
     exam,
     hasMark,
-    total: hasMark ? Math.round(numericMark(activities) + numericMark(unitTest) + numericMark(exam)) : ""
+    total: hasMark ? (isEntryStatusValue(totalValue) ? totalValue : Math.round(totalValue)) : ""
   };
 }
 
@@ -3348,7 +3433,7 @@ function getStructuredUnitTestMark(student, subject) {
     ? ["FT Unit Test 1", "FT Unit Test 2"]
     : ["ST Unit Test 1", "ST Unit Test 2"];
   const values = exams.map((exam) => getStoredStudentMark(student, selectedClass(), exam, subject).value);
-  return values.every((value) => value === "") ? "" : values.reduce((sum, value) => sum + numericMark(value), 0);
+  return sumEntryValues(values);
 }
 
 function getStoredStructuredTermTotal(student, subject, term) {
@@ -3359,9 +3444,7 @@ function getStoredStructuredTermTotal(student, subject, term) {
     : ["ST Unit Test 1", "ST Unit Test 2"];
   const unitTestValues = unitTests.map((unitTest) => getStoredStudentMark(student, selectedClass(), unitTest, subject).value);
   const values = [activities, exam, ...unitTestValues];
-  return values.every((value) => value === "")
-    ? ""
-    : values.reduce((sum, value) => sum + numericMark(value), 0);
+  return sumEntryValues(values);
 }
 
 function weightedTermMark(value) {
@@ -3369,7 +3452,8 @@ function weightedTermMark(value) {
 }
 
 function weightedMark(value, percentage) {
-  return value === "" ? "" : (Math.ceil(numericMark(value) * percentage) / 100).toFixed(2);
+  if (isEntryStatusValue(value) || value === "") return value;
+  return (Math.ceil(numericMark(value) * percentage) / 100).toFixed(2);
 }
 
 function roundUpToTwoDecimals(value) {
@@ -3394,10 +3478,14 @@ function getStructuredStandaloneResult(student, subject) {
 function calculateStructuredTermOutcome(markValues, percentage, gradeValues = []) {
   const passMark = isHighThirdTermResult() ? 33 : 50;
   const numericFailCount = markValues.filter((entry) => {
-    if (entry && typeof entry === "object") return entry.failed;
-    return entry === "" || numericMark(entry) < passMark;
+    if (entry && typeof entry === "object") {
+      if (entry.notEnrolled || isNotEnrolledEntry(entry.value)) return false;
+      return entry.failed;
+    }
+    return !isNotEnrolledEntry(entry) && (entry === "" || isAbsentEntry(entry) || numericMark(entry) < passMark);
   }).length;
-  const gradeFailCount = gradeValues.filter((value) => getGradeStatus(value).className !== "pass").length;
+  const gradeFailCount = gradeValues.filter((value) =>
+    !isNotEnrolledEntry(value) && getGradeStatus(value).className !== "pass").length;
   const failCount = numericFailCount + gradeFailCount;
   const result = failCount === 0 ? "Pass" : failCount === 1 ? "Simple Pass" : "Fail";
   return {
@@ -3411,24 +3499,27 @@ function calculateStructuredTermOutcome(markValues, percentage, gradeValues = []
 }
 
 function formatComponentMark(value, passMark = null) {
-  const displayValue = value === "" ? "AB" : escapeHtml(value);
-  const failed = value === "" || (passMark !== null && numericMark(value) < passMark);
+  const displayValue = escapeHtml(entryDisplayValue(value, "AB"));
+  const failed = !isNotEnrolledEntry(value)
+    && (value === "" || isAbsentEntry(value) || (passMark !== null && numericMark(value) < passMark));
   return failed ? `<span class="failed-mark">${displayValue}</span>` : displayValue;
 }
 
 function formatStructuredTotal(value, passMark = 50) {
-  const displayValue = value === "" ? "AB" : value;
-  const failed = value === "" || numericMark(value) < passMark;
+  const displayValue = entryDisplayValue(value, "AB");
+  const failed = !isNotEnrolledEntry(value) && (value === "" || isAbsentEntry(value) || numericMark(value) < passMark);
   return `<td class="subject-total subject-end">${failed
     ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>`
     : escapeHtml(displayValue)}</td>`;
 }
 
 function formatStructuredStandalone(subjectResult) {
-  const displayValue = subjectResult.value === "" ? "AB" : subjectResult.value;
-  const failed = subjectResult.value === ""
-    || (subjectResult.countsForResult && numericMark(subjectResult.value) < 50);
-  return `<td class="standalone-value">${failed
+  const displayValue = entryDisplayValue(subjectResult.value, "AB");
+  const failed = !isNotEnrolledEntry(subjectResult.value) && (subjectResult.value === ""
+    || isAbsentEntry(subjectResult.value)
+    || (subjectResult.countsForResult && numericMark(subjectResult.value) < 50));
+  const isFailed = Boolean(failed);
+  return `<td class="standalone-value">${isFailed
     ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>`
     : escapeHtml(displayValue)}</td>`;
 }
@@ -3471,7 +3562,55 @@ function getTermSubjectStructure(subjects) {
 
 function numericMark(value) {
   const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
+function isAbsentEntry(value) {
+  return String(value).trim() === "-1";
+}
+
+function isNotEnrolledEntry(value) {
+  return String(value).trim() === "-2";
+}
+
+function isEntryStatusValue(value) {
+  return isAbsentEntry(value) || isNotEnrolledEntry(value);
+}
+
+function isScoredEntry(value) {
+  return value !== "" && value !== undefined && value !== null && !isEntryStatusValue(value);
+}
+
+function entryDisplayValue(value, blankValue = "-") {
+  if (isAbsentEntry(value)) return "AB";
+  if (isNotEnrolledEntry(value)) return "NE";
+  return value === "" || value === undefined || value === null ? blankValue : value;
+}
+
+function getEntryStatus(value, passMarks, { gradeSubject = false, noPassMark = false } = {}) {
+  if (gradeSubject) return getGradeStatus(value);
+  if (!noPassMark) return getStatus(value, passMarks);
+  if (isNotEnrolledEntry(value)) return { label: "Not yet enrolled", className: "not-enrolled" };
+  if (isAbsentEntry(value)) return { label: "Absent", className: "absent" };
+  return { label: value === "" ? "Pending" : "Entered", className: value === "" ? "" : "pass" };
+}
+
+function sumEntryValues(values) {
+  if (!values.length || values.every((value) => value === "" || value === undefined || value === null)) return "";
+  if (values.every(isNotEnrolledEntry)) return -2;
+  if (values.some((value) => value === "" || value === undefined || value === null || isAbsentEntry(value))) return -1;
+  const scoredValues = values.filter(isScoredEntry).map(Number).filter(Number.isFinite);
+  return scoredValues.length ? scoredValues.reduce((sum, value) => sum + value, 0) : "";
+}
+
+function studentExamEntryValues(student, className = selectedClass(), exam = selectedExam()) {
+  return currentSubjects(className, exam).map((subject) =>
+    getStoredStudentMark(student, className, exam, subject).value);
+}
+
+function isStudentNotEnrolledForExam(student, className = selectedClass(), exam = selectedExam()) {
+  const values = studentExamEntryValues(student, className, exam);
+  return values.length > 0 && values.every(isNotEnrolledEntry);
 }
 
 function summaryItem(label, value) {
@@ -3489,7 +3628,7 @@ function filteredMarksheetStudents(students) {
 }
 
 function renderMarksheets({ ignoreSearch = false } = {}) {
-  const allStudents = sortedStudents();
+  const allStudents = sortedStudents().filter((student) => !isStudentNotEnrolledForExam(student));
   const students = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
   const subjects = currentSubjects();
   const subjectsForMarks = markSubjects();
@@ -3549,7 +3688,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     const highClassNumericSubjects = isHighClass()
       ? subjects.filter((subject) => !isGradeSubject(subject))
       : subjects;
-    const numbers = markValues.map(Number).filter((value) => !Number.isNaN(value));
+    const numbers = markValues.filter(isScoredEntry).map(Number).filter(Number.isFinite);
     const total = highThirdTermMarksheet
       ? Math.round(highThirdTermResults.reduce((sum, subjectResult) => sum + numericMark(subjectResult.total), 0))
       : structuredTerm
@@ -3625,9 +3764,9 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
         ${term
           ? `<div class="marksheet-measurements">
               ${studentDetail("Class Strength", allStudents.length)}
-              ${studentDetail("Attendance", attendance === "" ? "" : `${attendance}/${workingDays}`)}
-              ${studentDetail("Height (in cm)", measurement.height)}
-              ${studentDetail("Weight (in kg)", measurement.weight)}
+              ${studentDetail("Attendance", isScoredEntry(attendance) ? `${attendance}/${workingDays}` : entryDisplayValue(attendance, ""))}
+              ${studentDetail("Height (in cm)", entryDisplayValue(measurement.height, ""))}
+              ${studentDetail("Weight (in kg)", entryDisplayValue(measurement.weight, ""))}
               ${marksheetRemarkDetail(getMarksheetRemark(outcome))}
             </div>`
           : ""}
@@ -3842,21 +3981,25 @@ function marksheetHighClassValue(subject, value, passMarks) {
 }
 
 function marksheetDisplayValue(value) {
-  return value === "" ? "AB" : escapeHtml(value);
+  return escapeHtml(entryDisplayValue(value, "AB"));
 }
 
 function marksheetComponentValue(value) {
-  return value === "" ? '<span class="failed-mark">AB</span>' : escapeHtml(value);
+  if (isNotEnrolledEntry(value)) return "NE";
+  return value === "" || isAbsentEntry(value) ? '<span class="failed-mark">AB</span>' : escapeHtml(value);
 }
 
 function marksheetTotalValue(value) {
   const displayValue = marksheetDisplayValue(value);
-  return value === "" || numericMark(value) < 50 ? `<span class="failed-mark">${displayValue}</span>` : displayValue;
+  return !isNotEnrolledEntry(value) && (value === "" || isAbsentEntry(value) || numericMark(value) < 50)
+    ? `<span class="failed-mark">${displayValue}</span>` : displayValue;
 }
 
 function marksheetStandaloneValue(result) {
   const displayValue = marksheetDisplayValue(result.value);
-  const failed = result.value === "" || (result.countsForResult && numericMark(result.value) < 50);
+  const failed = !isNotEnrolledEntry(result.value)
+    && (result.value === "" || isAbsentEntry(result.value)
+      || (result.countsForResult && numericMark(result.value) < 50));
   return failed ? `<span class="failed-mark">${displayValue}</span>` : displayValue;
 }
 
@@ -3879,15 +4022,21 @@ function getMarksheetRemark(outcome) {
 }
 
 function formatResultMark(subject, value, passMarks) {
-  const displayValue = value === "" ? "AB" : value;
+  const displayValue = entryDisplayValue(value, "AB");
   const subjectPassMarks = getSubjectPassMarks(selectedClass(), selectedExam(), subject);
-  const failed = isGradeSubject(subject)
+  const failed = !isNotEnrolledEntry(value) && (isGradeSubject(subject)
     ? getGradeStatus(value).className !== "pass"
     : !isNoPassMarkSubject(selectedClass(), selectedExam(), subject)
-      && getStatus(value, subjectPassMarks).className !== "pass";
+      && getStatus(value, subjectPassMarks).className !== "pass");
   return `<td>${failed
     ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>`
     : escapeHtml(displayValue)}</td>`;
+}
+
+function formatResultAuxiliaryEntry(value, displayValue = entryDisplayValue(value)) {
+  if (isNotEnrolledEntry(value)) return "-";
+  if (isAbsentEntry(value)) return '<span class="failed-mark">AB</span>';
+  return escapeHtml(displayValue);
 }
 
 function initializeAnalysisFilters(savedFilters = null) {
@@ -4051,6 +4200,7 @@ function analysisSubjectEntries(student, resultRecord) {
         passMark,
         present: result.hasMark,
         passed: result.hasMark && numericMark(result.total) >= passMark,
+        enrolled: !isNotEnrolledEntry(result.total),
         partA: splitMark?.partA ?? "",
         partB: splitMark?.partB ?? "",
         partMaximum: splitMark ? 40 : 0,
@@ -4064,8 +4214,9 @@ function analysisSubjectEntries(student, resultRecord) {
         value: result.value,
         maximum: result.maxMarks,
         passMark: result.countsForResult ? 50 : 0,
-        present: result.value !== "",
-        passed: result.value !== "" && (!result.countsForResult || numericMark(result.value) >= 50)
+        present: isScoredEntry(result.value),
+        passed: isScoredEntry(result.value) && (!result.countsForResult || numericMark(result.value) >= 50),
+        enrolled: !isNotEnrolledEntry(result.value)
       }));
     return [...grouped, ...standalone];
   }
@@ -4082,8 +4233,9 @@ function analysisSubjectEntries(student, resultRecord) {
         value: mark.value,
         maximum,
         passMark: noPassMark ? 0 : passMark,
-        present: mark.value !== "",
-        passed: mark.value !== "" && (noPassMark || numericMark(mark.value) >= passMark),
+        present: isScoredEntry(mark.value),
+        passed: isScoredEntry(mark.value) && (noPassMark || numericMark(mark.value) >= passMark),
+        enrolled: !isNotEnrolledEntry(mark.value),
         partA: mark.partA ?? "",
         partB: mark.partB ?? "",
         partMaximum: isSplitPartSubject(subject, selectedClass()) ? maximum / 2 : 0,
@@ -4100,6 +4252,7 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
         const workingDays = getWorkingDays(exam);
         (state.classes[className] || []).forEach((student) => {
           const resultRecord = calculateExcelResultRecord(student);
+          if (resultRecord.notEnrolled) return;
           const percentage = resultRecord.appeared ? Number(resultRecord.percentage) || 0 : 0;
           const attendance = getStudentAttendance(student, className, exam);
           const subjects = analysisSubjectEntries(student, resultRecord);
@@ -4201,8 +4354,8 @@ function buildAcademicAnalysisSelectionRecords(session, classes, exam) {
 function filteredAnalysisRecord(record, subjectFilter) {
   if (!subjectFilter || subjectFilter === "All Subjects") return record;
   const subject = record.subjects.find((entry) => entry.name === subjectFilter);
-  if (!subject) {
-    return { ...record, appeared: false, percentage: 0, result: "-", division: "-", failedSubjects: [] };
+  if (!subject || subject.enrolled === false) {
+    return { ...record, excluded: true, appeared: false, percentage: 0, result: "-", division: "-", failedSubjects: [] };
   }
   const percentage = subject.present && subject.maximum
     ? Math.round((numericMark(subject.value) / subject.maximum) * 10000) / 100
@@ -4269,6 +4422,7 @@ function analysisSubjectMetrics(records, subjectFilter) {
   records.forEach((record) => {
     record.subjects.forEach((subject) => {
       if (subject.name === "W.E.") return;
+      if (subject.enrolled === false) return;
       if (subjectFilter !== "All Subjects" && subject.name !== subjectFilter) return;
       const key = subject.name;
       if (!entries.has(key)) entries.set(key, { name: key, values: [], total: 0, present: 0, passed: 0 });
@@ -4443,6 +4597,7 @@ function buildAnalysisTrend(session, classes, subjectFilter, status) {
   return exams.map((exam) => {
     const records = buildAcademicAnalysisRecords(session, classes, exam)
       .map((record) => filteredAnalysisRecord(record, subjectFilter))
+      .filter((record) => !record.excluded)
       .filter((record) => status === "all"
         || (status === "present" && record.appeared)
         || (status === "absent" && !record.appeared))
@@ -4464,6 +4619,7 @@ function buildAnalysisStudentProgress(session, classes, subjectFilter, status, t
       .filter((record) => subjectFilter === "All Subjects"
         || record.subjects.some((subject) => subject.name === subjectFilter))
       .map((record) => filteredAnalysisRecord(record, subjectFilter))
+      .filter((record) => !record.excluded)
   }));
   if (comparisonData.some((item) => !item.records.some((record) => record.appeared))) return [];
 
@@ -4651,7 +4807,9 @@ function renderAcademicAnalysis() {
   const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam)
     .filter((record) => subjectFilter === "All Subjects"
       || record.subjects.some((subject) => subject.name === subjectFilter));
-  const subjectAdjusted = baseRecords.map((record) => filteredAnalysisRecord(record, subjectFilter));
+  const subjectAdjusted = baseRecords
+    .map((record) => filteredAnalysisRecord(record, subjectFilter))
+    .filter((record) => !record.excluded);
   const records = subjectAdjusted.filter((record) => status === "all"
     || (status === "present" && record.appeared)
     || (status === "absent" && !record.appeared));
@@ -5002,6 +5160,7 @@ function teacherSubjectObservation(record, assignment) {
   if (!subject) return null;
   const partKey = assignment.part === "Part A" ? "partA" : assignment.part === "Part B" ? "partB" : "";
   const value = partKey ? subject[partKey] : subject.value;
+  if (isNotEnrolledEntry(value)) return null;
   const maximum = partKey ? subject.partMaximum : subject.maximum;
   const passMark = partKey ? subject.partPassMark : subject.passMark;
   const present = value !== "";
@@ -5191,11 +5350,15 @@ function teacherDataCompletion(session, assignments, examFilter, observations) {
   runWithAnalysisSession(session, () => {
     termPairs.forEach(({ className, exam }) => {
       (state.classes[className] || []).forEach((student) => {
+        const attendanceValue = getStudentAttendance(student, className, exam);
+        const measurementValue = getStudentMeasurement(student, className, exam);
+        if (isNotEnrolledEntry(attendanceValue)
+          && isNotEnrolledEntry(measurementValue.height)
+          && isNotEnrolledEntry(measurementValue.weight)) return;
         attendance.expected += 1;
         measurement.expected += 1;
-        if (getStudentAttendance(student, className, exam) !== "") attendance.completed += 1;
-        const value = getStudentMeasurement(student, className, exam);
-        if (value.height !== "" && value.weight !== "") measurement.completed += 1;
+        if (attendanceValue !== "") attendance.completed += 1;
+        if (measurementValue.height !== "" && measurementValue.weight !== "") measurement.completed += 1;
       });
     });
   });
@@ -5405,8 +5568,9 @@ function renderTeacherAnalytics() {
     ["Data Completion", `${completionPercentage(completion.marks).toFixed(2)}%`],
     ["Students Needing Support", support.length],
     ["Performance Rating", `${performanceRating.rating.toFixed(1)} / 5`],
-    ["Passed", overview.passed],
-    ["Failed / Absent", overview.failed],
+    ["Total Subject Entries", overview.total],
+    ["Passed Subject Entries", overview.passed],
+    ["Failed / Absent Entries", overview.failed],
     ["Highest", `${overview.highest.toFixed(2)}%`],
     ["Lowest", `${overview.lowest.toFixed(2)}%`],
     ["Distinction", overview.distinction],
@@ -5421,9 +5585,9 @@ function renderTeacherAnalytics() {
       : ""}</article>`).join("");
   els.teacherAnalyticsTrendChart.innerHTML = analysisLineChart(trend);
   els.teacherAnalyticsPassChart.innerHTML = analysisDonutChart([
-    { label: "Passed", value: overview.passed, color: "#157347" },
-    { label: "Failed", value: Math.max(0, overview.failed - overview.absent), color: "#c2413b" },
-    { label: "Absent", value: overview.absent, color: "#697586" }
+    { label: "Passed entries", value: overview.passed, color: "#157347" },
+    { label: "Failed entries", value: Math.max(0, overview.failed - overview.absent), color: "#c2413b" },
+    { label: "Absent entries", value: overview.absent, color: "#697586" }
   ], `${overview.passPercentage.toFixed(1)}%`);
   els.teacherAnalyticsClassChart.innerHTML = analysisBarChart(classMetrics, "average", "label");
   els.teacherAnalyticsComparisonChart.innerHTML = teacherComparisonChart(comparisons);
@@ -5556,8 +5720,15 @@ function exportTeacherAnalysisExcel() {
   }
   const data = teacherAnalyticsCurrentData;
   const workbook = window.XLSX.utils.book_new();
+  const overviewMetricLabels = {
+    total: "Total Subject Entries",
+    passed: "Passed Subject Entries",
+    failed: "Failed or Absent Entries",
+    present: "Present Subject Entries",
+    absent: "Absent Subject Entries"
+  };
   const overviewRows = Object.entries(data.overview).map(([metric, value]) => ({
-    Metric: formatFirebaseFieldName(metric),
+    Metric: overviewMetricLabels[metric] || formatFirebaseFieldName(metric),
     Value: typeof value === "number" ? Number(value.toFixed(2)) : value
   }));
   overviewRows.push(
@@ -6109,10 +6280,11 @@ function createResultPdfSummary(rows) {
   const records = rows.map((row) => {
     const cells = row.querySelectorAll("td");
     return {
+      notEnrolled: row.dataset.notEnrolled === "true",
       result: String(cells[cells.length - 1]?.textContent || "").trim(),
       division: String(cells[cells.length - 2]?.textContent || "").trim()
     };
-  });
+  }).filter((record) => !record.notEnrolled);
   const appearedRecords = records.filter((record) => record.result && record.result !== "-");
   const present = appearedRecords.length;
   const passed = appearedRecords.filter((record) => record.result !== "Fail").length;
@@ -6718,7 +6890,8 @@ function sortedStudents() {
 }
 
 function getStatus(value, passMarks) {
-  if (value === "" || value === undefined || value === null) return { label: "Absent", className: "absent" };
+  if (isNotEnrolledEntry(value)) return { label: "Not yet enrolled", className: "not-enrolled" };
+  if (isAbsentEntry(value) || value === "" || value === undefined || value === null) return { label: "Absent", className: "absent" };
   const number = Number(value);
   if (Number.isNaN(number)) return { label: "Absent", className: "absent" };
   return number >= passMarks
@@ -6727,7 +6900,8 @@ function getStatus(value, passMarks) {
 }
 
 function getGradeStatus(value) {
-  if (value === "" || value === undefined || value === null) return { label: "Absent", className: "absent" };
+  if (isNotEnrolledEntry(value)) return { label: "Not yet enrolled", className: "not-enrolled" };
+  if (isAbsentEntry(value) || value === "" || value === undefined || value === null) return { label: "Absent", className: "absent" };
   const grade = String(value).trim().toUpperCase();
   return ["A", "B", "C", "D"].includes(grade)
     ? { label: "Pass", className: "pass" }
@@ -6742,9 +6916,10 @@ function calculateOutcome(markValues, passMarks, percentage, className = selecte
   const numericFailCount = markValues.filter((entry) => {
     const value = entry && typeof entry === "object" ? entry.value : entry;
     const requiredPassMarks = entry && typeof entry === "object" ? entry.passMarks : passMarks;
-    return getStatus(value, requiredPassMarks).className !== "pass";
+    return !isNotEnrolledEntry(value) && getStatus(value, requiredPassMarks).className !== "pass";
   }).length;
-  const gradeFailCount = gradeValues.filter((value) => getGradeStatus(value).className !== "pass").length;
+  const gradeFailCount = gradeValues.filter((value) =>
+    !isNotEnrolledEntry(value) && getGradeStatus(value).className !== "pass").length;
   const failCount = numericFailCount + gradeFailCount;
 
   if (isPrimaryUnitTest(className, exam)) {
@@ -6941,13 +7116,14 @@ function exportCsv() {
 
   students.forEach((student) => {
     const values = subjects.map((subject) => getStudentMark(student, subject).value);
+    if (values.length && values.every(isNotEnrolledEntry)) return;
     const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
-    const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+    const numbers = markValues.filter(isScoredEntry).map(Number).filter(Number.isFinite);
     const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
     const percent = roundUpPercentage(total, marksMaximum(subjectsForMarks));
-    const appeared = values.some((value) => value !== "");
+    const appeared = values.some(isScoredEntry);
     const calculatedOutcome = calculateOutcome(resultMarkValues, passMarks, Number(percent), selectedClass(), selectedExam(), gradeValues);
     const outcome = appeared ? calculatedOutcome : emptyResultOutcome();
     const attendance = getStudentAttendance(student);
@@ -6955,9 +7131,9 @@ function exportCsv() {
     rows.push([
       student.roll,
       student.name,
-      ...values.map((value) => value === "" ? "AB" : value),
-      ...(term ? [attendance === "" ? "" : `${attendance}/${workingDays}`] : []),
-      ...(showMeasurements ? [measurement.height, measurement.weight] : []),
+      ...values.map((value) => entryDisplayValue(value, "AB")),
+      ...(term ? [isScoredEntry(attendance) ? `${attendance}/${workingDays}` : entryDisplayValue(attendance, "")] : []),
+      ...(showMeasurements ? [entryDisplayValue(measurement.height, ""), entryDisplayValue(measurement.weight, "")] : []),
       total,
       `${percent}%`,
       outcome.division,
@@ -7126,11 +7302,12 @@ function calculateExcelResultRecord(student) {
   const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
   const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
   const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
-  const numbers = markValues.map((value) => Number(value)).filter((value) => !Number.isNaN(value));
+  const numbers = markValues.filter(isScoredEntry).map(Number).filter((value) => !Number.isNaN(value));
   const total = Math.round(numbers.reduce((sum, value) => sum + value, 0));
   const maximumTotal = marksMaximum(subjectsForMarks);
   const percentage = roundUpPercentage(total, maximumTotal);
-  const appeared = values.some((value) => value !== "");
+  const notEnrolled = values.length > 0 && values.every(isNotEnrolledEntry);
+  const appeared = !notEnrolled && values.some(isScoredEntry);
   const calculatedOutcome = calculateOutcome(resultMarkValues, getPassMarks(), Number(percentage), selectedClass(), selectedExam(), gradeValues);
 
   return {
@@ -7139,12 +7316,15 @@ function calculateExcelResultRecord(student) {
     percentage,
     outcome: appeared ? calculatedOutcome : emptyResultOutcome(),
     appeared,
+    notEnrolled,
     structured: false
   };
 }
 
 function calculateStructuredExcelRecord(student) {
   const subjects = currentSubjects();
+  const enrollmentValues = subjects.map((subject) => getStudentMark(student, subject).value);
+  const notEnrolled = enrollmentValues.length > 0 && enrollmentValues.every(isNotEnrolledEntry);
   const structure = getTermSubjectStructure(subjects);
   const highThirdTermSheet = isHighThirdTermResult();
   const subjectResults = structure.groups.map((group) => getStructuredSubjectResult(student, group));
@@ -7164,8 +7344,7 @@ function calculateStructuredExcelRecord(student) {
     + standaloneResults.filter((subjectResult) => subjectResult.countsForTotal)
       .reduce((sum, subjectResult) => sum + subjectResult.maxMarks, 0);
   const percentage = roundUpPercentage(total, maximumTotal);
-  const appeared = subjectResults.some((subjectResult) => subjectResult.hasMark)
-    || standaloneResults.some((subjectResult) => subjectResult.value !== "");
+  const appeared = !notEnrolled && enrollmentValues.some(isScoredEntry);
 
   return {
     total,
@@ -7173,6 +7352,7 @@ function calculateStructuredExcelRecord(student) {
     percentage,
     outcome: appeared ? calculateStructuredTermOutcome(resultSubjects, Number(percentage), gradeValues) : emptyResultOutcome(),
     appeared,
+    notEnrolled,
     structured: true,
     structure,
     subjectResults,
