@@ -449,6 +449,21 @@ svg {
   padding: 28px;
 }
 
+@media (min-width: 769px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 100;
+    width: 300px;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .main-content {
+    grid-column: 2;
+  }
+}
+
 .view,
 .section-head,
 .topbar,
@@ -5684,7 +5699,7 @@ th:first-child {
 
 .analysis-growth-table {
   width: max-content;
-  min-width: 860px;
+  min-width: 1040px;
 }
 
 .analysis-risk-table {
@@ -5721,6 +5736,23 @@ th:first-child {
 .analysis-risk-table thead th:first-child {
   z-index: 3;
   background: #edf3f5;
+}
+
+.analysis-growth-table .analysis-subject-changes {
+  min-width: 150px;
+  max-width: 240px;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.analysis-subject-changes span:not(.analysis-subject-change-separator) {
+  display: inline-block;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.analysis-subject-change-separator {
+  color: var(--muted);
 }
 
 .analysis-risk-table th:last-child,
@@ -6307,7 +6339,7 @@ th:first-child {
 
 .teacher-assignment-form {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, 0.8fr) minmax(170px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.75fr) minmax(160px, 1fr) minmax(110px, 0.65fr) auto auto;
   gap: 8px;
   align-items: end;
   margin: 10px 0 12px;
@@ -6340,20 +6372,6 @@ th:first-child {
   text-transform: none;
 }
 
-.teacher-assignment-form select[multiple] {
-  height: 116px;
-  padding: 4px;
-}
-
-#teacherAssignmentClassSelect {
-  height: 172px;
-}
-
-.teacher-assignment-form select[multiple] option {
-  padding: 5px 7px;
-  border-radius: 3px;
-}
-
 .teacher-assignment-form small {
   color: var(--muted);
   font-size: 0.62rem;
@@ -6369,6 +6387,12 @@ th:first-child {
 .teacher-assignment-table th:last-child,
 .teacher-assignment-table td:last-child {
   width: 150px;
+  text-align: center;
+}
+
+.teacher-assignment-table th:nth-child(4),
+.teacher-assignment-table td:nth-child(4) {
+  width: 105px;
   text-align: center;
 }
 

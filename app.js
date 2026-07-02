@@ -301,6 +301,7 @@ const els = {
   teacherAssignmentNameInput: document.querySelector("#teacherAssignmentNameInput"),
   teacherAssignmentClassSelect: document.querySelector("#teacherAssignmentClassSelect"),
   teacherAssignmentSubjectSelect: document.querySelector("#teacherAssignmentSubjectSelect"),
+  teacherAssignmentPartSelect: document.querySelector("#teacherAssignmentPartSelect"),
   saveTeacherAssignmentBtn: document.querySelector("#saveTeacherAssignmentBtn"),
   cancelTeacherAssignmentEditBtn: document.querySelector("#cancelTeacherAssignmentEditBtn"),
   teacherAssignmentBody: document.querySelector("#teacherAssignmentBody"),
@@ -494,7 +495,8 @@ function normalizeTeacherAssignments(assignments = []) {
     teacherId: String(assignment.teacherId || slugifyTeacherName(assignment.teacherName || "teacher")),
     teacherName: String(assignment.teacherName || "").trim(),
     className: classNames.includes(assignment.className) ? assignment.className : "Class I",
-    subject: String(assignment.subject || "").trim()
+    subject: String(assignment.subject || "").trim(),
+    part: ["Part A", "Part B"].includes(assignment.part) ? assignment.part : "Whole Subject"
   })).filter((assignment) => assignment.teacherName && assignment.subject);
 }
 
@@ -1676,6 +1678,7 @@ function init() {
   if (els.teacherAssignmentClassSelect) {
     populateSelect(els.teacherAssignmentClassSelect, classNames);
     updateTeacherAssignmentSubjectOptions();
+    updateTeacherAssignmentPartOptions();
   }
   initializeTeacherAnalyticsFilters(savedUiState);
 
@@ -1801,7 +1804,11 @@ function init() {
   els.exportAnalysisExcelBtn?.addEventListener("click", exportAnalysisExcel);
   els.printAnalysisBtn?.addEventListener("click", printAcademicAnalysis);
   els.teacherAssignmentForm?.addEventListener("submit", saveTeacherAssignment);
-  els.teacherAssignmentClassSelect?.addEventListener("change", () => updateTeacherAssignmentSubjectOptions());
+  els.teacherAssignmentClassSelect?.addEventListener("change", () => {
+    updateTeacherAssignmentSubjectOptions();
+    updateTeacherAssignmentPartOptions();
+  });
+  els.teacherAssignmentSubjectSelect?.addEventListener("change", () => updateTeacherAssignmentPartOptions());
   els.cancelTeacherAssignmentEditBtn?.addEventListener("click", resetTeacherAssignmentForm);
   els.teacherAssignmentBody?.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-teacher-assignment]");
@@ -4034,13 +4041,20 @@ function analysisSubjectEntries(student, resultRecord) {
     const passMark = isHighThirdTermResult() ? 33 : 50;
     const grouped = resultRecord.structure.groups.map((group, index) => {
       const result = resultRecord.subjectResults[index];
+      const splitMark = isHighThirdTermResult() && highSplitPartSubjects.includes(group.name)
+        ? getStoredStudentMark(student, selectedClass(), selectedExam(), `${group.name} (Exam)`)
+        : null;
       return {
         name: group.name,
         value: result.hasMark ? numericMark(result.total) : "",
         maximum: 100,
         passMark,
         present: result.hasMark,
-        passed: result.hasMark && numericMark(result.total) >= passMark
+        passed: result.hasMark && numericMark(result.total) >= passMark,
+        partA: splitMark?.partA ?? "",
+        partB: splitMark?.partB ?? "",
+        partMaximum: splitMark ? 40 : 0,
+        partPassMark: splitMark ? 13 : 0
       };
     });
     const standalone = resultRecord.standaloneResults
@@ -4069,7 +4083,11 @@ function analysisSubjectEntries(student, resultRecord) {
         maximum,
         passMark: noPassMark ? 0 : passMark,
         present: mark.value !== "",
-        passed: mark.value !== "" && (noPassMark || numericMark(mark.value) >= passMark)
+        passed: mark.value !== "" && (noPassMark || numericMark(mark.value) >= passMark),
+        partA: mark.partA ?? "",
+        partB: mark.partB ?? "",
+        partMaximum: isSplitPartSubject(subject, selectedClass()) ? maximum / 2 : 0,
+        partPassMark: isSplitPartSubject(subject, selectedClass()) ? passMark / 2 : 0
       };
     });
 }
@@ -4091,6 +4109,8 @@ function buildAcademicAnalysisRecords(session, classes, exam) {
             className,
             exam,
             appeared: resultRecord.appeared,
+            total: resultRecord.total,
+            maximumTotal: resultRecord.maximumTotal,
             percentage,
             result: resultRecord.outcome.result,
             division: resultRecord.outcome.division,
@@ -4461,6 +4481,12 @@ function buildAnalysisStudentProgress(session, classes, subjectFilter, status, t
     const first = appeared[0] || null;
     const latest = appeared[appeared.length - 1] || null;
     const delta = first && latest && appeared.length > 1 ? latest.percentage - first.percentage : 0;
+    const markDelta = first && latest && appeared.length > 1
+      ? (delta / 100) * (Number(latest.maximumTotal) || 0)
+      : 0;
+    const subjectChanges = first && latest && appeared.length > 1
+      ? analysisSubjectMarkChanges(first, latest)
+      : [];
     const missedExams = attempts.length - appeared.length;
     const failedExams = appeared.filter((record) => record.result === "Fail").length;
     const weakSubjects = [...new Set(attempts.flatMap((record) => record.failedSubjects || []))];
@@ -4509,6 +4535,8 @@ function buildAnalysisStudentProgress(session, classes, subjectFilter, status, t
       first,
       latest,
       delta,
+      markDelta,
+      subjectChanges,
       trend,
       missedExams,
       failedExams,
@@ -4520,6 +4548,66 @@ function buildAnalysisStudentProgress(session, classes, subjectFilter, status, t
   }).filter((record) => status === "all"
     || (status === "present" && record.appearedCount > 0)
     || (status === "absent" && record.appearedCount === 0));
+}
+
+function analysisSubjectMarkChanges(firstRecord, latestRecord) {
+  const firstSubjects = new Map((firstRecord.subjects || []).map((subject) => [subject.name, subject]));
+  return (latestRecord.subjects || []).flatMap((latestSubject) => {
+    const firstSubject = firstSubjects.get(latestSubject.name);
+    if (!firstSubject?.present || !latestSubject.present || !firstSubject.maximum || !latestSubject.maximum) return [];
+    const normalizedFirstMark = (numericMark(firstSubject.value) / firstSubject.maximum) * latestSubject.maximum;
+    const change = numericMark(latestSubject.value) - normalizedFirstMark;
+    if (Math.abs(change) <= 0.004) return [];
+    return [{
+      subject: latestSubject.name,
+      abbreviation: analysisSubjectReasonAbbreviations[latestSubject.name]
+        || analysisGrowthSubjectAbbreviation(latestSubject.name),
+      change
+    }];
+  }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+}
+
+function analysisGrowthSubjectAbbreviation(subject) {
+  const abbreviations = {
+    Alphabets: "A",
+    Numbers: "N",
+    Conversation: "C",
+    Rhymes: "R",
+    "A.E.": "AE",
+    "Skill Development": "SD"
+  };
+  return abbreviations[subject]
+    || String(subject).split(/\s+/).map((word) => word[0] || "").join("").toUpperCase();
+}
+
+function formatAnalysisMarkChange(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
+  const formatted = Number.isInteger(rounded) ? String(Math.abs(rounded)) : Math.abs(rounded).toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  return `${rounded > 0 ? "+" : rounded < 0 ? "-" : ""}${formatted}`;
+}
+
+function roundedAnalysisMarkChange(value) {
+  const numericValue = Number(value) || 0;
+  return Math.sign(numericValue) * Math.round(Math.abs(numericValue));
+}
+
+function formatRoundedAnalysisMarkChange(value) {
+  const rounded = roundedAnalysisMarkChange(value);
+  return `${rounded > 0 ? "+" : ""}${rounded}`;
+}
+
+function formatAnalysisSubjectChanges(changes) {
+  return changes.length
+    ? changes.map((item) => `${item.abbreviation}${formatAnalysisMarkChange(item.change)}`).join(", ")
+    : "-";
+}
+
+function formatAnalysisSubjectChangesHtml(changes) {
+  if (!changes.length) return "-";
+  return changes.map((item) => {
+    const className = item.change > 0 ? "analysis-positive-value" : "analysis-negative-value";
+    return `<span class="${className}">${escapeHtml(item.abbreviation)}${formatAnalysisMarkChange(item.change)}</span>`;
+  }).join('<span class="analysis-subject-change-separator">, </span>');
 }
 
 function analysisTrendClass(trend) {
@@ -4699,9 +4787,11 @@ function renderAcademicAnalysis() {
       <td>${record.first.percentage.toFixed(2)}%</td>
       <td>${record.latest.percentage.toFixed(2)}%</td>
       <td class="${record.delta > 0 ? "analysis-positive-value" : record.delta < 0 ? "analysis-negative-value" : ""}">${record.delta > 0 ? "+" : ""}${record.delta.toFixed(2)}%</td>
+      <td class="${record.markDelta > 0 ? "analysis-positive-value" : record.markDelta < 0 ? "analysis-negative-value" : ""}">${formatRoundedAnalysisMarkChange(record.markDelta)}</td>
+      <td class="analysis-subject-changes">${formatAnalysisSubjectChangesHtml(record.subjectChanges)}</td>
       <td><span class="analysis-status-badge ${analysisTrendClass(record.trend)}">${record.trend}</span></td>
     </tr>`).join("")
-    : `<tr><td colspan="8">Comparable ${escapeHtml(progressFromExam)} and ${escapeHtml(progressToExam)} results are required for growth analysis.</td></tr>`;
+    : `<tr><td colspan="10">Comparable ${escapeHtml(progressFromExam)} and ${escapeHtml(progressToExam)} results are required for growth analysis.</td></tr>`;
 
   const riskCounts = {
     high: earlyWarning.filter((record) => record.riskLevel === "High").length,
@@ -4799,32 +4889,38 @@ function renderAcademicAnalysis() {
 }
 
 function teacherAssignmentSubjects(className) {
-  return analysisSubjectNames(className, analysisExamAll)
+  return ["All Subjects", ...analysisSubjectNames(className, analysisExamAll)
     .filter((subject) => subject !== "W.E.")
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => a.localeCompare(b))];
 }
 
-function selectedTeacherAssignmentClasses() {
-  if (!els.teacherAssignmentClassSelect) return [];
-  return [...els.teacherAssignmentClassSelect.selectedOptions].map((option) => option.value);
-}
-
-function updateTeacherAssignmentSubjectOptions(preferredSubjects = "") {
+function updateTeacherAssignmentSubjectOptions(preferredSubject = "") {
   if (!els.teacherAssignmentSubjectSelect || !els.teacherAssignmentClassSelect) return;
-  const selectedClasses = selectedTeacherAssignmentClasses();
-  const classes = selectedClasses.length ? selectedClasses : [classNames[0]];
-  const subjectLists = classes.map((className) => teacherAssignmentSubjects(className));
-  const commonSubjects = subjectLists[0]
-    .filter((subject) => subjectLists.every((subjects) => subjects.includes(subject)));
-  const subjects = ["All Subjects", ...commonSubjects];
+  const subjects = teacherAssignmentSubjects(els.teacherAssignmentClassSelect.value || classNames[0]);
   populateSelect(els.teacherAssignmentSubjectSelect, subjects);
-  const preferred = new Set(Array.isArray(preferredSubjects) ? preferredSubjects : [preferredSubjects]);
-  [...els.teacherAssignmentSubjectSelect.options].forEach((option) => {
-    option.selected = preferred.has(option.value);
-  });
-  if (![...els.teacherAssignmentSubjectSelect.selectedOptions].length && subjects.length) {
-    els.teacherAssignmentSubjectSelect.options[0].selected = true;
-  }
+  setSelectValueIfAvailable(els.teacherAssignmentSubjectSelect, preferredSubject);
+}
+
+function teacherAssignmentSupportsParts(
+  className = els.teacherAssignmentClassSelect?.value,
+  subject = els.teacherAssignmentSubjectSelect?.value
+) {
+  return isHighClass(className)
+    && subject !== "All Subjects"
+    && highSplitPartSubjects.includes(baseSubjectName(subject));
+}
+
+function teacherSubjectLabel(subject, part = "Whole Subject") {
+  return part && part !== "Whole Subject" ? `${subject} ${part}` : subject;
+}
+
+function updateTeacherAssignmentPartOptions(preferredPart = "") {
+  if (!els.teacherAssignmentPartSelect) return;
+  const options = teacherAssignmentSupportsParts()
+    ? ["Whole Subject", "Part A", "Part B"]
+    : ["Whole Subject"];
+  populateSelect(els.teacherAssignmentPartSelect, options);
+  setSelectValueIfAvailable(els.teacherAssignmentPartSelect, preferredPart);
 }
 
 function expandTeacherAssignments(assignments, exam = analysisExamAll) {
@@ -4904,22 +5000,28 @@ function teacherAnalyticsExamList(assignments, examFilter) {
 function teacherSubjectObservation(record, assignment) {
   const subject = record.subjects.find((item) => item.name === assignment.subject);
   if (!subject) return null;
-  const percentage = subject.present && subject.maximum
-    ? (numericMark(subject.value) / subject.maximum) * 100
+  const partKey = assignment.part === "Part A" ? "partA" : assignment.part === "Part B" ? "partB" : "";
+  const value = partKey ? subject[partKey] : subject.value;
+  const maximum = partKey ? subject.partMaximum : subject.maximum;
+  const passMark = partKey ? subject.partPassMark : subject.passMark;
+  const present = value !== "";
+  const percentage = present && maximum
+    ? (numericMark(value) / maximum) * 100
     : 0;
   return {
     teacherId: assignment.teacherId,
     teacherName: assignment.teacherName,
     className: assignment.className,
     subjectName: assignment.subject,
+    partName: assignment.part || "Whole Subject",
     exam: record.exam,
     roll: record.roll,
     name: record.name,
-    present: subject.present,
-    passed: subject.present && subject.passed,
+    present,
+    passed: present && numericMark(value) >= passMark,
     percentage,
-    value: subject.value,
-    maximum: subject.maximum
+    value,
+    maximum
   };
 }
 
@@ -4970,13 +5072,14 @@ function teacherObservationMetrics(observations) {
 function teacherClassMetrics(observations) {
   const groups = new Map();
   observations.forEach((item) => {
-    const key = `${item.className}\u0000${item.subjectName}`;
+    const key = `${item.className}\u0000${item.subjectName}\u0000${item.partName}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   });
   return [...groups.entries()].map(([key, items]) => {
-    const [className, subjectName] = key.split("\u0000");
-    return { className, subjectName, label: `${className} - ${subjectName}`, ...teacherObservationMetrics(items) };
+    const [className, subjectName, partName] = key.split("\u0000");
+    const subjectLabel = partName === "Whole Subject" ? subjectName : `${subjectName} ${partName}`;
+    return { className, subjectName, partName, subjectLabel, label: `${className} - ${subjectLabel}`, ...teacherObservationMetrics(items) };
   }).sort((a, b) =>
     classNames.indexOf(a.className) - classNames.indexOf(b.className)
     || a.subjectName.localeCompare(b.subjectName));
@@ -5033,7 +5136,8 @@ function teacherSchoolComparisons(session, classMetrics, examFilter) {
         teacherId: "school",
         teacherName: "School",
         className,
-        subject: metric.subjectName
+        subject: metric.subjectName,
+        part: metric.partName
       }));
     const school = teacherObservationMetrics(buildTeacherObservations(session, schoolAssignments, examFilter));
     return {
@@ -5136,23 +5240,21 @@ function renderTeacherAssignmentTable() {
       <td>${escapeHtml(assignment.teacherName)}</td>
       <td>${escapeHtml(assignment.className)}</td>
       <td>${escapeHtml(assignment.subject)}</td>
+      <td>${escapeHtml(assignment.part)}</td>
       <td class="teacher-assignment-actions">
         <button class="ghost-button compact-button" type="button" data-edit-teacher-assignment="${escapeAttr(assignment.id)}">Edit</button>
         <button class="ghost-button compact-button danger" type="button" data-remove-teacher-assignment="${escapeAttr(assignment.id)}">Remove</button>
       </td>
     </tr>`).join("")
-    : '<tr><td colspan="4">No teacher assignments have been added.</td></tr>';
+    : '<tr><td colspan="5">No teacher assignments have been added.</td></tr>';
 }
 
 function resetTeacherAssignmentForm() {
   editingTeacherAssignmentId = "";
   els.teacherAssignmentForm?.reset();
-  if (els.teacherAssignmentClassSelect?.options.length) {
-    [...els.teacherAssignmentClassSelect.options].forEach((option, index) => {
-      option.selected = index === 0;
-    });
-  }
+  if (els.teacherAssignmentClassSelect?.options.length) els.teacherAssignmentClassSelect.value = classNames[0];
   updateTeacherAssignmentSubjectOptions();
+  updateTeacherAssignmentPartOptions();
   if (els.saveTeacherAssignmentBtn) els.saveTeacherAssignmentBtn.textContent = "Add Assignment";
   els.cancelTeacherAssignmentEditBtn?.classList.add("hidden");
 }
@@ -5164,53 +5266,35 @@ function saveTeacherAssignment(event) {
     return;
   }
   const teacherName = els.teacherAssignmentNameInput.value.trim();
-  const selectedClasses = selectedTeacherAssignmentClasses();
-  const selectedSubjects = [...els.teacherAssignmentSubjectSelect.selectedOptions].map((option) => option.value);
-  const subjects = selectedSubjects.includes("All Subjects") ? ["All Subjects"] : selectedSubjects;
-  if (!teacherName || !selectedClasses.length || !subjects.length) {
-    showToast("Enter the teacher name and select at least one class and subject.");
+  const className = els.teacherAssignmentClassSelect.value;
+  const subject = els.teacherAssignmentSubjectSelect.value;
+  const part = els.teacherAssignmentPartSelect.value || "Whole Subject";
+  if (!teacherName || !className || !subject) {
+    showToast("Enter the teacher name, class, and subject.");
     return;
   }
-  let assignments = normalizeTeacherAssignments(state.teacherAssignments);
-  const sameTeacherClass = (assignment, className) =>
+  const assignments = normalizeTeacherAssignments(state.teacherAssignments);
+  const duplicate = assignments.some((assignment) =>
     assignment.id !== editingTeacherAssignmentId
     && assignment.teacherName.toLowerCase() === teacherName.toLowerCase()
-    && assignment.className === className;
-  if (subjects[0] !== "All Subjects" && selectedClasses.some((className) =>
-    assignments.some((assignment) => sameTeacherClass(assignment, className) && assignment.subject === "All Subjects"))) {
-    showToast("All Subjects is already assigned to this teacher and class.");
+    && assignment.className === className
+    && assignment.subject === subject
+    && assignment.part === part);
+  if (duplicate) {
+    showToast("This teacher assignment already exists.");
     return;
   }
-  if (subjects[0] === "All Subjects") {
-    assignments = assignments.filter((assignment) =>
-      !selectedClasses.some((className) => sameTeacherClass(assignment, className)));
-  }
-  const duplicates = selectedClasses.flatMap((className) => subjects
-    .filter((subject) => assignments.some((assignment) =>
-      sameTeacherClass(assignment, className) && assignment.subject === subject))
-    .map((subject) => `${className} ${subject}`));
-  if (duplicates.length) {
-    showToast(`${duplicates.join(", ")} ${duplicates.length === 1 ? "is" : "are"} already assigned.`);
-    return;
-  }
+  const next = {
+    id: editingTeacherAssignmentId || `teacher-assignment-${Date.now()}`,
+    teacherId: slugifyTeacherName(teacherName),
+    teacherName,
+    className,
+    subject,
+    part
+  };
   const index = assignments.findIndex((assignment) => assignment.id === editingTeacherAssignmentId);
-  if (index >= 0) assignments.splice(index, 1);
-  const createdAt = Date.now();
-  let assignmentIndex = 0;
-  selectedClasses.forEach((className) => {
-    subjects.forEach((subject) => {
-      assignments.push({
-        id: assignmentIndex === 0 && editingTeacherAssignmentId
-          ? editingTeacherAssignmentId
-          : `teacher-assignment-${createdAt}-${assignmentIndex}`,
-        teacherId: slugifyTeacherName(teacherName),
-        teacherName,
-        className,
-        subject
-      });
-      assignmentIndex += 1;
-    });
-  });
+  if (index >= 0) assignments[index] = next;
+  else assignments.push(next);
   state.teacherAssignments = assignments;
   saveState();
   resetTeacherAssignmentForm();
@@ -5218,7 +5302,7 @@ function saveTeacherAssignment(event) {
   renderTeacherAnalytics();
   showToast(index >= 0
     ? "Teacher assignment updated."
-    : `${selectedClasses.length * subjects.length} teacher ${selectedClasses.length * subjects.length === 1 ? "assignment" : "assignments"} added.`);
+    : "Teacher assignment added.");
 }
 
 function editTeacherAssignment(id) {
@@ -5228,10 +5312,9 @@ function editTeacherAssignment(id) {
   if (!assignment) return;
   editingTeacherAssignmentId = assignment.id;
   els.teacherAssignmentNameInput.value = assignment.teacherName;
-  [...els.teacherAssignmentClassSelect.options].forEach((option) => {
-    option.selected = option.value === assignment.className;
-  });
+  els.teacherAssignmentClassSelect.value = assignment.className;
   updateTeacherAssignmentSubjectOptions(assignment.subject);
+  updateTeacherAssignmentPartOptions(assignment.part);
   els.saveTeacherAssignmentBtn.textContent = "Update Assignment";
   els.cancelTeacherAssignmentEditBtn.classList.remove("hidden");
   els.teacherAssignmentNameInput.focus();
@@ -5241,7 +5324,7 @@ function removeTeacherAssignment(id) {
   if (!isAdmin()) return;
   const assignment = normalizeTeacherAssignments(state.teacherAssignments)
     .find((item) => item.id === id);
-  if (!assignment || !window.confirm(`Remove ${assignment.teacherName} - ${assignment.className} ${assignment.subject}?`)) return;
+  if (!assignment || !window.confirm(`Remove ${assignment.teacherName} - ${assignment.className} ${teacherSubjectLabel(assignment.subject, assignment.part)}?`)) return;
   state.teacherAssignments = normalizeTeacherAssignments(state.teacherAssignments)
     .filter((item) => item.id !== id);
   saveState();
@@ -5264,6 +5347,7 @@ function renderTeacherAnalytics() {
   if (!els.teacherAssignmentClassSelect.options.length) {
     populateSelect(els.teacherAssignmentClassSelect, classNames);
     updateTeacherAssignmentSubjectOptions();
+    updateTeacherAssignmentPartOptions();
   }
   initializeTeacherAnalyticsFilters();
   renderTeacherAssignmentTable();
@@ -5279,10 +5363,10 @@ function renderTeacherAnalytics() {
   const completion = teacherDataCompletion(session, assignments, exam, observations);
   const performanceRating = teacherPerformanceRating(overview, growth, completion);
   const declineMap = new Map(growth.records.filter((item) => item.delta <= -5)
-    .map((item) => [`${item.className}\u0000${item.subjectName}\u0000${item.roll}`, item.delta]));
+    .map((item) => [`${item.className}\u0000${item.subjectName}\u0000${item.partName}\u0000${item.roll}`, item.delta]));
   const supportMap = new Map();
   observations.filter((item) => !item.present || !item.passed || item.percentage < 40).forEach((item) => {
-    const key = `${item.className}\u0000${item.subjectName}\u0000${item.roll}`;
+    const key = `${item.className}\u0000${item.subjectName}\u0000${item.partName}\u0000${item.roll}`;
     const reasons = [];
     if (!item.present) reasons.push("Absent");
     else {
@@ -5294,7 +5378,7 @@ function renderTeacherAnalytics() {
     if (!existing || (!item.present && existing.present)) supportMap.set(key, { ...item, reasons });
   });
   growth.records.filter((item) => item.delta <= -5).forEach((item) => {
-    const key = `${item.className}\u0000${item.subjectName}\u0000${item.roll}`;
+    const key = `${item.className}\u0000${item.subjectName}\u0000${item.partName}\u0000${item.roll}`;
     if (!supportMap.has(key)) {
       supportMap.set(key, { ...item, reasons: [`Declined ${Math.abs(item.delta).toFixed(2)} points`] });
     }
@@ -5311,7 +5395,7 @@ function renderTeacherAnalytics() {
   els.teacherAnalyticsSubtitle.textContent = `${teacherLabel} | ${exam} | Academic Session ${formatAcademicSession(session)}`;
   els.teacherAnalyticsAssignmentSummary.innerHTML = assignments.length
     ? `<div class="teacher-assignment-chips">${assignments.map((assignment) =>
-      `<span><strong>${escapeHtml(assignment.teacherName)}</strong> - ${escapeHtml(assignment.className)} ${escapeHtml(assignment.subject)}</span>`).join("")}</div>`
+      `<span><strong>${escapeHtml(assignment.teacherName)}</strong> - ${escapeHtml(assignment.className)} ${escapeHtml(teacherSubjectLabel(assignment.subject, assignment.part))}</span>`).join("")}</div>`
     : '<p class="analysis-empty">No assignments match the selected filters.</p>';
   const overviewCards = [
     ["Overall Average", `${overview.average.toFixed(2)}%`],
@@ -5345,12 +5429,13 @@ function renderTeacherAnalytics() {
   els.teacherAnalyticsComparisonChart.innerHTML = teacherComparisonChart(comparisons);
   const sortedClasses = [...classMetrics].sort((a, b) =>
     (b.passPercentage - a.passPercentage) || (b.average - a.average));
-  const subjectScope = [...new Set(assignments.map((assignment) => assignment.subject))].join(", ") || "assigned subjects";
+  const subjectScope = [...new Set(assignments.map((assignment) =>
+    teacherSubjectLabel(assignment.subject, assignment.part)))].join(", ") || "assigned subjects";
   const strongestText = sortedClasses[0]
-    ? `${sortedClasses[0].className} ${sortedClasses[0].subjectName} showed the strongest selected performance`
+    ? `${sortedClasses[0].className} ${sortedClasses[0].subjectLabel} showed the strongest selected performance`
     : "No strongest class can be identified until marks are completed";
   const focusText = sortedClasses.length > 1
-    ? `${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectName} needs the most attention`
+    ? `${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectLabel} needs the most attention`
     : "the selected assignment should be monitored against future examinations";
   els.teacherAnalyticsInsightSummary.textContent =
     `${teacherPossessiveLabel} ${subjectScope} recorded an overall average of ${overview.average.toFixed(2)}% `
@@ -5359,13 +5444,13 @@ function renderTeacherAnalytics() {
       ? `Comparable students changed by an average of ${growth.averageDelta >= 0 ? "+" : ""}${growth.averageDelta.toFixed(2)} points.`
       : "More comparable examination data is needed to measure student improvement.");
   els.teacherAnalyticsClassHighlight.textContent = sortedClasses.length > 1
-    ? `Strongest: ${sortedClasses[0].className} ${sortedClasses[0].subjectName} | Needs attention: ${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectName}`
+    ? `Strongest: ${sortedClasses[0].className} ${sortedClasses[0].subjectLabel} | Needs attention: ${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectLabel}`
     : sortedClasses.length
-      ? `${sortedClasses[0].className} ${sortedClasses[0].subjectName}: ${sortedClasses[0].average.toFixed(2)}% average`
+      ? `${sortedClasses[0].className} ${sortedClasses[0].subjectLabel}: ${sortedClasses[0].average.toFixed(2)}% average`
       : "No completed marks";
   els.teacherAnalyticsClassBody.innerHTML = classMetrics.length
     ? classMetrics.map((metric) => `<tr>
-      <td>${escapeHtml(metric.className)}</td><td>${escapeHtml(metric.subjectName)}</td>
+      <td>${escapeHtml(metric.className)}</td><td>${escapeHtml(metric.subjectLabel)}</td>
       <td>${metric.average.toFixed(2)}%</td><td>${metric.passPercentage.toFixed(2)}%</td>
       <td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td><td>${metric.failed}</td>
     </tr>`).join("")
@@ -5384,7 +5469,7 @@ function renderTeacherAnalytics() {
     : "No recorded update timestamp";
   els.teacherAnalyticsSupportBody.innerHTML = support.length
     ? support.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.className)}</td>
-      <td>${escapeHtml(item.subjectName)}</td><td>${item.present ? `${item.percentage.toFixed(2)}%` : "-"}</td>
+      <td>${escapeHtml(teacherSubjectLabel(item.subjectName, item.partName))}</td><td>${item.present ? `${item.percentage.toFixed(2)}%` : "-"}</td>
       <td>${item.present ? (item.passed ? "Pass" : "Fail") : "Absent"}</td><td>${escapeHtml(item.reasons.join(", "))}</td></tr>`).join("")
     : '<tr><td colspan="6">No students currently meet the support criteria.</td></tr>';
   const supportByClass = classNames.map((className) => ({
@@ -5398,7 +5483,7 @@ function renderTeacherAnalytics() {
   const recommendations = [];
   if (overview.passPercentage >= 80) strengths.push(`The selected assignments have a ${overview.passPercentage.toFixed(2)}% pass rate.`);
   if (growth.improved) strengths.push(`${growth.improved} comparable student record(s) improved by at least 5 points.`);
-  if (sortedClasses[0]) strengths.push(`${sortedClasses[0].className} ${sortedClasses[0].subjectName} is the strongest selected assignment.`);
+  if (sortedClasses[0]) strengths.push(`${sortedClasses[0].className} ${sortedClasses[0].subjectLabel} is the strongest selected assignment.`);
   if (overview.failureRate > 20) weaknesses.push(`The failure and absence rate is ${overview.failureRate.toFixed(2)}%.`);
   if (growth.declined) weaknesses.push(`${growth.declined} comparable student record(s) declined by at least 5 points.`);
   if (completionPercentage(completion.marks) < 100) weaknesses.push(`${completion.marks.expected - completion.marks.completed} expected mark entries are missing.`);
@@ -5482,11 +5567,13 @@ function exportTeacherAnalysisExcel() {
   const assignmentRows = data.assignments.map((item) => ({
     Teacher: item.teacherName,
     Class: item.className,
-    Subject: item.subject
+    Subject: item.subject,
+    Part: item.part
   }));
   const classRows = data.classMetrics.map((item) => ({
     Class: item.className,
     Subject: item.subjectName,
+    Part: item.partName,
     Average: Number(item.average.toFixed(2)),
     "Pass Percentage": Number(item.passPercentage.toFixed(2)),
     Highest: Number(item.highest.toFixed(2)),
@@ -5499,6 +5586,7 @@ function exportTeacherAnalysisExcel() {
     "Student Name": item.name,
     Class: item.className,
     Subject: item.subjectName,
+    Part: item.partName,
     Percentage: item.present ? Number(item.percentage.toFixed(2)) : "",
     Status: item.present ? (item.passed ? "Pass" : "Fail") : "Absent",
     Reason: item.reasons.join(", ")
@@ -5631,6 +5719,8 @@ function exportAnalysisExcel() {
     "First Percentage": record.first.percentage,
     "Latest Percentage": record.latest.percentage,
     Change: record.delta,
+    "Marks Change": roundedAnalysisMarkChange(record.markDelta),
+    "Subject Mark Changes": formatAnalysisSubjectChanges(record.subjectChanges),
     Trend: record.trend
   }));
   const warningRows = data.earlyWarning.map((record) => ({

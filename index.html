@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=publish-unit-ct-fix-20260702">
+  <link rel="stylesheet" href="./styles.css?v=teacher-parts-20260702">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -322,20 +322,15 @@
             <div class="analysis-panel-head"><div><h4>Teacher Assignment Setup</h4><span>Map each teacher to a class and subject.</span></div></div>
             <form id="teacherAssignmentForm" class="teacher-assignment-form">
               <label>Teacher Name<input id="teacherAssignmentNameInput" type="text" required></label>
-              <label>Class(es)
-                <select id="teacherAssignmentClassSelect" multiple size="8" aria-describedby="teacherAssignmentClassHint"></select>
-                <small id="teacherAssignmentClassHint">Select one or more classes for this teacher.</small>
-              </label>
-              <label>Subject(s)
-                <select id="teacherAssignmentSubjectSelect" multiple size="5" aria-describedby="teacherAssignmentSubjectHint"></select>
-                <small id="teacherAssignmentSubjectHint">Select one or more subjects. All Subjects covers every applicable subject in the class.</small>
-              </label>
+              <label>Class<select id="teacherAssignmentClassSelect"></select></label>
+              <label>Subject<select id="teacherAssignmentSubjectSelect"></select></label>
+              <label>Part<select id="teacherAssignmentPartSelect"></select></label>
               <button id="saveTeacherAssignmentBtn" class="primary-button" type="submit">Add Assignment</button>
               <button id="cancelTeacherAssignmentEditBtn" class="ghost-button hidden" type="button">Cancel</button>
             </form>
             <div class="analysis-table-wrap teacher-assignment-table-wrap">
               <table class="analysis-table teacher-assignment-table">
-                <thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Part</th><th>Actions</th></tr></thead>
                 <tbody id="teacherAssignmentBody"></tbody>
               </table>
             </div>
@@ -555,7 +550,7 @@
             <div id="analysisGrowthSummary" class="analysis-mini-metrics"></div>
             <div id="analysisGrowthTableWrap" class="analysis-table-wrap analysis-growth-table-wrap hidden">
               <table class="analysis-table analysis-growth-table">
-                <thead><tr><th>Student Name</th><th>Class</th><th>First Exam</th><th>Latest Exam</th><th>First %</th><th>Latest %</th><th>Change</th><th>Trend</th></tr></thead>
+                <thead><tr><th>Student Name</th><th>Class</th><th>First Exam</th><th>Latest Exam</th><th>First %</th><th>Latest %</th><th>Change</th><th title="Percentage change converted to marks using the latest examination full marks">MARK(S)</th><th>SUBJECT(S)</th><th>Trend</th></tr></thead>
                 <tbody id="analysisGrowthBody"></tbody>
               </table>
             </div>
@@ -664,6 +659,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=publish-unit-ct-fix-20260702"></script>
+  <script src="./app.js?v=teacher-parts-20260702"></script>
 </body>
 </html>
