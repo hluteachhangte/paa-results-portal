@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=analysis-focused-lists-20260701">
+  <link rel="stylesheet" href="./styles.css?v=publish-unit-ct-fix-20260702">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -88,6 +88,10 @@
       </div>
       <div class="mobile-menu-group">
         <span>Administration</span>
+        <button class="hidden" type="button" data-mobile-view="teacherAnalytics" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9636;</span>
+          <span>Teacher Performance Analytics</span>
+        </button>
         <button class="hidden" type="button" data-mobile-view="entryAccess" data-admin-only="true">
           <span class="mobile-nav-icon" aria-hidden="true">&#9881;</span>
           <span>Settings</span>
@@ -130,6 +134,10 @@
         <button class="nav-tab" data-view="analysis" type="button" title="Academic analysis dashboard">
           <span aria-hidden="true">&#9636;</span>
           Academic Analysis
+        </button>
+        <button class="nav-tab hidden" data-view="teacherAnalytics" data-admin-only="true" type="button" title="Teacher performance analytics">
+          <span aria-hidden="true">&#9636;</span>
+          Teacher Performance Analytics
         </button>
         <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
           <span aria-hidden="true">&#128274;</span>
@@ -289,6 +297,108 @@
         </div>
         <div id="entryAccessStatus" class="entry-access-save-status">Live Firestore access settings.</div>
         <div id="entryAccessDashboard" class="entry-access-dashboard"></div>
+      </section>
+
+      <section id="teacherAnalyticsView" class="view" aria-label="Teacher performance analytics">
+        <div id="teacherAnalyticsAccessDenied" class="teacher-access-denied hidden">
+          <h3>Access denied</h3>
+          <p>Access denied. Admin privileges required.</p>
+        </div>
+
+        <div id="teacherAnalyticsContent">
+          <div class="section-head teacher-analytics-page-head">
+            <div>
+              <h3>Teacher Performance Analytics</h3>
+              <p>Constructive academic outcomes, improvement signals, and data completion.</p>
+            </div>
+            <div class="inline-actions teacher-analytics-actions">
+              <button id="downloadTeacherAnalysisPdfBtn" class="primary-button" type="button">Download Teacher Analysis PDF</button>
+              <button id="exportTeacherAnalysisExcelBtn" class="ghost-button" type="button">Export Excel</button>
+              <button id="printTeacherAnalysisBtn" class="ghost-button" type="button">Print Report</button>
+            </div>
+          </div>
+
+          <section class="analysis-panel teacher-assignment-panel">
+            <div class="analysis-panel-head"><div><h4>Teacher Assignment Setup</h4><span>Map each teacher to a class and subject.</span></div></div>
+            <form id="teacherAssignmentForm" class="teacher-assignment-form">
+              <label>Teacher Name<input id="teacherAssignmentNameInput" type="text" required></label>
+              <label>Class(es)
+                <select id="teacherAssignmentClassSelect" multiple size="8" aria-describedby="teacherAssignmentClassHint"></select>
+                <small id="teacherAssignmentClassHint">Select one or more classes for this teacher.</small>
+              </label>
+              <label>Subject(s)
+                <select id="teacherAssignmentSubjectSelect" multiple size="5" aria-describedby="teacherAssignmentSubjectHint"></select>
+                <small id="teacherAssignmentSubjectHint">Select one or more subjects. All Subjects covers every applicable subject in the class.</small>
+              </label>
+              <button id="saveTeacherAssignmentBtn" class="primary-button" type="submit">Add Assignment</button>
+              <button id="cancelTeacherAssignmentEditBtn" class="ghost-button hidden" type="button">Cancel</button>
+            </form>
+            <div class="analysis-table-wrap teacher-assignment-table-wrap">
+              <table class="analysis-table teacher-assignment-table">
+                <thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Actions</th></tr></thead>
+                <tbody id="teacherAssignmentBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="teacher-analytics-filters" aria-label="Teacher analytics filters">
+            <label>Academic Session<select id="teacherAnalyticsSessionSelect"></select></label>
+            <label>Examination<select id="teacherAnalyticsExamSelect"></select></label>
+            <label>Teacher<select id="teacherAnalyticsTeacherSelect"></select></label>
+            <label>Class<select id="teacherAnalyticsClassSelect"></select></label>
+            <label>Subject<select id="teacherAnalyticsSubjectSelect"></select></label>
+          </div>
+
+          <div id="teacherAnalyticsReport" class="teacher-analytics-report">
+            <header class="analysis-report-title"><h3>PINEHILL ADVENTIST ACADEMY</h3><p id="teacherAnalyticsSubtitle">Teacher Performance Analytics</p></header>
+            <p id="teacherAnalyticsInsightSummary" class="teacher-insight-summary"></p>
+            <section class="analysis-panel teacher-report-assignment-summary">
+              <div class="analysis-panel-head"><h4>Teacher Details and Assignments</h4></div>
+              <div id="teacherAnalyticsAssignmentSummary"></div>
+            </section>
+            <div id="teacherAnalyticsOverview" class="teacher-analytics-overview"></div>
+            <p class="teacher-rating-method">Performance Rating: 35% overall average, 35% pass rate, 20% marks-entry completion, and 10% student improvement. It follows the selected filters and is intended only as an academic planning indicator.</p>
+            <div class="analysis-grid analysis-grid-two">
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Performance Trend</h4></div><div id="teacherAnalyticsTrendChart"></div></section>
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Pass / Fail Distribution</h4></div><div id="teacherAnalyticsPassChart"></div></section>
+            </div>
+            <div class="analysis-grid analysis-grid-two">
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Class-wise Subject Average</h4></div><div id="teacherAnalyticsClassChart"></div></section>
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Teacher vs School Subject Average</h4></div><div id="teacherAnalyticsComparisonChart"></div></section>
+            </div>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Class-wise Performance</h4><span id="teacherAnalyticsClassHighlight"></span></div>
+              <div class="analysis-table-wrap"><table class="analysis-table teacher-class-performance-table">
+                <thead><tr><th>Class</th><th>Subject</th><th>Average</th><th>Pass %</th><th>Highest</th><th>Lowest</th><th>Failed</th></tr></thead>
+                <tbody id="teacherAnalyticsClassBody"></tbody>
+              </table></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Data Entry Completion</h4><span id="teacherAnalyticsLastUpdated"></span></div>
+              <div id="teacherAnalyticsCompletion" class="teacher-completion-grid"></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Students Needing Support</h4></div>
+              <div id="teacherAnalyticsSupportChart" class="teacher-support-chart"></div>
+              <details class="teacher-support-details" open>
+                <summary>Student support list</summary>
+                <div class="analysis-table-wrap"><table class="analysis-table teacher-support-table">
+                  <thead><tr><th>Student Name</th><th>Class</th><th>Subject</th><th>Percentage</th><th>Status</th><th>Reason</th></tr></thead>
+                  <tbody id="teacherAnalyticsSupportBody"></tbody>
+                </table></div>
+              </details>
+            </section>
+            <div class="analysis-grid analysis-grid-three teacher-insights">
+              <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="teacherAnalyticsStrengths"></ul></section>
+              <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="teacherAnalyticsWeaknesses"></ul></section>
+              <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommended Actions</h4></div><ul id="teacherAnalyticsRecommendations"></ul></section>
+            </div>
+            <section class="teacher-fairness-note">
+              <strong>Fairness Note</strong>
+              <p>Teacher performance analytics should be used for academic support and planning. Student results are influenced by several factors including attendance, prior learning level, home support, and examination difficulty. This dashboard should not be used as the sole basis for teacher evaluation.</p>
+            </section>
+          </div>
+        </div>
       </section>
 
       <section id="resultsView" class="view" aria-label="Published results">
@@ -554,6 +664,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=analysis-focused-lists-20260701"></script>
+  <script src="./app.js?v=publish-unit-ct-fix-20260702"></script>
 </body>
 </html>

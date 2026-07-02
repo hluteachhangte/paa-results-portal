@@ -147,6 +147,7 @@ const defaultState = {
   passMarks: createExamMarks(33),
   entryAccess: createDefaultEntryAccess(),
   attendanceAccess: createDefaultAttendanceAccess(),
+  teacherAssignments: [],
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -177,6 +178,9 @@ let activePrintClass = "";
 let printCleanupTimer = null;
 let restoreMarksheetsAfterPrint = false;
 let analysisCurrentData = null;
+let teacherAnalyticsCurrentData = null;
+let editingTeacherAssignmentId = "";
+let publicationSaveInProgress = false;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -291,6 +295,41 @@ const els = {
   downloadAnalysisPdfBtn: document.querySelector("#downloadAnalysisPdfBtn"),
   exportAnalysisExcelBtn: document.querySelector("#exportAnalysisExcelBtn"),
   printAnalysisBtn: document.querySelector("#printAnalysisBtn"),
+  teacherAnalyticsAccessDenied: document.querySelector("#teacherAnalyticsAccessDenied"),
+  teacherAnalyticsContent: document.querySelector("#teacherAnalyticsContent"),
+  teacherAssignmentForm: document.querySelector("#teacherAssignmentForm"),
+  teacherAssignmentNameInput: document.querySelector("#teacherAssignmentNameInput"),
+  teacherAssignmentClassSelect: document.querySelector("#teacherAssignmentClassSelect"),
+  teacherAssignmentSubjectSelect: document.querySelector("#teacherAssignmentSubjectSelect"),
+  saveTeacherAssignmentBtn: document.querySelector("#saveTeacherAssignmentBtn"),
+  cancelTeacherAssignmentEditBtn: document.querySelector("#cancelTeacherAssignmentEditBtn"),
+  teacherAssignmentBody: document.querySelector("#teacherAssignmentBody"),
+  teacherAnalyticsSessionSelect: document.querySelector("#teacherAnalyticsSessionSelect"),
+  teacherAnalyticsExamSelect: document.querySelector("#teacherAnalyticsExamSelect"),
+  teacherAnalyticsTeacherSelect: document.querySelector("#teacherAnalyticsTeacherSelect"),
+  teacherAnalyticsClassSelect: document.querySelector("#teacherAnalyticsClassSelect"),
+  teacherAnalyticsSubjectSelect: document.querySelector("#teacherAnalyticsSubjectSelect"),
+  teacherAnalyticsReport: document.querySelector("#teacherAnalyticsReport"),
+  teacherAnalyticsSubtitle: document.querySelector("#teacherAnalyticsSubtitle"),
+  teacherAnalyticsInsightSummary: document.querySelector("#teacherAnalyticsInsightSummary"),
+  teacherAnalyticsAssignmentSummary: document.querySelector("#teacherAnalyticsAssignmentSummary"),
+  teacherAnalyticsOverview: document.querySelector("#teacherAnalyticsOverview"),
+  teacherAnalyticsTrendChart: document.querySelector("#teacherAnalyticsTrendChart"),
+  teacherAnalyticsPassChart: document.querySelector("#teacherAnalyticsPassChart"),
+  teacherAnalyticsClassChart: document.querySelector("#teacherAnalyticsClassChart"),
+  teacherAnalyticsComparisonChart: document.querySelector("#teacherAnalyticsComparisonChart"),
+  teacherAnalyticsClassHighlight: document.querySelector("#teacherAnalyticsClassHighlight"),
+  teacherAnalyticsClassBody: document.querySelector("#teacherAnalyticsClassBody"),
+  teacherAnalyticsLastUpdated: document.querySelector("#teacherAnalyticsLastUpdated"),
+  teacherAnalyticsCompletion: document.querySelector("#teacherAnalyticsCompletion"),
+  teacherAnalyticsSupportChart: document.querySelector("#teacherAnalyticsSupportChart"),
+  teacherAnalyticsSupportBody: document.querySelector("#teacherAnalyticsSupportBody"),
+  teacherAnalyticsStrengths: document.querySelector("#teacherAnalyticsStrengths"),
+  teacherAnalyticsWeaknesses: document.querySelector("#teacherAnalyticsWeaknesses"),
+  teacherAnalyticsRecommendations: document.querySelector("#teacherAnalyticsRecommendations"),
+  downloadTeacherAnalysisPdfBtn: document.querySelector("#downloadTeacherAnalysisPdfBtn"),
+  exportTeacherAnalysisExcelBtn: document.querySelector("#exportTeacherAnalysisExcelBtn"),
+  printTeacherAnalysisBtn: document.querySelector("#printTeacherAnalysisBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -329,6 +368,7 @@ function normalizeState(existingState = {}) {
   parsed.passMarks = normalizeExamMarks(parsed.passMarks, 33);
   parsed.entryAccess = normalizeEntryAccess(existingState.entryAccess || parsed.entryAccess);
   parsed.attendanceAccess = normalizeAttendanceAccess(existingState.attendanceAccess || parsed.attendanceAccess);
+  parsed.teacherAssignments = normalizeTeacherAssignments(existingState.teacherAssignments || parsed.teacherAssignments);
   parsed.sessions = normalizeSessions(parsed.sessions);
 
   const migratedActiveData = normalizeSessionData({
@@ -337,7 +377,8 @@ function normalizeState(existingState = {}) {
     attendance: existingState.attendance ?? parsed.attendance,
     measurements: existingState.measurements ?? parsed.measurements,
     marks: existingState.marks ?? parsed.marks,
-    published: existingState.published ?? parsed.published
+    published: existingState.published ?? parsed.published,
+    dataEntryUpdates: existingState.dataEntryUpdates ?? parsed.dataEntryUpdates
   });
   if (!parsed.sessions[parsed.academicSession]) {
     parsed.sessions[parsed.academicSession] = migratedActiveData;
@@ -401,7 +442,8 @@ function createEmptySessionData() {
     attendance: {},
     measurements: {},
     marks: {},
-    published: {}
+    published: {},
+    dataEntryUpdates: {}
   };
 }
 
@@ -412,7 +454,8 @@ function normalizeSessionData(data = {}) {
     attendance: data.attendance || {},
     measurements: data.measurements || {},
     marks: data.marks || {},
-    published: data.published || {}
+    published: data.published || {},
+    dataEntryUpdates: data.dataEntryUpdates || {}
   };
 }
 
@@ -429,7 +472,8 @@ function getActiveSessionData() {
     attendance: state.attendance,
     measurements: state.measurements,
     marks: state.marks,
-    published: state.published
+    published: state.published,
+    dataEntryUpdates: state.dataEntryUpdates
   });
 }
 
@@ -441,6 +485,25 @@ function setActiveSessionData(targetState, data) {
   targetState.measurements = normalizedData.measurements;
   targetState.marks = normalizedData.marks;
   targetState.published = normalizedData.published;
+  targetState.dataEntryUpdates = normalizedData.dataEntryUpdates;
+}
+
+function normalizeTeacherAssignments(assignments = []) {
+  return (Array.isArray(assignments) ? assignments : []).map((assignment, index) => ({
+    id: String(assignment.id || `teacher-assignment-${index + 1}`),
+    teacherId: String(assignment.teacherId || slugifyTeacherName(assignment.teacherName || "teacher")),
+    teacherName: String(assignment.teacherName || "").trim(),
+    className: classNames.includes(assignment.className) ? assignment.className : "Class I",
+    subject: String(assignment.subject || "").trim()
+  })).filter((assignment) => assignment.teacherName && assignment.subject);
+}
+
+function slugifyTeacherName(name) {
+  return String(name || "teacher")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "teacher";
 }
 
 function syncActiveSessionData() {
@@ -586,6 +649,16 @@ function hasUnsavedLocalChanges() {
   return hasUnsavedMarkChanges() || hasUnsavedAttendanceChanges();
 }
 
+function hasUnsavedResultChanges(className = selectedClass(), exam = selectedExam()) {
+  const hasMarks = [...unsavedMarkChanges.values()].some((change) =>
+    change.className === className && change.exam === exam);
+  const hasAttendance = unsavedAttendanceChanges
+    && termExams.includes(exam)
+    && selectedAttendanceClass() === className
+    && selectedAttendanceTerm() === exam;
+  return hasMarks || hasAttendance;
+}
+
 function trackUnsavedAttendanceChange() {
   unsavedAttendanceChanges = true;
   syncActiveSessionData();
@@ -627,6 +700,16 @@ async function saveAttendanceData() {
   refreshAttendanceSaveControls();
 
   try {
+    const updatedAt = new Date().toISOString();
+    state.dataEntryUpdates = state.dataEntryUpdates || {};
+    state.dataEntryUpdates[dataEntryUpdateKey("attendance", selectedAttendanceClass(), selectedAttendanceTerm())] = {
+      updatedAt,
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    };
+    state.dataEntryUpdates[dataEntryUpdateKey("measurement", selectedAttendanceClass(), selectedAttendanceTerm())] = {
+      updatedAt,
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    };
     syncActiveSessionData();
     unsavedAttendanceChanges = false;
     saveState();
@@ -691,9 +774,33 @@ async function saveAllMarks() {
   refreshMarksSaveControls();
 
   try {
+    const changedContexts = [...new Map(
+      [...unsavedMarkChanges.values()].map((change) => [
+        `${change.className}\u0000${change.exam}\u0000${change.subject}`,
+        change
+      ])
+    ).values()];
+    const updatedAt = new Date().toISOString();
+    state.dataEntryUpdates = state.dataEntryUpdates || {};
+    changedContexts.forEach((change) => {
+      state.dataEntryUpdates[dataEntryUpdateKey("marks", change.className, change.exam, change.subject)] = {
+        updatedAt,
+        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      };
+    });
     syncActiveSessionData();
     const stateJson = JSON.stringify(state);
-    const fieldUpdates = buildUnsavedMarkFieldUpdates();
+    const fieldUpdates = [
+      ...buildUnsavedMarkFieldUpdates(),
+      ...changedContexts.flatMap((change) => {
+        const key = dataEntryUpdateKey("marks", change.className, change.exam, change.subject);
+        const value = state.dataEntryUpdates[key];
+        return [
+          { path: ["state", "dataEntryUpdates", key], value },
+          { path: ["state", "sessions", change.session, "dataEntryUpdates", key], value }
+        ];
+      })
+    ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
 
@@ -733,7 +840,7 @@ function loadSavedUiState() {
 
   try {
     const parsed = JSON.parse(saved);
-    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "entryAccess"];
+    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "entryAccess"];
     return {
       ...parsed,
       activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
@@ -746,7 +853,7 @@ function loadSavedUiState() {
 function viewFromLocationHash() {
   const hash = window.location.hash.replace(/^#/, "");
   const routeView = new URLSearchParams(hash).get("view") || hash.replace(/^view=/, "");
-  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "entryAccess"];
+  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "entryAccess"];
   return allowedViews.includes(routeView) ? routeView : "";
 }
 
@@ -768,9 +875,26 @@ function saveUiState() {
     analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
     analysisStatus: els.analysisStatusSelect?.value || "all",
     analysisThreshold: els.analysisSupportThreshold?.value || "50",
+    teacherAnalyticsSession: els.teacherAnalyticsSessionSelect?.value || state.academicSession,
+    teacherAnalyticsExam: els.teacherAnalyticsExamSelect?.value || analysisExamAll,
+    teacherAnalyticsTeacher: els.teacherAnalyticsTeacherSelect?.value || "All Teachers",
+    teacherAnalyticsClass: els.teacherAnalyticsClassSelect?.value || "All Classes",
+    teacherAnalyticsSubject: els.teacherAnalyticsSubjectSelect?.value || "All Subjects",
+    analysisSession: els.analysisSessionSelect?.value || state.academicSession,
+    analysisSection: els.analysisSectionSelect?.value || "All Classes",
+    analysisClass: els.analysisClassSelect?.value || "All Classes",
+    analysisExam: els.analysisExamSelect?.value || "First Term",
+    analysisSubject: els.analysisSubjectSelect?.value || "All Subjects",
+    analysisStatus: els.analysisStatusSelect?.value || "all",
+    analysisThreshold: els.analysisSupportThreshold?.value || "50",
     analysisProgressClass: els.analysisProgressClassSelect?.value || "All Classes",
     analysisProgressFromExam: els.analysisProgressFromExamSelect?.value || "",
-    analysisProgressToExam: els.analysisProgressToExamSelect?.value || ""
+    analysisProgressToExam: els.analysisProgressToExamSelect?.value || "",
+    teacherAnalyticsSession: els.teacherAnalyticsSessionSelect?.value || state.academicSession,
+    teacherAnalyticsExam: els.teacherAnalyticsExamSelect?.value || analysisExamAll,
+    teacherAnalyticsTeacher: els.teacherAnalyticsTeacherSelect?.value || "All Teachers",
+    teacherAnalyticsClass: els.teacherAnalyticsClassSelect?.value || "All Classes",
+    teacherAnalyticsSubject: els.teacherAnalyticsSubjectSelect?.value || "All Subjects"
   }));
 }
 
@@ -848,6 +972,10 @@ function startFirebaseStateSync(attempt = 0) {
   firebaseStateSyncStarted = true;
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
+    if (publicationSaveInProgress) {
+      console.log("[Firestore] App state update held while result publication is saving.");
+      return;
+    }
     if (hasUnsavedLocalChanges()) {
       const remoteEntryAccess = normalizeEntryAccess(remoteState?.entryAccess);
       if (JSON.stringify(remoteEntryAccess) !== JSON.stringify(state.entryAccess)) {
@@ -946,7 +1074,8 @@ function applyRemoteStateToCurrentView(uiState) {
     els.marksheetNameSearchInput.value = uiState.marksheetNameSearch || "";
   }
   updateAttendanceInputs();
-  initializeAnalysisFilters(savedUiState);
+  initializeAnalysisFilters(uiState);
+  initializeTeacherAnalyticsFilters(uiState);
 
   if (isFocusedEntryMarkInput()) {
     renderPublishStatus();
@@ -980,6 +1109,8 @@ function renderActiveViewOnly() {
     renderStudents();
   } else if (activeView === "analysis") {
     renderAcademicAnalysis();
+  } else if (activeView === "teacherAnalytics") {
+    renderTeacherAnalytics();
   } else {
     render();
   }
@@ -1184,6 +1315,10 @@ function examKey(className = selectedClass(), exam = selectedExam()) {
 
 function markKey(className = selectedClass(), exam = selectedExam(), subject = selectedSubject()) {
   return `${className}::${exam}::${subject}`;
+}
+
+function dataEntryUpdateKey(type, className, exam, subject = "") {
+  return [type, className, exam, subject].map((value) => String(value || "")).join("::");
 }
 
 function getMaxMarks(className = selectedClass(), exam = selectedExam()) {
@@ -1512,7 +1647,9 @@ function canViewResult() {
 }
 
 function populateSelect(select, options) {
-  select.innerHTML = options.map((option) => `<option value="${option}">${option}</option>`).join("");
+  select.innerHTML = options
+    .map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`)
+    .join("");
 }
 
 function init() {
@@ -1536,6 +1673,11 @@ function init() {
     els.marksheetNameSearchInput.value = savedUiState.marksheetNameSearch || "";
   }
   updateAttendanceInputs();
+  if (els.teacherAssignmentClassSelect) {
+    populateSelect(els.teacherAssignmentClassSelect, classNames);
+    updateTeacherAssignmentSubjectOptions();
+  }
+  initializeTeacherAnalyticsFilters(savedUiState);
 
   document.querySelectorAll(".nav-tab").forEach((tab) => {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
@@ -1658,6 +1800,31 @@ function init() {
   els.downloadAnalysisPdfBtn?.addEventListener("click", downloadAnalysisPDF);
   els.exportAnalysisExcelBtn?.addEventListener("click", exportAnalysisExcel);
   els.printAnalysisBtn?.addEventListener("click", printAcademicAnalysis);
+  els.teacherAssignmentForm?.addEventListener("submit", saveTeacherAssignment);
+  els.teacherAssignmentClassSelect?.addEventListener("change", () => updateTeacherAssignmentSubjectOptions());
+  els.cancelTeacherAssignmentEditBtn?.addEventListener("click", resetTeacherAssignmentForm);
+  els.teacherAssignmentBody?.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-teacher-assignment]");
+    const removeButton = event.target.closest("[data-remove-teacher-assignment]");
+    if (editButton) editTeacherAssignment(editButton.dataset.editTeacherAssignment);
+    if (removeButton) removeTeacherAssignment(removeButton.dataset.removeTeacherAssignment);
+  });
+  [
+    els.teacherAnalyticsSessionSelect,
+    els.teacherAnalyticsExamSelect,
+    els.teacherAnalyticsTeacherSelect,
+    els.teacherAnalyticsClassSelect,
+    els.teacherAnalyticsSubjectSelect
+  ].filter(Boolean).forEach((control) => {
+    control.addEventListener("change", () => {
+      initializeTeacherAnalyticsFilters();
+      saveUiState();
+      renderTeacherAnalytics();
+    });
+  });
+  els.downloadTeacherAnalysisPdfBtn?.addEventListener("click", downloadTeacherAnalysisPDF);
+  els.exportTeacherAnalysisExcelBtn?.addEventListener("click", exportTeacherAnalysisExcel);
+  els.printTeacherAnalysisBtn?.addEventListener("click", printTeacherAnalysis);
   els.analysisProgressClassSelect?.addEventListener("change", () => {
     updateAnalysisProgressExamOptions();
     saveUiState();
@@ -1908,6 +2075,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("students-active", activeView === "students");
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
   document.body.classList.toggle("analysis-active", activeView === "analysis");
+  document.body.classList.toggle("teacher-analytics-active", activeView === "teacherAnalytics");
   document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
@@ -1919,6 +2087,7 @@ function renderActiveViewChrome() {
     marksheet: "Marksheets",
     students: "Students",
     analysis: "Academic Analysis",
+    teacherAnalytics: "Teacher Performance Analytics",
     entryAccess: "Entry Access Control"
   };
   els.viewTitle.textContent = titles[activeView] || "Marks Entry";
@@ -1933,13 +2102,14 @@ function render() {
   renderMarksheets();
   renderStudents();
   renderAcademicAnalysis();
+  renderTeacherAnalytics();
   renderEntryAccessControl();
 }
 
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = !["attendance", "students", "analysis", "entryAccess"].includes(activeView);
+  const showMainFilters = !["attendance", "students", "analysis", "teacherAnalytics", "entryAccess"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -1956,7 +2126,10 @@ function renderPublishStatus() {
     : `${selectedClass()} - ${selectedExam()} | Admin only`;
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
-  els.unpublishBtn.textContent = status ? "Unpublish" : "Publish";
+  els.publishBtn.disabled = publicationSaveInProgress || status;
+  els.publishBtn.textContent = publicationSaveInProgress ? "Saving..." : status ? "Published" : "Publish Result";
+  els.unpublishBtn.disabled = publicationSaveInProgress;
+  els.unpublishBtn.textContent = publicationSaveInProgress ? "Saving..." : status ? "Unpublish" : "Publish";
   els.unpublishBtn.classList.toggle("primary-button", !status);
   els.unpublishBtn.classList.toggle("ghost-button", status);
   els.unpublishBtn.classList.toggle("danger", status);
@@ -4625,6 +4798,741 @@ function renderAcademicAnalysis() {
   els.analysisRecommendations.innerHTML = recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
+function teacherAssignmentSubjects(className) {
+  return analysisSubjectNames(className, analysisExamAll)
+    .filter((subject) => subject !== "W.E.")
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function selectedTeacherAssignmentClasses() {
+  if (!els.teacherAssignmentClassSelect) return [];
+  return [...els.teacherAssignmentClassSelect.selectedOptions].map((option) => option.value);
+}
+
+function updateTeacherAssignmentSubjectOptions(preferredSubjects = "") {
+  if (!els.teacherAssignmentSubjectSelect || !els.teacherAssignmentClassSelect) return;
+  const selectedClasses = selectedTeacherAssignmentClasses();
+  const classes = selectedClasses.length ? selectedClasses : [classNames[0]];
+  const subjectLists = classes.map((className) => teacherAssignmentSubjects(className));
+  const commonSubjects = subjectLists[0]
+    .filter((subject) => subjectLists.every((subjects) => subjects.includes(subject)));
+  const subjects = ["All Subjects", ...commonSubjects];
+  populateSelect(els.teacherAssignmentSubjectSelect, subjects);
+  const preferred = new Set(Array.isArray(preferredSubjects) ? preferredSubjects : [preferredSubjects]);
+  [...els.teacherAssignmentSubjectSelect.options].forEach((option) => {
+    option.selected = preferred.has(option.value);
+  });
+  if (![...els.teacherAssignmentSubjectSelect.selectedOptions].length && subjects.length) {
+    els.teacherAssignmentSubjectSelect.options[0].selected = true;
+  }
+}
+
+function expandTeacherAssignments(assignments, exam = analysisExamAll) {
+  return normalizeTeacherAssignments(assignments).flatMap((assignment) => {
+    if (assignment.subject !== "All Subjects") return [assignment];
+    const subjects = analysisSubjectNames(assignment.className, exam)
+      .filter((subject) => subject !== "W.E.");
+    return subjects.map((subject) => ({
+      ...assignment,
+      id: `${assignment.id}::${subject}`,
+      sourceAssignmentId: assignment.id,
+      subject
+    }));
+  });
+}
+
+function initializeTeacherAnalyticsFilters(savedFilters = null) {
+  if (!els.teacherAnalyticsSessionSelect) return;
+  const assignments = normalizeTeacherAssignments(state.teacherAssignments);
+  const previous = {
+    session: savedFilters?.teacherAnalyticsSession || els.teacherAnalyticsSessionSelect.value || state.academicSession,
+    exam: savedFilters?.teacherAnalyticsExam || els.teacherAnalyticsExamSelect.value || analysisExamAll,
+    teacher: savedFilters?.teacherAnalyticsTeacher || els.teacherAnalyticsTeacherSelect.value || "All Teachers",
+    className: savedFilters?.teacherAnalyticsClass || els.teacherAnalyticsClassSelect.value || "All Classes",
+    subject: savedFilters?.teacherAnalyticsSubject || els.teacherAnalyticsSubjectSelect.value || "All Subjects"
+  };
+  const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})])].sort();
+  populateSelect(els.teacherAnalyticsSessionSelect, sessions);
+  setSelectValueIfAvailable(els.teacherAnalyticsSessionSelect, previous.session);
+
+  const teachers = [...new Set(assignments.map((assignment) => assignment.teacherName))].sort();
+  populateSelect(els.teacherAnalyticsTeacherSelect, ["All Teachers", ...teachers]);
+  setSelectValueIfAvailable(els.teacherAnalyticsTeacherSelect, previous.teacher);
+  const teacherAssignments = previous.teacher === "All Teachers"
+    ? assignments
+    : assignments.filter((assignment) => assignment.teacherName === els.teacherAnalyticsTeacherSelect.value);
+
+  const classes = classNames.filter((className) =>
+    teacherAssignments.some((assignment) => assignment.className === className));
+  populateSelect(els.teacherAnalyticsClassSelect, ["All Classes", ...classes]);
+  setSelectValueIfAvailable(els.teacherAnalyticsClassSelect, previous.className);
+  const classAssignments = els.teacherAnalyticsClassSelect.value === "All Classes"
+    ? teacherAssignments
+    : teacherAssignments.filter((assignment) => assignment.className === els.teacherAnalyticsClassSelect.value);
+
+  const examClasses = [...new Set(classAssignments.map((assignment) => assignment.className))];
+  const exams = examNames.filter((exam) => examClasses.some((className) => currentExams(className).includes(exam)));
+  populateSelect(els.teacherAnalyticsExamSelect, [analysisExamAll, ...exams]);
+  setSelectValueIfAvailable(els.teacherAnalyticsExamSelect, previous.exam);
+
+  const expandedAssignments = expandTeacherAssignments(
+    classAssignments,
+    els.teacherAnalyticsExamSelect.value || analysisExamAll
+  );
+  const subjects = [...new Set(expandedAssignments.map((assignment) => assignment.subject))].sort();
+  populateSelect(els.teacherAnalyticsSubjectSelect, ["All Subjects", ...subjects]);
+  setSelectValueIfAvailable(els.teacherAnalyticsSubjectSelect, previous.subject);
+}
+
+function filteredTeacherAssignments() {
+  const teacher = els.teacherAnalyticsTeacherSelect?.value || "All Teachers";
+  const className = els.teacherAnalyticsClassSelect?.value || "All Classes";
+  const subject = els.teacherAnalyticsSubjectSelect?.value || "All Subjects";
+  const assignments = normalizeTeacherAssignments(state.teacherAssignments).filter((assignment) =>
+    (teacher === "All Teachers" || assignment.teacherName === teacher)
+    && (className === "All Classes" || assignment.className === className));
+  return expandTeacherAssignments(assignments, els.teacherAnalyticsExamSelect?.value || analysisExamAll)
+    .filter((assignment) => subject === "All Subjects" || assignment.subject === subject);
+}
+
+function teacherAnalyticsExamList(assignments, examFilter) {
+  if (examFilter !== analysisExamAll) return [examFilter];
+  return examNames.filter((exam) =>
+    assignments.some((assignment) => currentExams(assignment.className).includes(exam)));
+}
+
+function teacherSubjectObservation(record, assignment) {
+  const subject = record.subjects.find((item) => item.name === assignment.subject);
+  if (!subject) return null;
+  const percentage = subject.present && subject.maximum
+    ? (numericMark(subject.value) / subject.maximum) * 100
+    : 0;
+  return {
+    teacherId: assignment.teacherId,
+    teacherName: assignment.teacherName,
+    className: assignment.className,
+    subjectName: assignment.subject,
+    exam: record.exam,
+    roll: record.roll,
+    name: record.name,
+    present: subject.present,
+    passed: subject.present && subject.passed,
+    percentage,
+    value: subject.value,
+    maximum: subject.maximum
+  };
+}
+
+function buildTeacherObservations(session, assignments, examFilter) {
+  assignments = expandTeacherAssignments(assignments, examFilter);
+  const observations = [];
+  teacherAnalyticsExamList(assignments, examFilter).forEach((exam) => {
+    const recordsByClass = new Map();
+    assignments.forEach((assignment) => {
+      if (!currentExams(assignment.className).includes(exam)) return;
+      if (!analysisSubjectNames(assignment.className, exam).includes(assignment.subject)) return;
+      if (!recordsByClass.has(assignment.className)) {
+        recordsByClass.set(
+          assignment.className,
+          buildAcademicAnalysisRecords(session, [assignment.className], exam)
+        );
+      }
+      recordsByClass.get(assignment.className).forEach((record) => {
+        const observation = teacherSubjectObservation(record, assignment);
+        if (observation) observations.push(observation);
+      });
+    });
+  });
+  return observations;
+}
+
+function teacherObservationMetrics(observations) {
+  const total = observations.length;
+  const presentItems = observations.filter((item) => item.present);
+  const passed = observations.filter((item) => item.passed).length;
+  const percentages = presentItems.map((item) => item.percentage);
+  return {
+    total,
+    present: presentItems.length,
+    absent: total - presentItems.length,
+    passed,
+    failed: total - passed,
+    average: average(percentages),
+    passPercentage: total ? (passed / total) * 100 : 0,
+    failureRate: total ? ((total - passed) / total) * 100 : 0,
+    highest: percentages.length ? Math.max(...percentages) : 0,
+    lowest: percentages.length ? Math.min(...percentages) : 0,
+    distinction: presentItems.filter((item) =>
+      item.percentage >= (isHighClass(item.className) ? 75 : 80)).length
+  };
+}
+
+function teacherClassMetrics(observations) {
+  const groups = new Map();
+  observations.forEach((item) => {
+    const key = `${item.className}\u0000${item.subjectName}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  return [...groups.entries()].map(([key, items]) => {
+    const [className, subjectName] = key.split("\u0000");
+    return { className, subjectName, label: `${className} - ${subjectName}`, ...teacherObservationMetrics(items) };
+  }).sort((a, b) =>
+    classNames.indexOf(a.className) - classNames.indexOf(b.className)
+    || a.subjectName.localeCompare(b.subjectName));
+}
+
+function teacherPerformanceTrend(session, assignments) {
+  return teacherAnalyticsExamList(assignments, analysisExamAll).map((exam) => {
+    const metrics = teacherObservationMetrics(buildTeacherObservations(session, assignments, exam));
+    return { label: exam.replace("Unit Test", "UT"), average: metrics.average, total: metrics.total };
+  }).filter((item) => item.total);
+}
+
+function teacherGrowthMetrics(session, assignments, examFilter) {
+  const deltas = [];
+  assignments.forEach((assignment) => {
+    const available = examNames.filter((exam) =>
+      currentExams(assignment.className).includes(exam)
+      && analysisSubjectNames(assignment.className, exam).includes(assignment.subject));
+    const toExam = examFilter === analysisExamAll ? available.at(-1) : examFilter;
+    const toIndex = available.indexOf(toExam);
+    const fromExam = examFilter === analysisExamAll ? available[0] : available[toIndex - 1];
+    if (!fromExam || !toExam || fromExam === toExam) return;
+    const from = buildTeacherObservations(session, [assignment], fromExam);
+    const to = buildTeacherObservations(session, [assignment], toExam);
+    const fromMap = new Map(from.map((item) => [String(item.roll), item]));
+    to.forEach((item) => {
+      const previous = fromMap.get(String(item.roll));
+      if (previous?.present && item.present) {
+        deltas.push({
+          ...item,
+          fromExam,
+          toExam,
+          previousPercentage: previous.percentage,
+          delta: item.percentage - previous.percentage
+        });
+      }
+    });
+  });
+  return {
+    records: deltas,
+    averageDelta: average(deltas.map((item) => item.delta)),
+    improved: deltas.filter((item) => item.delta >= 5).length,
+    stable: deltas.filter((item) => item.delta > -5 && item.delta < 5).length,
+    declined: deltas.filter((item) => item.delta <= -5).length
+  };
+}
+
+function teacherSchoolComparisons(session, classMetrics, examFilter) {
+  return classMetrics.map((metric) => {
+    const schoolAssignments = classNames
+      .filter((className) => teacherAnalyticsExamList([{ className }], examFilter)
+        .some((exam) => analysisSubjectNames(className, exam).includes(metric.subjectName)))
+      .map((className) => ({
+        teacherId: "school",
+        teacherName: "School",
+        className,
+        subject: metric.subjectName
+      }));
+    const school = teacherObservationMetrics(buildTeacherObservations(session, schoolAssignments, examFilter));
+    return {
+      label: `${metric.className} - ${metric.subjectName}`,
+      teacherAverage: metric.average,
+      schoolAverage: school.average
+    };
+  });
+}
+
+function teacherComparisonChart(items) {
+  if (!items.length) return '<p class="analysis-empty">No comparison data available.</p>';
+  return `<div class="teacher-comparison-chart">${items.map((item) => `
+    <div class="teacher-comparison-row">
+      <span>${escapeHtml(item.label)}</span>
+      <div><i class="teacher-bar" style="width:${Math.min(100, item.teacherAverage)}%"></i></div>
+      <strong>${item.teacherAverage.toFixed(2)}%</strong>
+      <div><i class="school-bar" style="width:${Math.min(100, item.schoolAverage)}%"></i></div>
+      <strong>${item.schoolAverage.toFixed(2)}%</strong>
+    </div>`).join("")}
+    <div class="teacher-comparison-legend"><span><i class="teacher-bar"></i>Assigned class</span><span><i class="school-bar"></i>School subject average</span></div>
+  </div>`;
+}
+
+function teacherSupportBarChart(items) {
+  if (!items.length) return '<p class="analysis-empty">No students currently need support.</p>';
+  const max = Math.max(...items.map((item) => item.count), 1);
+  return `<div class="analysis-bar-chart">${items.map((item) => `
+    <div class="analysis-bar-row">
+      <span>${escapeHtml(item.className)}</span>
+      <div class="analysis-bar-track"><i style="width:${(item.count / max) * 100}%"></i></div>
+      <strong>${item.count}</strong>
+    </div>`).join("")}</div>`;
+}
+
+function teacherDataCompletion(session, assignments, examFilter, observations) {
+  const marks = {
+    expected: observations.length,
+    completed: observations.filter((item) => item.present).length
+  };
+  const termPairs = new Map();
+  teacherAnalyticsExamList(assignments, examFilter).filter((exam) => termExams.includes(exam)).forEach((exam) => {
+    assignments.forEach((assignment) => {
+      if (currentExams(assignment.className).includes(exam)) {
+        termPairs.set(`${assignment.className}\u0000${exam}`, { className: assignment.className, exam });
+      }
+    });
+  });
+  const attendance = { expected: 0, completed: 0 };
+  const measurement = { expected: 0, completed: 0 };
+  runWithAnalysisSession(session, () => {
+    termPairs.forEach(({ className, exam }) => {
+      (state.classes[className] || []).forEach((student) => {
+        attendance.expected += 1;
+        measurement.expected += 1;
+        if (getStudentAttendance(student, className, exam) !== "") attendance.completed += 1;
+        const value = getStudentMeasurement(student, className, exam);
+        if (value.height !== "" && value.weight !== "") measurement.completed += 1;
+      });
+    });
+  });
+  const relevantUpdates = runWithAnalysisSession(session, () => Object.entries(state.dataEntryUpdates || {})
+    .filter(([key]) => assignments.some((assignment) => key.includes(`::${assignment.className}::`)))
+    .map(([, value]) => value)
+    .filter((value) => value?.updatedAt)
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))));
+  return {
+    marks,
+    attendance,
+    measurement,
+    lastUpdated: relevantUpdates[0] || null
+  };
+}
+
+function completionPercentage(item) {
+  return item.expected ? (item.completed / item.expected) * 100 : 0;
+}
+
+function teacherPerformanceRating(overview, growth, completion) {
+  if (!overview.total) return { rating: 0, score: 0 };
+  const improvementScore = growth.records.length
+    ? clamp(50 + (growth.averageDelta * 5), 0, 100)
+    : 50;
+  const score =
+    (overview.average * 0.35)
+    + (overview.passPercentage * 0.35)
+    + (completionPercentage(completion.marks) * 0.20)
+    + (improvementScore * 0.10);
+  return {
+    score,
+    rating: Math.round((score / 20) * 10) / 10
+  };
+}
+
+function renderTeacherAssignmentTable() {
+  if (!els.teacherAssignmentBody) return;
+  const assignments = normalizeTeacherAssignments(state.teacherAssignments);
+  els.teacherAssignmentBody.innerHTML = assignments.length
+    ? assignments.map((assignment) => `<tr>
+      <td>${escapeHtml(assignment.teacherName)}</td>
+      <td>${escapeHtml(assignment.className)}</td>
+      <td>${escapeHtml(assignment.subject)}</td>
+      <td class="teacher-assignment-actions">
+        <button class="ghost-button compact-button" type="button" data-edit-teacher-assignment="${escapeAttr(assignment.id)}">Edit</button>
+        <button class="ghost-button compact-button danger" type="button" data-remove-teacher-assignment="${escapeAttr(assignment.id)}">Remove</button>
+      </td>
+    </tr>`).join("")
+    : '<tr><td colspan="4">No teacher assignments have been added.</td></tr>';
+}
+
+function resetTeacherAssignmentForm() {
+  editingTeacherAssignmentId = "";
+  els.teacherAssignmentForm?.reset();
+  if (els.teacherAssignmentClassSelect?.options.length) {
+    [...els.teacherAssignmentClassSelect.options].forEach((option, index) => {
+      option.selected = index === 0;
+    });
+  }
+  updateTeacherAssignmentSubjectOptions();
+  if (els.saveTeacherAssignmentBtn) els.saveTeacherAssignmentBtn.textContent = "Add Assignment";
+  els.cancelTeacherAssignmentEditBtn?.classList.add("hidden");
+}
+
+function saveTeacherAssignment(event) {
+  event.preventDefault();
+  if (!isAdmin()) {
+    showToast("Access denied. Admin privileges required.");
+    return;
+  }
+  const teacherName = els.teacherAssignmentNameInput.value.trim();
+  const selectedClasses = selectedTeacherAssignmentClasses();
+  const selectedSubjects = [...els.teacherAssignmentSubjectSelect.selectedOptions].map((option) => option.value);
+  const subjects = selectedSubjects.includes("All Subjects") ? ["All Subjects"] : selectedSubjects;
+  if (!teacherName || !selectedClasses.length || !subjects.length) {
+    showToast("Enter the teacher name and select at least one class and subject.");
+    return;
+  }
+  let assignments = normalizeTeacherAssignments(state.teacherAssignments);
+  const sameTeacherClass = (assignment, className) =>
+    assignment.id !== editingTeacherAssignmentId
+    && assignment.teacherName.toLowerCase() === teacherName.toLowerCase()
+    && assignment.className === className;
+  if (subjects[0] !== "All Subjects" && selectedClasses.some((className) =>
+    assignments.some((assignment) => sameTeacherClass(assignment, className) && assignment.subject === "All Subjects"))) {
+    showToast("All Subjects is already assigned to this teacher and class.");
+    return;
+  }
+  if (subjects[0] === "All Subjects") {
+    assignments = assignments.filter((assignment) =>
+      !selectedClasses.some((className) => sameTeacherClass(assignment, className)));
+  }
+  const duplicates = selectedClasses.flatMap((className) => subjects
+    .filter((subject) => assignments.some((assignment) =>
+      sameTeacherClass(assignment, className) && assignment.subject === subject))
+    .map((subject) => `${className} ${subject}`));
+  if (duplicates.length) {
+    showToast(`${duplicates.join(", ")} ${duplicates.length === 1 ? "is" : "are"} already assigned.`);
+    return;
+  }
+  const index = assignments.findIndex((assignment) => assignment.id === editingTeacherAssignmentId);
+  if (index >= 0) assignments.splice(index, 1);
+  const createdAt = Date.now();
+  let assignmentIndex = 0;
+  selectedClasses.forEach((className) => {
+    subjects.forEach((subject) => {
+      assignments.push({
+        id: assignmentIndex === 0 && editingTeacherAssignmentId
+          ? editingTeacherAssignmentId
+          : `teacher-assignment-${createdAt}-${assignmentIndex}`,
+        teacherId: slugifyTeacherName(teacherName),
+        teacherName,
+        className,
+        subject
+      });
+      assignmentIndex += 1;
+    });
+  });
+  state.teacherAssignments = assignments;
+  saveState();
+  resetTeacherAssignmentForm();
+  initializeTeacherAnalyticsFilters();
+  renderTeacherAnalytics();
+  showToast(index >= 0
+    ? "Teacher assignment updated."
+    : `${selectedClasses.length * subjects.length} teacher ${selectedClasses.length * subjects.length === 1 ? "assignment" : "assignments"} added.`);
+}
+
+function editTeacherAssignment(id) {
+  if (!isAdmin()) return;
+  const assignment = normalizeTeacherAssignments(state.teacherAssignments)
+    .find((item) => item.id === id);
+  if (!assignment) return;
+  editingTeacherAssignmentId = assignment.id;
+  els.teacherAssignmentNameInput.value = assignment.teacherName;
+  [...els.teacherAssignmentClassSelect.options].forEach((option) => {
+    option.selected = option.value === assignment.className;
+  });
+  updateTeacherAssignmentSubjectOptions(assignment.subject);
+  els.saveTeacherAssignmentBtn.textContent = "Update Assignment";
+  els.cancelTeacherAssignmentEditBtn.classList.remove("hidden");
+  els.teacherAssignmentNameInput.focus();
+}
+
+function removeTeacherAssignment(id) {
+  if (!isAdmin()) return;
+  const assignment = normalizeTeacherAssignments(state.teacherAssignments)
+    .find((item) => item.id === id);
+  if (!assignment || !window.confirm(`Remove ${assignment.teacherName} - ${assignment.className} ${assignment.subject}?`)) return;
+  state.teacherAssignments = normalizeTeacherAssignments(state.teacherAssignments)
+    .filter((item) => item.id !== id);
+  saveState();
+  if (editingTeacherAssignmentId === id) resetTeacherAssignmentForm();
+  initializeTeacherAnalyticsFilters();
+  renderTeacherAnalytics();
+  showToast("Teacher assignment removed.");
+}
+
+function renderTeacherAnalytics() {
+  if (!els.teacherAnalyticsContent || activeView !== "teacherAnalytics") return;
+  const allowed = isAdmin();
+  els.teacherAnalyticsAccessDenied.classList.toggle("hidden", allowed);
+  els.teacherAnalyticsContent.classList.toggle("hidden", !allowed);
+  if (!allowed) {
+    teacherAnalyticsCurrentData = null;
+    return;
+  }
+
+  if (!els.teacherAssignmentClassSelect.options.length) {
+    populateSelect(els.teacherAssignmentClassSelect, classNames);
+    updateTeacherAssignmentSubjectOptions();
+  }
+  initializeTeacherAnalyticsFilters();
+  renderTeacherAssignmentTable();
+  const assignments = filteredTeacherAssignments();
+  const session = els.teacherAnalyticsSessionSelect.value || state.academicSession;
+  const exam = els.teacherAnalyticsExamSelect.value || analysisExamAll;
+  const observations = buildTeacherObservations(session, assignments, exam);
+  const overview = teacherObservationMetrics(observations);
+  const classMetrics = teacherClassMetrics(observations);
+  const growth = teacherGrowthMetrics(session, assignments, exam);
+  const trend = teacherPerformanceTrend(session, assignments);
+  const comparisons = teacherSchoolComparisons(session, classMetrics, exam);
+  const completion = teacherDataCompletion(session, assignments, exam, observations);
+  const performanceRating = teacherPerformanceRating(overview, growth, completion);
+  const declineMap = new Map(growth.records.filter((item) => item.delta <= -5)
+    .map((item) => [`${item.className}\u0000${item.subjectName}\u0000${item.roll}`, item.delta]));
+  const supportMap = new Map();
+  observations.filter((item) => !item.present || !item.passed || item.percentage < 40).forEach((item) => {
+    const key = `${item.className}\u0000${item.subjectName}\u0000${item.roll}`;
+    const reasons = [];
+    if (!item.present) reasons.push("Absent");
+    else {
+      if (!item.passed) reasons.push("Failed");
+      if (item.percentage < 40) reasons.push("Below 40%");
+    }
+    if (declineMap.has(key)) reasons.push(`Declined ${Math.abs(declineMap.get(key)).toFixed(2)} points`);
+    const existing = supportMap.get(key);
+    if (!existing || (!item.present && existing.present)) supportMap.set(key, { ...item, reasons });
+  });
+  growth.records.filter((item) => item.delta <= -5).forEach((item) => {
+    const key = `${item.className}\u0000${item.subjectName}\u0000${item.roll}`;
+    if (!supportMap.has(key)) {
+      supportMap.set(key, { ...item, reasons: [`Declined ${Math.abs(item.delta).toFixed(2)} points`] });
+    }
+  });
+  const support = [...supportMap.values()].sort((a, b) =>
+    a.className.localeCompare(b.className) || a.name.localeCompare(b.name));
+  teacherAnalyticsCurrentData = {
+    session, exam, assignments, observations, overview, classMetrics, growth, trend,
+    comparisons, completion, support, performanceRating
+  };
+
+  const teacherLabel = els.teacherAnalyticsTeacherSelect.value;
+  const teacherPossessiveLabel = teacherLabel === "All Teachers" ? "The selected teachers'" : `${teacherLabel}'s`;
+  els.teacherAnalyticsSubtitle.textContent = `${teacherLabel} | ${exam} | Academic Session ${formatAcademicSession(session)}`;
+  els.teacherAnalyticsAssignmentSummary.innerHTML = assignments.length
+    ? `<div class="teacher-assignment-chips">${assignments.map((assignment) =>
+      `<span><strong>${escapeHtml(assignment.teacherName)}</strong> - ${escapeHtml(assignment.className)} ${escapeHtml(assignment.subject)}</span>`).join("")}</div>`
+    : '<p class="analysis-empty">No assignments match the selected filters.</p>';
+  const overviewCards = [
+    ["Overall Average", `${overview.average.toFixed(2)}%`],
+    ["Pass Rate", `${overview.passPercentage.toFixed(2)}%`],
+    ["Student Improvement", `${growth.averageDelta >= 0 ? "+" : ""}${growth.averageDelta.toFixed(2)} pts`],
+    ["Failure Rate", `${overview.failureRate.toFixed(2)}%`],
+    ["Data Completion", `${completionPercentage(completion.marks).toFixed(2)}%`],
+    ["Students Needing Support", support.length],
+    ["Performance Rating", `${performanceRating.rating.toFixed(1)} / 5`],
+    ["Passed", overview.passed],
+    ["Failed / Absent", overview.failed],
+    ["Highest", `${overview.highest.toFixed(2)}%`],
+    ["Lowest", `${overview.lowest.toFixed(2)}%`],
+    ["Distinction", overview.distinction],
+    ["Comparable Growth Records", growth.records.length]
+  ];
+  const filledStars = Math.round(performanceRating.rating);
+  els.teacherAnalyticsOverview.innerHTML = overviewCards
+    .map(([label, value]) => `<article${label === "Performance Rating"
+      ? ' class="teacher-rating-card" title="35% overall average, 35% pass rate, 20% marks completion, and 10% student improvement"'
+      : ""}><span>${label}</span><strong>${value}</strong>${label === "Performance Rating"
+      ? `<small class="teacher-stars" aria-label="${performanceRating.rating.toFixed(1)} out of 5 stars">${"★".repeat(filledStars)}${"☆".repeat(5 - filledStars)}</small>`
+      : ""}</article>`).join("");
+  els.teacherAnalyticsTrendChart.innerHTML = analysisLineChart(trend);
+  els.teacherAnalyticsPassChart.innerHTML = analysisDonutChart([
+    { label: "Passed", value: overview.passed, color: "#157347" },
+    { label: "Failed", value: Math.max(0, overview.failed - overview.absent), color: "#c2413b" },
+    { label: "Absent", value: overview.absent, color: "#697586" }
+  ], `${overview.passPercentage.toFixed(1)}%`);
+  els.teacherAnalyticsClassChart.innerHTML = analysisBarChart(classMetrics, "average", "label");
+  els.teacherAnalyticsComparisonChart.innerHTML = teacherComparisonChart(comparisons);
+  const sortedClasses = [...classMetrics].sort((a, b) =>
+    (b.passPercentage - a.passPercentage) || (b.average - a.average));
+  const subjectScope = [...new Set(assignments.map((assignment) => assignment.subject))].join(", ") || "assigned subjects";
+  const strongestText = sortedClasses[0]
+    ? `${sortedClasses[0].className} ${sortedClasses[0].subjectName} showed the strongest selected performance`
+    : "No strongest class can be identified until marks are completed";
+  const focusText = sortedClasses.length > 1
+    ? `${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectName} needs the most attention`
+    : "the selected assignment should be monitored against future examinations";
+  els.teacherAnalyticsInsightSummary.textContent =
+    `${teacherPossessiveLabel} ${subjectScope} recorded an overall average of ${overview.average.toFixed(2)}% `
+    + `with a pass rate of ${overview.passPercentage.toFixed(2)}%. ${strongestText}, while ${focusText}. `
+    + (growth.records.length
+      ? `Comparable students changed by an average of ${growth.averageDelta >= 0 ? "+" : ""}${growth.averageDelta.toFixed(2)} points.`
+      : "More comparable examination data is needed to measure student improvement.");
+  els.teacherAnalyticsClassHighlight.textContent = sortedClasses.length > 1
+    ? `Strongest: ${sortedClasses[0].className} ${sortedClasses[0].subjectName} | Needs attention: ${sortedClasses.at(-1).className} ${sortedClasses.at(-1).subjectName}`
+    : sortedClasses.length
+      ? `${sortedClasses[0].className} ${sortedClasses[0].subjectName}: ${sortedClasses[0].average.toFixed(2)}% average`
+      : "No completed marks";
+  els.teacherAnalyticsClassBody.innerHTML = classMetrics.length
+    ? classMetrics.map((metric) => `<tr>
+      <td>${escapeHtml(metric.className)}</td><td>${escapeHtml(metric.subjectName)}</td>
+      <td>${metric.average.toFixed(2)}%</td><td>${metric.passPercentage.toFixed(2)}%</td>
+      <td>${metric.highest.toFixed(2)}%</td><td>${metric.lowest.toFixed(2)}%</td><td>${metric.failed}</td>
+    </tr>`).join("")
+    : '<tr><td colspan="7">Add teacher assignments and completed marks to view performance.</td></tr>';
+  const completionItems = [
+    ["Marks", completion.marks],
+    ["Attendance", completion.attendance],
+    ["Physical Measurement", completion.measurement]
+  ];
+  els.teacherAnalyticsCompletion.innerHTML = completionItems.map(([label, item]) => `
+    <article><span>${label}</span><strong>${item.completed} / ${item.expected}</strong>
+    <div class="teacher-completion-track"><i style="width:${completionPercentage(item)}%"></i></div>
+    <small>${completionPercentage(item).toFixed(2)}% complete | ${Math.max(0, item.expected - item.completed)} missing</small></article>`).join("");
+  els.teacherAnalyticsLastUpdated.textContent = completion.lastUpdated
+    ? `Last update: ${new Date(completion.lastUpdated.updatedAt).toLocaleString()} by ${completion.lastUpdated.updatedBy || "Unknown"}`
+    : "No recorded update timestamp";
+  els.teacherAnalyticsSupportBody.innerHTML = support.length
+    ? support.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.className)}</td>
+      <td>${escapeHtml(item.subjectName)}</td><td>${item.present ? `${item.percentage.toFixed(2)}%` : "-"}</td>
+      <td>${item.present ? (item.passed ? "Pass" : "Fail") : "Absent"}</td><td>${escapeHtml(item.reasons.join(", "))}</td></tr>`).join("")
+    : '<tr><td colspan="6">No students currently meet the support criteria.</td></tr>';
+  const supportByClass = classNames.map((className) => ({
+    className,
+    count: support.filter((item) => item.className === className).length
+  })).filter((item) => item.count);
+  els.teacherAnalyticsSupportChart.innerHTML = teacherSupportBarChart(supportByClass);
+
+  const strengths = [];
+  const weaknesses = [];
+  const recommendations = [];
+  if (overview.passPercentage >= 80) strengths.push(`The selected assignments have a ${overview.passPercentage.toFixed(2)}% pass rate.`);
+  if (growth.improved) strengths.push(`${growth.improved} comparable student record(s) improved by at least 5 points.`);
+  if (sortedClasses[0]) strengths.push(`${sortedClasses[0].className} ${sortedClasses[0].subjectName} is the strongest selected assignment.`);
+  if (overview.failureRate > 20) weaknesses.push(`The failure and absence rate is ${overview.failureRate.toFixed(2)}%.`);
+  if (growth.declined) weaknesses.push(`${growth.declined} comparable student record(s) declined by at least 5 points.`);
+  if (completionPercentage(completion.marks) < 100) weaknesses.push(`${completion.marks.expected - completion.marks.completed} expected mark entries are missing.`);
+  if (support.length) recommendations.push(`Prepare focused support plans for the ${support.length} student(s) listed.`);
+  if (growth.declined) recommendations.push("Review declining students against attendance, prior attainment, and assessment difficulty.");
+  if (completionPercentage(completion.marks) < 100) recommendations.push("Complete missing marks before using this report for planning.");
+  if (!strengths.length) strengths.push("More completed and comparable records are needed to identify a clear strength.");
+  if (!weaknesses.length) weaknesses.push("No major concern is visible in the selected data.");
+  if (!recommendations.length) recommendations.push("Continue regular monitoring and share effective classroom practices.");
+  els.teacherAnalyticsStrengths.innerHTML = strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  els.teacherAnalyticsWeaknesses.innerHTML = weaknesses.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  els.teacherAnalyticsRecommendations.innerHTML = recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+}
+
+async function downloadTeacherAnalysisPDF() {
+  if (!isAdmin() || !teacherAnalyticsCurrentData || !window.html2canvas || !window.jspdf?.jsPDF) {
+    showToast("Teacher analysis is not ready for PDF download.");
+    return;
+  }
+  const button = els.downloadTeacherAnalysisPdfBtn;
+  if (button.disabled) return;
+  const previousText = button.textContent;
+  let capture = null;
+  try {
+    button.disabled = true;
+    button.textContent = "Generating Teacher Analysis PDF...";
+    capture = els.teacherAnalyticsReport.cloneNode(true);
+    capture.classList.add("teacher-analysis-pdf-capture");
+    document.body.appendChild(capture);
+    const canvas = await window.html2canvas(capture, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a3", compress: true });
+    const margin = 7;
+    const pageWidth = 297;
+    const pageHeight = 420;
+    const width = pageWidth - margin * 2;
+    const height = (canvas.height * width) / canvas.width;
+    const printableHeight = pageHeight - margin * 2;
+    const image = canvas.toDataURL("image/jpeg", 0.94);
+    let offset = 0;
+    let page = 0;
+    while (offset < height) {
+      if (page) pdf.addPage();
+      pdf.addImage(image, "JPEG", margin, margin - offset, width, height, undefined, "FAST");
+      offset += printableHeight;
+      page += 1;
+    }
+    const data = teacherAnalyticsCurrentData;
+    const teacher = els.teacherAnalyticsTeacherSelect.value;
+    pdf.save(`Teacher_Analysis_${fileSafeName(teacher)}_${fileSafeName(data.exam)}_${fileSafeName(data.session)}.pdf`);
+  } catch (error) {
+    console.error("Could not generate teacher analysis PDF", error);
+    showToast("Could not generate teacher analysis PDF. Please try again.");
+  } finally {
+    capture?.remove();
+    button.disabled = false;
+    button.textContent = previousText;
+  }
+}
+
+function exportTeacherAnalysisExcel() {
+  if (!isAdmin() || !teacherAnalyticsCurrentData || !window.XLSX) {
+    showToast("Teacher analysis is not ready for Excel export.");
+    return;
+  }
+  const data = teacherAnalyticsCurrentData;
+  const workbook = window.XLSX.utils.book_new();
+  const overviewRows = Object.entries(data.overview).map(([metric, value]) => ({
+    Metric: formatFirebaseFieldName(metric),
+    Value: typeof value === "number" ? Number(value.toFixed(2)) : value
+  }));
+  overviewRows.push(
+    { Metric: "Performance Rating", Value: `${data.performanceRating.rating.toFixed(1)} / 5` },
+    { Metric: "Performance Rating Score", Value: Number(data.performanceRating.score.toFixed(2)) }
+  );
+  const assignmentRows = data.assignments.map((item) => ({
+    Teacher: item.teacherName,
+    Class: item.className,
+    Subject: item.subject
+  }));
+  const classRows = data.classMetrics.map((item) => ({
+    Class: item.className,
+    Subject: item.subjectName,
+    Average: Number(item.average.toFixed(2)),
+    "Pass Percentage": Number(item.passPercentage.toFixed(2)),
+    Highest: Number(item.highest.toFixed(2)),
+    Lowest: Number(item.lowest.toFixed(2)),
+    Passed: item.passed,
+    Failed: item.failed,
+    Absent: item.absent
+  }));
+  const supportRows = data.support.map((item) => ({
+    "Student Name": item.name,
+    Class: item.className,
+    Subject: item.subjectName,
+    Percentage: item.present ? Number(item.percentage.toFixed(2)) : "",
+    Status: item.present ? (item.passed ? "Pass" : "Fail") : "Absent",
+    Reason: item.reasons.join(", ")
+  }));
+  const completionRows = ["marks", "attendance", "measurement"].map((key) => ({
+    Area: formatFirebaseFieldName(key),
+    Completed: data.completion[key].completed,
+    Expected: data.completion[key].expected,
+    "Completion Percentage": Number(completionPercentage(data.completion[key]).toFixed(2)),
+    Missing: Math.max(0, data.completion[key].expected - data.completion[key].completed)
+  }));
+  [
+    ["Overview", overviewRows],
+    ["Assignments", assignmentRows],
+    ["Class Performance", classRows],
+    ["Support Students", supportRows],
+    ["Data Completion", completionRows]
+  ].forEach(([name, rows]) => {
+    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(rows), name);
+  });
+  window.XLSX.writeFile(
+    workbook,
+    `Teacher_Analysis_${fileSafeName(els.teacherAnalyticsTeacherSelect.value)}_${fileSafeName(data.session)}.xlsx`
+  );
+}
+
+function printTeacherAnalysis() {
+  if (!isAdmin() || !teacherAnalyticsCurrentData) {
+    showToast("Teacher analysis is not ready to print.");
+    return;
+  }
+  startPrintMode("print-teacher-analysis");
+}
+
 async function downloadAnalysisPDF() {
   if (!analysisCurrentData || !window.html2canvas || !window.jspdf?.jsPDF) {
     showToast("Academic analysis is not ready for PDF download.");
@@ -5435,7 +6343,7 @@ function clearCurrentPrintTarget() {
 
 function startPrintMode(printClass, extraClass = "") {
   clearTimeout(printCleanupTimer);
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis");
   activePrintClass = printClass;
   document.body.classList.add(printClass);
   if (extraClass) document.body.classList.add(extraClass);
@@ -5450,7 +6358,7 @@ function startPrintMode(printClass, extraClass = "") {
 function clearPrintMode() {
   clearTimeout(printCleanupTimer);
   printCleanupTimer = null;
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis");
   clearCurrentPrintTarget();
   activePrintClass = "";
   if (restoreMarksheetsAfterPrint) {
@@ -5854,22 +6762,66 @@ function getDivision(percentage, failed) {
   return "III";
 }
 
-function publishCurrentResult() {
+async function persistResultPublication(shouldPublish) {
+  if (publicationSaveInProgress) return;
   if (!isAdmin()) {
-    showToast("Only admin can publish results.");
+    showToast(`Only admin can ${shouldPublish ? "publish" : "unpublish"} results.`);
     return;
   }
-  if (hasUnsavedLocalChanges()) {
-    showToast("Save changes before publishing results.");
+  const className = selectedClass();
+  const exam = selectedExam();
+  const key = examKey(className, exam);
+  if (hasUnsavedResultChanges(className, exam)) {
+    showToast(`Save ${className} ${exam} changes before ${shouldPublish ? "publishing" : "unpublishing"}.`);
     return;
   }
 
-  state.published[examKey()] = {
-    publishedAt: new Date().toISOString()
-  };
-  saveState();
+  const previousValue = state.published?.[key];
+  const publicationValue = shouldPublish ? { publishedAt: new Date().toISOString() } : null;
+  publicationSaveInProgress = true;
+  state.published = state.published || {};
+  if (shouldPublish) state.published[key] = publicationValue;
+  else delete state.published[key];
+  syncActiveSessionData();
+  localStorage.setItem(storageKey, JSON.stringify(state));
   render();
-  showToast(`${selectedClass()} ${selectedExam()} published.`);
+
+  try {
+    const session = currentSessionKey(state.academicSession);
+    if (window.MarkHubFirebase?.updateAppStateFields) {
+      const value = shouldPublish
+        ? publicationValue
+        : window.MarkHubFirebase.deleteFieldValue?.();
+      if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
+      await window.MarkHubFirebase.updateAppStateFields([
+        { path: ["state", "published", key], value },
+        { path: ["state", "sessions", session, "published", key], value }
+      ], structuredClone(state));
+      const stateJson = JSON.stringify(state);
+      lastSyncedFirebaseStateJson = stateJson;
+      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
+    } else if (!hasUnsavedLocalChanges() && window.MarkHubFirebase?.saveAppState) {
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+      lastSyncedFirebaseStateJson = JSON.stringify(state);
+    } else {
+      throw new Error("Firebase is not ready.");
+    }
+    showToast(`${className} ${exam} ${shouldPublish ? "published" : "unpublished"}.`);
+  } catch (error) {
+    console.error(`[Firestore] Could not ${shouldPublish ? "publish" : "unpublish"} result`, error);
+    if (previousValue) state.published[key] = previousValue;
+    else delete state.published[key];
+    syncActiveSessionData();
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    showToast(`Could not ${shouldPublish ? "publish" : "unpublish"} the result. Please try again.`);
+  } finally {
+    publicationSaveInProgress = false;
+    render();
+  }
+}
+
+function publishCurrentResult() {
+  return persistResultPublication(true);
 }
 
 function toggleResultPublication() {
@@ -5881,19 +6833,7 @@ function toggleResultPublication() {
 }
 
 function unpublishCurrentResult() {
-  if (!isAdmin()) {
-    showToast("Only admin can unpublish results.");
-    return;
-  }
-  if (hasUnsavedLocalChanges()) {
-    showToast("Save changes before unpublishing results.");
-    return;
-  }
-
-  delete state.published[examKey()];
-  saveState();
-  render();
-  showToast(`${selectedClass()} ${selectedExam()} unpublished.`);
+  return persistResultPublication(false);
 }
 
 function exportCsv() {
