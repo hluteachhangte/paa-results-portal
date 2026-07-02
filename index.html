@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=hide-ne-circle-ab-20260702">
+  <link rel="stylesheet" href="./styles.css?v=teacher-table-toggle-20260702">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -319,7 +319,11 @@
           </div>
 
           <section class="analysis-panel teacher-assignment-panel">
-            <div class="analysis-panel-head"><div><h4>Teacher Assignment Setup</h4><span>Map each teacher to a class and subject.</span></div></div>
+            <div class="analysis-panel-head">
+              <div><h4>Teacher Assignment Setup</h4><span>Map each teacher to a class and subject.</span></div>
+              <button id="toggleTeacherAssignmentTableBtn" class="analysis-list-toggle" type="button"
+                aria-expanded="true" aria-controls="teacherAssignmentTableWrap">Hide Table</button>
+            </div>
             <form id="teacherAssignmentForm" class="teacher-assignment-form">
               <label>Teacher Name<input id="teacherAssignmentNameInput" type="text" required></label>
               <label>Class<select id="teacherAssignmentClassSelect"></select></label>
@@ -328,7 +332,7 @@
               <button id="saveTeacherAssignmentBtn" class="primary-button" type="submit">Add Assignment</button>
               <button id="cancelTeacherAssignmentEditBtn" class="ghost-button hidden" type="button">Cancel</button>
             </form>
-            <div class="analysis-table-wrap teacher-assignment-table-wrap">
+            <div id="teacherAssignmentTableWrap" class="analysis-table-wrap teacher-assignment-table-wrap">
               <table class="analysis-table teacher-assignment-table">
                 <thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Part</th><th>Actions</th></tr></thead>
                 <tbody id="teacherAssignmentBody"></tbody>
@@ -659,6 +663,6 @@
   <script type="module" src="./firebase.js?v=attendance-save-20260624"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=hide-ne-circle-ab-20260702"></script>
+  <script src="./app.js?v=teacher-table-toggle-20260702"></script>
 </body>
 </html>

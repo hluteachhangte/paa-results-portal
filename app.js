@@ -305,6 +305,8 @@ const els = {
   saveTeacherAssignmentBtn: document.querySelector("#saveTeacherAssignmentBtn"),
   cancelTeacherAssignmentEditBtn: document.querySelector("#cancelTeacherAssignmentEditBtn"),
   teacherAssignmentBody: document.querySelector("#teacherAssignmentBody"),
+  teacherAssignmentTableWrap: document.querySelector("#teacherAssignmentTableWrap"),
+  toggleTeacherAssignmentTableBtn: document.querySelector("#toggleTeacherAssignmentTableBtn"),
   teacherAnalyticsSessionSelect: document.querySelector("#teacherAnalyticsSessionSelect"),
   teacherAnalyticsExamSelect: document.querySelector("#teacherAnalyticsExamSelect"),
   teacherAnalyticsTeacherSelect: document.querySelector("#teacherAnalyticsTeacherSelect"),
@@ -1845,6 +1847,15 @@ function init() {
   });
   els.teacherAssignmentSubjectSelect?.addEventListener("change", () => updateTeacherAssignmentPartOptions());
   els.cancelTeacherAssignmentEditBtn?.addEventListener("click", resetTeacherAssignmentForm);
+  els.toggleTeacherAssignmentTableBtn?.addEventListener("click", () => {
+    const tableWrap = els.teacherAssignmentTableWrap;
+    const button = els.toggleTeacherAssignmentTableBtn;
+    if (!tableWrap || !button) return;
+    const willShow = tableWrap.classList.contains("hidden");
+    tableWrap.classList.toggle("hidden", !willShow);
+    button.textContent = willShow ? "Hide Table" : "Show Table";
+    button.setAttribute("aria-expanded", String(willShow));
+  });
   els.teacherAssignmentBody?.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-teacher-assignment]");
     const removeButton = event.target.closest("[data-remove-teacher-assignment]");
