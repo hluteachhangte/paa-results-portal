@@ -6396,6 +6396,99 @@ body.entry-active #entryView > .section-head {
   }
 }
 
+/* Match the Attendance toolbar to the compact Marks Entry controls. */
+body.attendance-active #viewTitle {
+  font-size: 1.35rem;
+}
+
+body.attendance-active .attendance-filters {
+  grid-template-columns:
+    minmax(110px, 180px)
+    minmax(110px, 180px)
+    minmax(150px, 220px)
+    minmax(62px, auto)
+    minmax(62px, auto);
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+body.attendance-active .attendance-filters label {
+  min-width: 0;
+  padding: 5px 7px;
+}
+
+.attendance-control-label {
+  display: block;
+  overflow: hidden;
+  font-size: 0.56rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.attendance-active .attendance-filters select,
+body.attendance-active .attendance-filters input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  margin-top: 2px;
+  padding: 3px 6px;
+  font-size: 0.74rem;
+}
+
+body.attendance-active #saveAttendanceBtn,
+body.attendance-active #clearAttendanceBtn {
+  align-self: stretch;
+  min-width: 62px;
+  min-height: 42px;
+  box-shadow: 0 2px 7px rgba(24, 61, 55, 0.12);
+}
+
+@media (max-width: 768px) {
+  body.attendance-active #viewTitle {
+    font-size: 1rem;
+    line-height: 1.12;
+  }
+
+  body.attendance-active .attendance-filters {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr)
+      minmax(0, 1.25fr)
+      minmax(38px, 0.58fr)
+      minmax(38px, 0.58fr);
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  body.attendance-active .attendance-filters label {
+    min-width: 0;
+    padding: 3px;
+  }
+
+  body.attendance-active .attendance-control-label {
+    font-size: 0.42rem;
+    letter-spacing: 0;
+  }
+
+  body.attendance-active .attendance-filters select,
+  body.attendance-active .attendance-filters input {
+    min-height: 27px;
+    margin-top: 1px;
+    padding: 1px 2px;
+    font-size: 0.58rem;
+  }
+
+  body.attendance-active #saveAttendanceBtn,
+  body.attendance-active #clearAttendanceBtn {
+    width: 100%;
+    min-width: 0;
+    min-height: 35px;
+    padding: 0 3px;
+    font-size: 0.62rem;
+  }
+}
+
 /* Keep marks and attendance controls fixed while only student rows scroll. */
 body.entry-active,
 body.attendance-active {
