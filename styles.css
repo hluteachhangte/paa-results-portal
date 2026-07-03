@@ -6310,6 +6310,79 @@ th:first-child {
   }
 }
 
+/* Keep marks and attendance controls fixed while only student rows scroll. */
+body.entry-active,
+body.attendance-active {
+  overflow: hidden;
+}
+
+body.entry-active .app-shell,
+body.attendance-active .app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
+body.entry-active .main-content,
+body.attendance-active .main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.entry-active .topbar,
+body.entry-active #mainFilters,
+body.entry-active #entryView > .summary-grid,
+body.entry-active #entryView > .section-head,
+body.attendance-active .topbar,
+body.attendance-active #attendanceView > .entry-access-notice,
+body.attendance-active #attendanceView > .attendance-filters {
+  flex: 0 0 auto;
+}
+
+body.entry-active #entryView.active,
+body.attendance-active #attendanceView.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.entry-active #entryView > .table-wrap,
+body.attendance-active #attendanceView > .table-wrap {
+  flex: 1 1 auto;
+  min-height: 140px;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+body.entry-active #entryView > .table-wrap thead th,
+body.attendance-active #attendanceView > .table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #edf3f6;
+}
+
+@media (max-width: 768px) {
+  body.entry-active .main-content,
+  body.attendance-active .main-content {
+    padding-bottom: 8px;
+  }
+
+  body.entry-active #entryView > .table-wrap,
+  body.attendance-active #attendanceView > .table-wrap {
+    min-height: 180px;
+  }
+}
+
 /* Teacher performance analytics */
 .teacher-access-denied {
   max-width: 560px;
