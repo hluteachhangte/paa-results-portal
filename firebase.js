@@ -24,6 +24,21 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const appStateRef = doc(db, "appState", "markhub");
+const duplicatedActiveSessionFields = [
+  "classes",
+  "workingDays",
+  "attendance",
+  "measurements",
+  "marks",
+  "published",
+  "dataEntryUpdates"
+];
+
+function compactStateForFirestore(state = {}) {
+  const compactState = { ...state };
+  duplicatedActiveSessionFields.forEach((field) => delete compactState[field]);
+  return compactState;
+}
 
 window.MarkHubFirebase = {
   app,
@@ -82,7 +97,7 @@ window.MarkHubFirebase = {
   },
   async saveAppState(state) {
     const payload = {
-      state,
+      state: compactStateForFirestore(state),
       updatedAt: new Date().toISOString()
     };
     await setDoc(appStateRef, payload);
@@ -111,7 +126,15 @@ window.MarkHubFirebase = {
         updatedAt
       });
     } catch (error) {
-      if (fallbackState && error?.code === "not-found") {
+      const canRewriteCompactState = fallbackState && [
+        "not-found",
+        "resource-exhausted",
+        "invalid-argument"
+      ].includes(error?.code);
+      if (canRewriteCompactState) {
+        console.warn("[Firestore] Rewriting appState/markhub in compact session format", {
+          code: error?.code || "unknown"
+        });
         await this.saveAppState(fallbackState);
         return;
       }

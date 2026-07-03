@@ -760,7 +760,6 @@ function buildUnsavedMarkFieldUpdates() {
     if (change.type === "deleteSubject") {
       if (!deleteValue) return;
       updates.push(
-        { path: ["state", "marks", change.markKey], value: deleteValue() },
         { path: ["state", "sessions", change.session, "marks", change.markKey], value: deleteValue() }
       );
       return;
@@ -769,7 +768,6 @@ function buildUnsavedMarkFieldUpdates() {
     if (deletes.has(`${change.session}::${change.markKey}`)) return;
     const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
     updates.push(
-      { path: ["state", "marks", change.markKey, change.roll], value },
       { path: ["state", "sessions", change.session, "marks", change.markKey, change.roll], value }
     );
   });
@@ -829,7 +827,6 @@ async function saveAllMarks() {
         const key = dataEntryUpdateKey("marks", change.className, change.exam, change.subject);
         const value = state.dataEntryUpdates[key];
         return [
-          { path: ["state", "dataEntryUpdates", key], value },
           { path: ["state", "sessions", change.session, "dataEntryUpdates", key], value }
         ];
       })
@@ -858,7 +855,13 @@ async function saveAllMarks() {
     showToast("Marks saved successfully.");
   } catch (error) {
     console.error("[Firestore] Save marks failed", error);
-    showToast("Could not save marks. Please try again.");
+    const code = String(error?.code || "").replace(/^firestore\//, "");
+    const message = code === "permission-denied"
+      ? "Could not save marks: Firestore write permission was denied."
+      : code === "resource-exhausted"
+        ? "Could not save marks: Firestore storage limit was reached."
+        : `Could not save marks${code ? ` (${code})` : ""}. Please try again.`;
+    showToast(message);
   } finally {
     marksSaveInProgress = false;
     refreshMarksSaveControls();
@@ -7070,7 +7073,6 @@ async function persistResultPublication(shouldPublish) {
         : window.MarkHubFirebase.deleteFieldValue?.();
       if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
       await window.MarkHubFirebase.updateAppStateFields([
-        { path: ["state", "published", key], value },
         { path: ["state", "sessions", session, "published", key], value }
       ], structuredClone(state));
       const stateJson = JSON.stringify(state);
