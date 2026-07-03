@@ -6360,39 +6360,50 @@ body.entry-active #entryView > .section-head {
   }
 
   body.entry-active #mainFilters {
-    grid-template-columns:
-      repeat(3, minmax(0, 1.25fr))
-      repeat(5, minmax(0, 0.65fr));
-    gap: 2px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
     margin-bottom: 4px;
+  }
+
+  body.entry-active #mainFilters > .summary-grid {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+    margin: 0;
   }
 
   body.entry-active #mainFilters label {
     min-width: 0;
-    padding: 3px;
-    font-size: 0.48rem;
+    padding: 4px;
+    font-size: 0.52rem;
   }
 
   body.entry-active #mainFilters select {
     width: 100%;
     min-width: 0;
-    min-height: 27px;
-    padding: 1px 2px;
-    font-size: 0.58rem;
+    min-height: 29px;
+    padding: 2px 4px;
+    font-size: 0.64rem;
   }
 
   body.entry-active #mainFilters .metric-card {
     min-height: 36px;
     padding: 4px 2px;
+    border: 1px solid #d7e4e0;
+    border-top: 2px solid rgba(23, 120, 105, 0.55);
+    border-radius: 6px;
+    background: #f8fbfa;
+    box-shadow: none;
   }
 
   body.entry-active #mainFilters .metric-card span {
-    font-size: 0.39rem;
+    font-size: 0.43rem;
     letter-spacing: 0;
   }
 
   body.entry-active #mainFilters .metric-card strong {
-    font-size: 0.67rem;
+    font-size: 0.72rem;
   }
 }
 
