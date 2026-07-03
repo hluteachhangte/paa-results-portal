@@ -6310,6 +6310,92 @@ th:first-child {
   }
 }
 
+/* Compact marks controls and metrics into one toolbar row. */
+#mainFilters > .summary-grid {
+  display: none;
+}
+
+body.entry-active #viewTitle {
+  font-size: 1.35rem;
+}
+
+body.entry-active #mainFilters {
+  grid-template-columns:
+    repeat(3, minmax(110px, 180px))
+    repeat(5, minmax(60px, 1fr));
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+body.entry-active #mainFilters > .summary-grid {
+  display: contents;
+}
+
+body.entry-active #mainFilters .metric-card {
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 6px;
+}
+
+body.entry-active #mainFilters .metric-card span {
+  overflow: hidden;
+  font-size: 0.56rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.entry-active #mainFilters .metric-card strong {
+  margin-top: 2px;
+  font-size: 0.84rem;
+}
+
+body.entry-active #entryView > .section-head {
+  margin: 4px 0 6px;
+}
+
+@media (max-width: 768px) {
+  body.entry-active #viewTitle {
+    font-size: 1rem;
+  }
+
+  body.entry-active #mainFilters {
+    grid-template-columns:
+      repeat(3, minmax(0, 1.25fr))
+      repeat(5, minmax(0, 0.65fr));
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  body.entry-active #mainFilters label {
+    min-width: 0;
+    padding: 3px;
+    font-size: 0.48rem;
+  }
+
+  body.entry-active #mainFilters select {
+    width: 100%;
+    min-width: 0;
+    min-height: 27px;
+    padding: 1px 2px;
+    font-size: 0.58rem;
+  }
+
+  body.entry-active #mainFilters .metric-card {
+    min-height: 36px;
+    padding: 4px 2px;
+  }
+
+  body.entry-active #mainFilters .metric-card span {
+    font-size: 0.39rem;
+    letter-spacing: 0;
+  }
+
+  body.entry-active #mainFilters .metric-card strong {
+    font-size: 0.67rem;
+  }
+}
+
 /* Keep marks and attendance controls fixed while only student rows scroll. */
 body.entry-active,
 body.attendance-active {
