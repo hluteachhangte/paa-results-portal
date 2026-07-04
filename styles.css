@@ -6490,9 +6490,11 @@ body.attendance-active #clearAttendanceBtn {
     width: 100%;
     min-width: 0;
     min-height: 34px;
-    padding: 4px 8px;
+    padding: 4px 3px;
     border-radius: 6px;
     font-size: 0.68rem;
+    line-height: 1.15;
+    white-space: normal;
   }
 
   body.attendance-active #saveAttendanceBtn {

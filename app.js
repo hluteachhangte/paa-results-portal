@@ -168,6 +168,7 @@ const firebaseStateSaveDelay = 900;
 const unsavedMarkChanges = new Map();
 let marksSaveInProgress = false;
 let unsavedAttendanceChanges = false;
+const unsavedAttendanceSections = new Set();
 let attendanceSaveInProgress = false;
 let deferredFullStateSaveAfterMarks = false;
 let entryAccessDraft = normalizeEntryAccess(state.entryAccess);
@@ -591,20 +592,27 @@ function hasUnsavedMarkChanges() {
   return unsavedMarkChanges.size > 0;
 }
 
-function unsavedMarkChangeId(className, exam, subject, roll = "*subject*") {
-  return `${className}::${exam}::${subject}::${roll}`;
+function unsavedMarkChangeId(className, exam, subject, roll = "*subject*", fieldKey = "value") {
+  return `${className}::${exam}::${subject}::${roll}::${fieldKey}`;
 }
 
-function trackUnsavedMarkChange(className = selectedClass(), exam = selectedExam(), subject = selectedSubject(), roll = null) {
+function trackUnsavedMarkChange(
+  className = selectedClass(),
+  exam = selectedExam(),
+  subject = selectedSubject(),
+  roll = null,
+  fieldKey = "value"
+) {
   const key = markKey(className, exam, subject);
-  unsavedMarkChanges.set(unsavedMarkChangeId(className, exam, subject, roll), {
+  unsavedMarkChanges.set(unsavedMarkChangeId(className, exam, subject, roll, fieldKey), {
     type: "mark",
     session: currentSessionKey(state.academicSession),
     className,
     exam,
     subject,
     markKey: key,
-    roll: String(roll)
+    roll: String(roll),
+    fieldKey
   });
   syncActiveSessionData();
   refreshMarksSaveControls();
@@ -663,7 +671,8 @@ function hasUnsavedResultChanges(className = selectedClass(), exam = selectedExa
   return hasMarks || hasAttendance;
 }
 
-function trackUnsavedAttendanceChange() {
+function trackUnsavedAttendanceChange(section = "attendance") {
+  unsavedAttendanceSections.add(section);
   unsavedAttendanceChanges = true;
   syncActiveSessionData();
   refreshAttendanceSaveControls();
@@ -672,7 +681,8 @@ function trackUnsavedAttendanceChange() {
 function refreshAttendanceSaveControls() {
   if (!els.saveAttendanceBtn) return;
   const locked = selectedAttendanceEntryLocked();
-  els.saveAttendanceBtn.disabled = attendanceSaveInProgress || locked || !unsavedAttendanceChanges;
+  els.saveAttendanceBtn.disabled = Boolean(attendanceSaveInProgress) || locked
+    || unsavedAttendanceSections.size === 0;
   els.saveAttendanceBtn.textContent = attendanceSaveInProgress ? "Saving..." : "Save";
   els.clearAttendanceBtn.disabled = attendanceSaveInProgress || locked;
   els.workingDaysInput.disabled = locked;
@@ -685,6 +695,47 @@ function refreshAttendanceSaveControls() {
   }
 }
 
+function attendanceSectionInputs(section) {
+  const selector = {
+    attendance: "#attendanceView.active [data-attendance-roll]",
+    height: "#attendanceView.active [data-height-roll]",
+    weight: "#attendanceView.active [data-weight-roll]"
+  }[section];
+  return selector ? [...document.querySelectorAll(selector)] : [];
+}
+
+function buildAttendanceSectionFieldUpdates(section, className, term) {
+  const session = currentSessionKey(state.academicSession);
+  const key = attendanceKey(className, term);
+  const students = state.classes[className] || [];
+  const updates = [];
+
+  if (section === "attendance") {
+    updates.push({
+      path: ["state", "sessions", session, "workingDays", term],
+      value: state.workingDays[term]
+    });
+    students.forEach((student) => {
+      updates.push({
+        path: ["state", "sessions", session, "attendance", key, String(student.roll)],
+        value: getStudentAttendance(student, className, term)
+      });
+    });
+  } else {
+    students.forEach((student) => {
+      updates.push({
+        path: ["state", "sessions", session, "measurements", key, String(student.roll), section],
+        value: getStudentMeasurement(student, className, term)[section]
+      });
+    });
+  }
+  return updates;
+}
+
+function attendanceSectionLabel(section) {
+  return section === "attendance" ? "Attendance" : section === "height" ? "Height" : "Weight";
+}
+
 async function saveAttendanceData() {
   if (attendanceSaveInProgress) return;
   if (selectedAttendanceEntryLocked()) {
@@ -695,7 +746,14 @@ async function saveAttendanceData() {
     showToast("Save marks before saving attendance.");
     return;
   }
-  if (els.workingDaysInput && els.workingDaysInput.value.trim() === "") {
+  const changedSections = [...unsavedAttendanceSections];
+  if (changedSections.length === 0) {
+    showToast("No attendance or measurement changes to save.");
+    return;
+  }
+  if (changedSections.includes("attendance")
+    && els.workingDaysInput
+    && els.workingDaysInput.value.trim() === "") {
     showContextMessage(els.workingDaysInput, "No. of Working Days cannot be blank.", {
       type: "error",
       duration: 5000
@@ -703,46 +761,61 @@ async function saveAttendanceData() {
     els.workingDaysInput.focus();
     return;
   }
-  const blankAttendanceInput = [...document.querySelectorAll(
-    "#attendanceView.active [data-attendance-roll], #attendanceView.active [data-height-roll], #attendanceView.active [data-weight-roll]"
-  )].find((input) => !input.disabled && input.value.trim() === "");
-  if (blankAttendanceInput) {
-    showContextMessage(blankAttendanceInput, "This field cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.", {
-      type: "error",
-      duration: 5000
-    });
-    blankAttendanceInput.focus();
-    return;
-  }
-  if (!unsavedAttendanceChanges) {
-    showToast("No attendance changes to save.");
-    return;
+  for (const section of changedSections) {
+    const blankInput = attendanceSectionInputs(section)
+      .find((input) => !input.disabled && input.value.trim() === "");
+    if (blankInput) {
+      showContextMessage(blankInput, `${attendanceSectionLabel(section)} cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.`, {
+        type: "error",
+        duration: 5000
+      });
+      blankInput.focus();
+      return;
+    }
   }
 
   attendanceSaveInProgress = true;
   refreshAttendanceSaveControls();
 
   try {
+    const className = selectedAttendanceClass();
+    const term = selectedAttendanceTerm();
     const updatedAt = new Date().toISOString();
     state.dataEntryUpdates = state.dataEntryUpdates || {};
-    state.dataEntryUpdates[dataEntryUpdateKey("attendance", selectedAttendanceClass(), selectedAttendanceTerm())] = {
-      updatedAt,
-      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
-    };
-    state.dataEntryUpdates[dataEntryUpdateKey("measurement", selectedAttendanceClass(), selectedAttendanceTerm())] = {
-      updatedAt,
-      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
-    };
+    const updateTypes = new Set(changedSections.map((section) =>
+      section === "attendance" ? "attendance" : "measurement"));
+    const updateKeys = [...updateTypes].map((updateType) => {
+      const updateKey = dataEntryUpdateKey(updateType, className, term);
+      state.dataEntryUpdates[updateKey] = {
+        updatedAt,
+        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      };
+      return updateKey;
+    });
     syncActiveSessionData();
-    unsavedAttendanceChanges = false;
-    saveState();
-    showToast("Attendance saved successfully.");
+    const fieldUpdates = [
+      ...changedSections.flatMap((section) =>
+        buildAttendanceSectionFieldUpdates(section, className, term)),
+      ...updateKeys.map((updateKey) => ({
+        path: ["state", "sessions", currentSessionKey(state.academicSession), "dataEntryUpdates", updateKey],
+        value: state.dataEntryUpdates[updateKey]
+      }))
+    ];
+    if (!window.MarkHubFirebase?.updateAppStateFields) {
+      throw new Error("Firebase is not ready.");
+    }
+    await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
+    changedSections.forEach((section) => unsavedAttendanceSections.delete(section));
+    unsavedAttendanceChanges = unsavedAttendanceSections.size > 0;
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    showToast("Attendance data saved successfully.");
   } catch (error) {
     unsavedAttendanceChanges = true;
-    console.error("[Firestore] Save attendance failed", error);
-    showToast("Could not save attendance. Please try again.");
+    changedSections.forEach((section) => unsavedAttendanceSections.add(section));
+    console.error("[Firestore] Save attendance data failed", error);
+    showToast("Could not save attendance data. Please try again.");
   } finally {
-    attendanceSaveInProgress = false;
+    attendanceSaveInProgress = "";
     refreshAttendanceSaveControls();
   }
 }
@@ -753,26 +826,52 @@ function buildUnsavedMarkFieldUpdates() {
       .filter((change) => change.type === "deleteSubject")
       .map((change) => `${change.session}::${change.markKey}`)
   );
-  const updates = [];
+  const updates = new Map();
   const deleteValue = window.MarkHubFirebase?.deleteFieldValue;
+  const addUpdate = (path, value) => {
+    updates.set(JSON.stringify(path), { path, value });
+  };
 
   unsavedMarkChanges.forEach((change) => {
     if (change.type === "deleteSubject") {
       if (!deleteValue) return;
-      updates.push(
-        { path: ["state", "sessions", change.session, "marks", change.markKey], value: deleteValue() }
+      addUpdate(
+        ["state", "sessions", change.session, "marks", change.markKey],
+        deleteValue()
       );
       return;
     }
 
     if (deletes.has(`${change.session}::${change.markKey}`)) return;
     const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
-    updates.push(
-      { path: ["state", "sessions", change.session, "marks", change.markKey, change.roll], value }
-    );
+    const basePath = ["state", "sessions", change.session, "marks", change.markKey, change.roll];
+    if (change.fieldKey === "partA" || change.fieldKey === "partB") {
+      addUpdate([...basePath, change.fieldKey], value[change.fieldKey] ?? "");
+      addUpdate([...basePath, "value"], value.value ?? "");
+    } else {
+      addUpdate(basePath, value);
+    }
   });
 
-  return updates;
+  return [...updates.values()];
+}
+
+function markInputsRequiredForSave() {
+  const allInputs = [...document.querySelectorAll("#entryView.active .mark-input")];
+  if (!isSplitPartSubject()) return allInputs;
+
+  const changedPartKeys = new Set(
+    [...unsavedMarkChanges.values()]
+      .filter((change) =>
+        change.type === "mark"
+        && change.className === selectedClass()
+        && change.exam === selectedExam()
+        && change.subject === selectedSubject()
+        && (change.fieldKey === "partA" || change.fieldKey === "partB"))
+      .map((change) => change.fieldKey)
+  );
+  if (changedPartKeys.size === 0) return allInputs;
+  return allInputs.filter((input) => changedPartKeys.has(input.dataset.partKey));
 }
 
 async function saveAllMarks() {
@@ -781,7 +880,7 @@ async function saveAllMarks() {
     showToast("This marks entry is locked by Administrator.");
     return;
   }
-  const blankMarkInput = [...document.querySelectorAll("#entryView.active .mark-input")]
+  const blankMarkInput = markInputsRequiredForSave()
     .find((input) => !input.disabled && input.value.trim() === "");
   if (blankMarkInput) {
     showContextMessage(blankMarkInput, "This field cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.", {
@@ -1318,6 +1417,7 @@ function logout() {
   stopFirebaseStateSync();
   unsavedMarkChanges.clear();
   unsavedAttendanceChanges = false;
+  unsavedAttendanceSections.clear();
   deferredFullStateSaveAfterMarks = false;
   refreshMarksSaveControls();
   refreshAttendanceSaveControls();
@@ -1585,7 +1685,7 @@ function setStudentMark(roll, patch, options = {}) {
   state.marks[key] = state.marks[key] || {};
   state.marks[key][String(roll)] = { ...(state.marks[key][String(roll)] || {}), ...patch };
   if (options.save === false) {
-    trackUnsavedMarkChange(className, exam, subject, roll);
+    trackUnsavedMarkChange(className, exam, subject, roll, options.fieldKey || "value");
     return;
   }
   saveState();
@@ -1632,7 +1732,7 @@ function setStudentAttendance(roll, value, className = selectedClass(), exam = s
   state.attendance[key] = state.attendance[key] || {};
   state.attendance[key][String(roll)] = value;
   if (options.save === false) {
-    trackUnsavedAttendanceChange();
+    trackUnsavedAttendanceChange("attendance");
     return;
   }
   saveState();
@@ -1674,7 +1774,12 @@ function setStudentMeasurement(roll, patch, className = selectedClass(), exam = 
     ...patch
   };
   if (options.save === false) {
-    trackUnsavedAttendanceChange();
+    if (Object.prototype.hasOwnProperty.call(patch, "height")) {
+      trackUnsavedAttendanceChange("height");
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "weight")) {
+      trackUnsavedAttendanceChange("weight");
+    }
     return;
   }
   saveState();
@@ -1764,7 +1869,7 @@ function init() {
     }
     const value = Number(els.workingDaysInput.value);
     state.workingDays[selectedAttendanceTerm()] = Number.isFinite(value) && value >= 0 ? value : 0;
-    trackUnsavedAttendanceChange();
+    trackUnsavedAttendanceChange("attendance");
     renderAttendance();
   });
   els.saveAttendanceBtn?.addEventListener("click", saveAttendanceData);
@@ -2468,7 +2573,7 @@ function saveSplitPartInput(input, showWarning = false) {
     partA,
     partB,
     value: combinedValue
-  }, { save: false });
+  }, { save: false, fieldKey: partKey });
 }
 
 function updateEntryRow(input) {
@@ -2642,7 +2747,7 @@ function clearAttendanceData() {
   const key = attendanceKey(className, term);
   delete state.attendance[key];
   delete state.measurements[key];
-  trackUnsavedAttendanceChange();
+  ["attendance", "height", "weight"].forEach(trackUnsavedAttendanceChange);
   renderAttendance();
   showToast(`${className} ${term} attendance data cleared. Click Save to save.`);
 }
@@ -7782,6 +7887,7 @@ function resetDemo() {
   if (hasUnsavedLocalChanges() && !window.confirm("You have unsaved changes. Reset without saving?")) return;
   unsavedMarkChanges.clear();
   unsavedAttendanceChanges = false;
+  unsavedAttendanceSections.clear();
   deferredFullStateSaveAfterMarks = false;
   state = structuredClone(defaultState);
   saveState();
