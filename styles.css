@@ -5841,6 +5841,7 @@ th:first-child {
 }
 
 .analysis-risk-change-grid {
+  grid-template-columns: 1fr;
   align-items: start;
 }
 
