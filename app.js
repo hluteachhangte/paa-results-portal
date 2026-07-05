@@ -32,6 +32,7 @@ const analysisSectionClasses = {
 };
 
 const analysisExamAll = "All Exams";
+const performanceChangeTolerance = 5;
 
 const analysisSubjectReasonAbbreviations = {
   English: "E",
@@ -287,6 +288,24 @@ const els = {
   analysisEarlyWarningBody: document.querySelector("#analysisEarlyWarningBody"),
   analysisRiskTableWrap: document.querySelector("#analysisRiskTableWrap"),
   toggleAnalysisRiskListBtn: document.querySelector("#toggleAnalysisRiskListBtn"),
+  performanceChangeSessionSelect: document.querySelector("#performanceChangeSessionSelect"),
+  performanceChangeClassSelect: document.querySelector("#performanceChangeClassSelect"),
+  performanceChangeFromExamSelect: document.querySelector("#performanceChangeFromExamSelect"),
+  performanceChangeToExamSelect: document.querySelector("#performanceChangeToExamSelect"),
+  performanceChangeSubjectSelect: document.querySelector("#performanceChangeSubjectSelect"),
+  performanceChangeStudentSelect: document.querySelector("#performanceChangeStudentSelect"),
+  performanceChangeSortSelect: document.querySelector("#performanceChangeSortSelect"),
+  performanceChangeMessage: document.querySelector("#performanceChangeMessage"),
+  performanceChangeSummary: document.querySelector("#performanceChangeSummary"),
+  performanceChangeClassSummary: document.querySelector("#performanceChangeClassSummary"),
+  performanceChangeClassBody: document.querySelector("#performanceChangeClassBody"),
+  performanceChangeOverallChart: document.querySelector("#performanceChangeOverallChart"),
+  performanceChangeDistributionChart: document.querySelector("#performanceChangeDistributionChart"),
+  performanceChangeExamChart: document.querySelector("#performanceChangeExamChart"),
+  performanceChangeSubjectChart: document.querySelector("#performanceChangeSubjectChart"),
+  performanceChangeSubjectBody: document.querySelector("#performanceChangeSubjectBody"),
+  performanceChangeBody: document.querySelector("#performanceChangeBody"),
+  performanceChangeStudentDetail: document.querySelector("#performanceChangeStudentDetail"),
   analysisSupportBody: document.querySelector("#analysisSupportBody"),
   analysisSupportTableWrap: document.querySelector("#analysisSupportTableWrap"),
   toggleAnalysisSupportListBtn: document.querySelector("#toggleAnalysisSupportListBtn"),
@@ -1025,6 +1044,13 @@ function saveUiState() {
     analysisProgressClass: els.analysisProgressClassSelect?.value || "All Classes",
     analysisProgressFromExam: els.analysisProgressFromExamSelect?.value || "",
     analysisProgressToExam: els.analysisProgressToExamSelect?.value || "",
+    performanceChangeSession: els.performanceChangeSessionSelect?.value || state.academicSession,
+    performanceChangeClass: els.performanceChangeClassSelect?.value || "All Classes",
+    performanceChangeFromExam: els.performanceChangeFromExamSelect?.value || "",
+    performanceChangeToExam: els.performanceChangeToExamSelect?.value || "",
+    performanceChangeSubject: els.performanceChangeSubjectSelect?.value || "All Subjects",
+    performanceChangeStudent: els.performanceChangeStudentSelect?.value || "All Students",
+    performanceChangeSort: els.performanceChangeSortSelect?.value || "improvement",
     teacherAnalyticsSession: els.teacherAnalyticsSessionSelect?.value || state.academicSession,
     teacherAnalyticsExam: els.teacherAnalyticsExamSelect?.value || analysisExamAll,
     teacherAnalyticsTeacher: els.teacherAnalyticsTeacherSelect?.value || "All Teachers",
@@ -1992,12 +2018,50 @@ function init() {
     renderAcademicAnalysis();
   });
   els.analysisProgressFromExamSelect?.addEventListener("change", () => {
+    updateAnalysisProgressExamOptions();
     saveUiState();
     renderAcademicAnalysis();
   });
   els.analysisProgressToExamSelect?.addEventListener("change", () => {
     saveUiState();
     renderAcademicAnalysis();
+  });
+  [
+    els.performanceChangeSessionSelect,
+    els.performanceChangeClassSelect,
+    els.performanceChangeFromExamSelect,
+    els.performanceChangeToExamSelect,
+    els.performanceChangeSubjectSelect,
+    els.performanceChangeStudentSelect,
+    els.performanceChangeSortSelect
+  ].filter(Boolean).forEach((control) => {
+    control.addEventListener("change", () => {
+      updatePerformanceChangeFilters();
+      saveUiState();
+      renderAcademicAnalysis();
+    });
+  });
+  els.performanceChangeBody?.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-performance-student]");
+    if (!row || !analysisCurrentData?.performanceChange) return;
+    const studentKey = decodeURIComponent(row.dataset.performanceStudent || "");
+    const record = analysisCurrentData.performanceChange.records
+      .find((item) => item.key === studentKey);
+    renderPerformanceChangeStudentDetail(
+      record,
+      analysisCurrentData.performanceFromExam,
+      analysisCurrentData.performanceToExam
+    );
+  });
+  els.performanceChangeBody?.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    event.target.closest("[data-performance-student]")?.click();
+  });
+  els.performanceChangeStudentDetail?.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-close-performance-detail]")) return;
+    els.performanceChangeStudentDetail.classList.add("hidden");
+    els.performanceChangeStudentDetail.innerHTML = "";
   });
   els.toggleAnalysisGrowthListBtn?.addEventListener("click", () =>
     toggleAnalysisStudentList(els.toggleAnalysisGrowthListBtn, els.analysisGrowthTableWrap));
@@ -4188,6 +4252,7 @@ function initializeAnalysisFilters(savedFilters = null) {
   }
   updateAnalysisProgressClassOptions();
   updateAnalysisProgressExamOptions();
+  updatePerformanceChangeFilters(savedFilters);
   setSelectValueIfAvailable(els.analysisStatusSelect, savedFilters?.analysisStatus);
   if (savedFilters?.analysisThreshold !== undefined) {
     els.analysisSupportThreshold.value = savedFilters.analysisThreshold;
@@ -4229,25 +4294,107 @@ function selectedAnalysisProgressClasses() {
 function updateAnalysisProgressExamOptions() {
   if (!els.analysisProgressFromExamSelect || !els.analysisProgressToExamSelect) return;
   const availableExams = new Set(selectedAnalysisProgressClasses().flatMap((className) => currentExams(className)));
-  const exams = examNames.filter((exam) => exam !== "Third Term" && availableExams.has(exam));
+  const exams = examNames.filter((exam) => availableExams.has(exam));
   const preferredFrom = els.analysisProgressFromExamSelect.value
     || els.analysisProgressFromExamSelect.dataset.preferredValue
     || exams[0]
     || "";
+  populateSelect(els.analysisProgressFromExamSelect, exams);
+  setSelectValueIfAvailable(els.analysisProgressFromExamSelect, preferredFrom);
+
+  const fromExam = els.analysisProgressFromExamSelect.value;
+  const comparableExams = exams.filter((exam) =>
+    exam !== fromExam && analysisComparableExamGroup(exam) === analysisComparableExamGroup(fromExam));
   const preferredTo = els.analysisProgressToExamSelect.value
     || els.analysisProgressToExamSelect.dataset.preferredValue
+    || comparableExams[0]
+    || "";
+  populateSelect(els.analysisProgressToExamSelect, comparableExams);
+  setSelectValueIfAvailable(els.analysisProgressToExamSelect, preferredTo);
+  delete els.analysisProgressFromExamSelect.dataset.preferredValue;
+  delete els.analysisProgressToExamSelect.dataset.preferredValue;
+}
+
+function analysisComparableExamGroup(exam) {
+  if (["FT Unit Test 1", "FT Unit Test 2"].includes(exam)) return "ft-unit-test";
+  if (["ST Unit Test 1", "ST Unit Test 2"].includes(exam)) return "st-unit-test";
+  if (["First Term", "Second Term", "Third Term"].includes(exam)) return "term";
+  if (["CT1", "CT2", "CT3", "CT4"].includes(exam)) return "ct";
+  return exam;
+}
+
+function updatePerformanceChangeFilters(savedFilters = null) {
+  if (!els.performanceChangeSessionSelect) return;
+  syncActiveSessionData();
+  const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})])].sort();
+  const session = savedFilters?.performanceChangeSession
+    || els.performanceChangeSessionSelect.value
+    || els.analysisSessionSelect?.value
+    || state.academicSession;
+  populateSelect(els.performanceChangeSessionSelect, sessions);
+  setSelectValueIfAvailable(els.performanceChangeSessionSelect, session);
+
+  const availableClasses = selectedAnalysisClasses();
+  const className = savedFilters?.performanceChangeClass
+    || els.performanceChangeClassSelect.value
+    || els.analysisProgressClassSelect?.value
+    || "All Classes";
+  populateSelect(els.performanceChangeClassSelect, ["All Classes", ...availableClasses]);
+  setSelectValueIfAvailable(els.performanceChangeClassSelect, className);
+
+  const classes = els.performanceChangeClassSelect.value === "All Classes"
+    ? availableClasses
+    : [els.performanceChangeClassSelect.value];
+  const exams = examNames.filter((exam) => classes.some((name) => currentExams(name).includes(exam)));
+  const fromExam = savedFilters?.performanceChangeFromExam
+    || els.performanceChangeFromExamSelect.value
+    || els.analysisProgressFromExamSelect?.value
+    || exams[0]
+    || "";
+  const toExam = savedFilters?.performanceChangeToExam
+    || els.performanceChangeToExamSelect.value
+    || els.analysisProgressToExamSelect?.value
     || exams[1]
     || exams[0]
     || "";
-  populateSelect(els.analysisProgressFromExamSelect, exams);
-  populateSelect(els.analysisProgressToExamSelect, exams);
-  setSelectValueIfAvailable(els.analysisProgressFromExamSelect, preferredFrom);
-  setSelectValueIfAvailable(els.analysisProgressToExamSelect, preferredTo);
-  if (exams.length > 1 && els.analysisProgressFromExamSelect.value === els.analysisProgressToExamSelect.value) {
-    els.analysisProgressToExamSelect.value = exams.find((exam) => exam !== els.analysisProgressFromExamSelect.value) || exams[1];
+  populateSelect(els.performanceChangeFromExamSelect, exams);
+  populateSelect(els.performanceChangeToExamSelect, exams);
+  setSelectValueIfAvailable(els.performanceChangeFromExamSelect, fromExam);
+  setSelectValueIfAvailable(els.performanceChangeToExamSelect, toExam);
+  if (exams.length > 1 && els.performanceChangeFromExamSelect.value === els.performanceChangeToExamSelect.value) {
+    els.performanceChangeToExamSelect.value = exams.find((exam) =>
+      exam !== els.performanceChangeFromExamSelect.value) || exams[1];
   }
-  delete els.analysisProgressFromExamSelect.dataset.preferredValue;
-  delete els.analysisProgressToExamSelect.dataset.preferredValue;
+
+  const firstExam = els.performanceChangeFromExamSelect.value;
+  const comparisonExam = els.performanceChangeToExamSelect.value;
+  const subjects = [...new Set(classes.flatMap((name) => {
+    const firstSubjects = new Set(analysisSubjectNames(name, firstExam));
+    return analysisSubjectNames(name, comparisonExam).filter((subject) => firstSubjects.has(subject));
+  }))].sort((a, b) => a.localeCompare(b));
+  const subject = savedFilters?.performanceChangeSubject
+    || els.performanceChangeSubjectSelect.value
+    || "All Subjects";
+  populateSelect(els.performanceChangeSubjectSelect, ["All Subjects", ...subjects]);
+  setSelectValueIfAvailable(els.performanceChangeSubjectSelect, subject);
+
+  const students = runWithAnalysisSession(els.performanceChangeSessionSelect.value, () =>
+    classes.flatMap((name) => (state.classes[name] || []).map((student) => ({
+      value: encodeURIComponent(`${name}\u0000${student.roll}`),
+      label: `${student.name} (${name})`
+    }))).sort((a, b) => a.label.localeCompare(b.label)));
+  const student = savedFilters?.performanceChangeStudent
+    || els.performanceChangeStudentSelect.value
+    || "All Students";
+  els.performanceChangeStudentSelect.innerHTML = [
+    '<option value="All Students">All Students</option>',
+    ...students.map((item) => `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`)
+  ].join("");
+  setSelectValueIfAvailable(els.performanceChangeStudentSelect, student);
+  setSelectValueIfAvailable(
+    els.performanceChangeSortSelect,
+    savedFilters?.performanceChangeSort || els.performanceChangeSortSelect.value || "improvement"
+  );
 }
 
 function updateAnalysisExamOptions() {
@@ -4907,6 +5054,438 @@ function toggleAnalysisStudentList(button, list) {
   button.setAttribute("aria-expanded", String(willShow));
 }
 
+function performanceChangeDirection(value, threshold = performanceChangeTolerance) {
+  if (value > threshold) return "Improved";
+  if (value < -threshold) return "Declined";
+  return "Stable";
+}
+
+function performanceChangeClassification(percentageChange, relativeChange) {
+  const percentageDirection = performanceChangeDirection(percentageChange);
+  const relativeDirection = performanceChangeDirection(relativeChange);
+  const classifications = {
+    "Improved|Improved": "Strong Improvement",
+    "Improved|Stable": "Improvement",
+    "Improved|Declined": "Mixed Progress",
+    "Stable|Improved": "Relative Improvement",
+    "Stable|Stable": "Stable",
+    "Stable|Declined": "Needs Monitoring",
+    "Declined|Improved": "Mixed Progress",
+    "Declined|Stable": "Decline",
+    "Declined|Declined": "Significant Decline"
+  };
+  return classifications[`${percentageDirection}|${relativeDirection}`] || "Stable";
+}
+
+function performancePercentile(value, classValues) {
+  const values = classValues.map(Number).filter(Number.isFinite);
+  if (values.length < 2) return null;
+  const below = values.filter((item) => item < value).length;
+  const tied = values.filter((item) => Math.abs(item - value) < 0.0001).length;
+  return ((below + ((tied - 1) / 2)) / (values.length - 1)) * 100;
+}
+
+function performanceSubjectComparisons(firstRecord, comparisonRecord) {
+  const firstSubjects = new Map((firstRecord.subjects || []).map((subject) => [subject.name, subject]));
+  return (comparisonRecord.subjects || []).flatMap((comparisonSubject) => {
+    const firstSubject = firstSubjects.get(comparisonSubject.name);
+    if (!firstSubject?.present || !comparisonSubject.present
+      || !firstSubject.maximum || !comparisonSubject.maximum) return [];
+    const firstPercentage = (numericMark(firstSubject.value) / firstSubject.maximum) * 100;
+    const comparisonPercentage = (numericMark(comparisonSubject.value) / comparisonSubject.maximum) * 100;
+    return [{
+      subject: comparisonSubject.name,
+      firstPercentage,
+      comparisonPercentage,
+      change: comparisonPercentage - firstPercentage,
+      firstPassed: firstSubject.passed,
+      comparisonPassed: comparisonSubject.passed
+    }];
+  });
+}
+
+function performanceChangeSubjectMetrics(records) {
+  const grouped = new Map();
+  records.forEach((record) => {
+    record.subjectChanges.forEach((subject) => {
+      if (!grouped.has(subject.subject)) grouped.set(subject.subject, []);
+      grouped.get(subject.subject).push(subject);
+    });
+  });
+  return [...grouped.entries()].map(([subject, entries]) => {
+    const firstPassed = entries.filter((entry) => entry.firstPassed).length;
+    const comparisonPassed = entries.filter((entry) => entry.comparisonPassed).length;
+    const firstAverage = average(entries.map((entry) => entry.firstPercentage));
+    const comparisonAverage = average(entries.map((entry) => entry.comparisonPercentage));
+    const directionCount = (direction) => entries.filter((entry) =>
+      performanceChangeDirection(entry.change) === direction).length;
+    return {
+      subject,
+      firstAverage,
+      comparisonAverage,
+      averageChange: comparisonAverage - firstAverage,
+      firstPassPercentage: entries.length ? (firstPassed / entries.length) * 100 : 0,
+      comparisonPassPercentage: entries.length ? (comparisonPassed / entries.length) * 100 : 0,
+      passPercentageChange: entries.length
+        ? ((comparisonPassed - firstPassed) / entries.length) * 100
+        : 0,
+      improved: directionCount("Improved"),
+      stable: directionCount("Stable"),
+      declined: directionCount("Declined")
+    };
+  }).sort((a, b) => b.averageChange - a.averageChange);
+}
+
+function performanceChangeClassMetrics(records) {
+  return [...new Set(records.map((record) => record.className))].map((className) => {
+    const classRecords = records.filter((record) => record.className === className);
+    const firstAverage = average(classRecords.map((record) => record.first.percentage));
+    const comparisonAverage = average(classRecords.map((record) => record.comparison.percentage));
+    const firstPassed = classRecords.filter((record) => record.first.result !== "Fail").length;
+    const comparisonPassed = classRecords.filter((record) => record.comparison.result !== "Fail").length;
+    const countDirection = (direction) => classRecords.filter((record) =>
+      performanceChangeDirection(record.percentageChange) === direction).length;
+    return {
+      className,
+      students: classRecords.length,
+      firstAverage,
+      comparisonAverage,
+      averageChange: comparisonAverage - firstAverage,
+      firstPassPercentage: classRecords.length ? (firstPassed / classRecords.length) * 100 : 0,
+      comparisonPassPercentage: classRecords.length ? (comparisonPassed / classRecords.length) * 100 : 0,
+      passPercentageChange: classRecords.length
+        ? ((comparisonPassed - firstPassed) / classRecords.length) * 100
+        : 0,
+      improved: countDirection("Improved"),
+      stable: countDirection("Stable"),
+      declined: countDirection("Declined")
+    };
+  });
+}
+
+function buildPerformanceChangeData(session, classes, fromExam, toExam, subjectFilter, studentFilter) {
+  if (!fromExam || !toExam || fromExam === toExam) {
+    return { records: [], subjectMetrics: [], classMetrics: [], missingWarnings: [] };
+  }
+  const eligibleClasses = classes.filter((className) =>
+    currentExams(className).includes(fromExam) && currentExams(className).includes(toExam));
+  if (!eligibleClasses.length) {
+    return { records: [], subjectMetrics: [], classMetrics: [], missingWarnings: [] };
+  }
+
+  const prepare = (exam) => buildAcademicAnalysisRecords(session, eligibleClasses, exam)
+    .map((record) => filteredAnalysisRecord(record, subjectFilter))
+    .filter((record) => !record.excluded);
+  const firstRecords = prepare(fromExam);
+  const comparisonRecords = prepare(toExam);
+  const firstMap = new Map(firstRecords.map((record) => [`${record.className}\u0000${record.roll}`, record]));
+  const comparisonMap = new Map(comparisonRecords.map((record) => [`${record.className}\u0000${record.roll}`, record]));
+  const keys = new Set([...firstMap.keys(), ...comparisonMap.keys()]);
+  const classValues = new Map();
+
+  eligibleClasses.forEach((className) => {
+    classValues.set(`${className}\u0000first`, firstRecords
+      .filter((record) => record.className === className && record.appeared)
+      .map((record) => record.percentage));
+    classValues.set(`${className}\u0000comparison`, comparisonRecords
+      .filter((record) => record.className === className && record.appeared)
+      .map((record) => record.percentage));
+  });
+
+  const missingWarnings = [];
+  let records = [...keys].flatMap((key) => {
+    const first = firstMap.get(key);
+    const comparison = comparisonMap.get(key);
+    const source = first || comparison;
+    if (!first?.appeared || !comparison?.appeared) {
+      if (source) {
+        const missedExams = [];
+        if (!first?.appeared) missedExams.push(fromExam);
+        if (!comparison?.appeared) missedExams.push(toExam);
+        missingWarnings.push({
+          roll: source.roll,
+          name: source.name,
+          className: source.className,
+          latest: comparison || first,
+          delta: 0,
+          appearedCount: Number(Boolean(first?.appeared)) + Number(Boolean(comparison?.appeared)),
+          missedExams: missedExams.length,
+          failedExams: 0,
+          weakSubjects: comparison?.failedSubjects || first?.failedSubjects || [],
+          riskScore: 2,
+          riskLevel: "Medium",
+          riskReasons: missedExams.map((exam) => `Absent from ${exam}`)
+        });
+      }
+      return [];
+    }
+    const firstValues = classValues.get(`${first.className}\u0000first`) || [];
+    const comparisonValues = classValues.get(`${first.className}\u0000comparison`) || [];
+    const firstClassAverage = average(firstValues);
+    const comparisonClassAverage = average(comparisonValues);
+    const firstRelative = first.percentage - firstClassAverage;
+    const comparisonRelative = comparison.percentage - comparisonClassAverage;
+    const percentageChange = comparison.percentage - first.percentage;
+    const relativeChange = comparisonRelative - firstRelative;
+    const firstPercentile = performancePercentile(first.percentage, firstValues);
+    const comparisonPercentile = performancePercentile(comparison.percentage, comparisonValues);
+    const percentileChange = firstPercentile === null || comparisonPercentile === null
+      ? null
+      : comparisonPercentile - firstPercentile;
+    const subjectChanges = performanceSubjectComparisons(first, comparison);
+    const strongest = [...subjectChanges].sort((a, b) => b.change - a.change)[0] || null;
+    const largestDecline = [...subjectChanges].sort((a, b) => a.change - b.change)[0] || null;
+    return [{
+      key,
+      roll: first.roll,
+      name: first.name,
+      className: first.className,
+      first,
+      comparison,
+      firstClassAverage,
+      comparisonClassAverage,
+      firstRelative,
+      comparisonRelative,
+      percentageChange,
+      relativeChange,
+      firstPercentile,
+      comparisonPercentile,
+      percentileChange,
+      classification: performanceChangeClassification(percentageChange, relativeChange),
+      subjectChanges,
+      strongest,
+      largestDecline
+    }];
+  });
+
+  if (studentFilter && studentFilter !== "All Students") {
+    records = records.filter((record) => encodeURIComponent(record.key) === studentFilter);
+  }
+  return {
+    records,
+    subjectMetrics: performanceChangeSubjectMetrics(records),
+    classMetrics: performanceChangeClassMetrics(records),
+    missingWarnings
+  };
+}
+
+function buildRepeatedPerformanceDeclineWarnings(session, classes, subjectFilter) {
+  const grouped = new Map();
+  classes.forEach((className) => {
+    examNames.filter((exam) => currentExams(className).includes(exam)).forEach((exam) => {
+      buildAcademicAnalysisRecords(session, [className], exam)
+        .map((record) => filteredAnalysisRecord(record, subjectFilter))
+        .filter((record) => !record.excluded)
+        .forEach((record) => {
+          const key = `${record.className}\u0000${record.roll}`;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(record);
+        });
+    });
+  });
+
+  return [...grouped.values()].flatMap((records) => {
+    let consecutiveDeclines = 0;
+    let longestDecline = 0;
+    const appeared = records.filter((record) => record.appeared);
+    for (let index = 1; index < appeared.length; index += 1) {
+      const change = appeared[index].percentage - appeared[index - 1].percentage;
+      consecutiveDeclines = change < -performanceChangeTolerance ? consecutiveDeclines + 1 : 0;
+      longestDecline = Math.max(longestDecline, consecutiveDeclines);
+    }
+    if (longestDecline < 2) return [];
+    const first = records[0];
+    const latest = appeared.at(-1) || records.at(-1);
+    return [{
+      roll: first.roll,
+      name: first.name,
+      className: first.className,
+      latest,
+      delta: appeared.length > 1 ? latest.percentage - appeared[0].percentage : 0,
+      appearedCount: appeared.length,
+      missedExams: records.length - appeared.length,
+      failedExams: appeared.filter((record) => record.result === "Fail").length,
+      weakSubjects: latest.failedSubjects || [],
+      riskScore: 3,
+      riskLevel: "High",
+      riskReasons: [`Repeated decline across ${longestDecline + 1} consecutive examinations`]
+    }];
+  });
+}
+
+function performanceChangeClassName(classification) {
+  if (["Strong Improvement", "Improvement", "Relative Improvement"].includes(classification)) return "is-improving";
+  if (classification === "Stable") return "is-stable";
+  if (classification === "Mixed Progress" || classification === "Needs Monitoring") return "is-medium";
+  return "is-declining";
+}
+
+function signedAnalysisValue(value, suffix = " pp") {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return "-";
+  const number = Number(value);
+  return `${number > 0 ? "+" : ""}${number.toFixed(2)}${suffix}`;
+}
+
+function performanceGroupedBarChart(items, labelKey, firstKey, comparisonKey, firstLabel, comparisonLabel) {
+  if (!items.length) return '<p class="analysis-empty">No comparison data.</p>';
+  return `<div class="performance-grouped-chart">
+    <div class="performance-chart-legend"><span><i class="is-first"></i>${escapeHtml(firstLabel)}</span><span><i class="is-comparison"></i>${escapeHtml(comparisonLabel)}</span></div>
+    ${items.map((item) => `<div class="performance-grouped-row">
+      <span>${escapeHtml(item[labelKey])}</span>
+      <div><i class="is-first" style="width:${Math.max(0, Math.min(100, item[firstKey]))}%"></i><b>${Number(item[firstKey]).toFixed(1)}%</b></div>
+      <div><i class="is-comparison" style="width:${Math.max(0, Math.min(100, item[comparisonKey]))}%"></i><b>${Number(item[comparisonKey]).toFixed(1)}%</b></div>
+    </div>`).join("")}
+  </div>`;
+}
+
+function performanceChangeHistogram(records) {
+  const bands = [
+    { label: "< -15", min: -Infinity, max: -15.001 },
+    { label: "-15 to -6", min: -15, max: -5.001 },
+    { label: "-5 to +5", min: -5, max: 5 },
+    { label: "+6 to +15", min: 5.001, max: 15 },
+    { label: "> +15", min: 15.001, max: Infinity }
+  ];
+  return analysisHistogram(bands.map((band) => ({
+    label: band.label,
+    value: records.filter((record) =>
+      record.percentageChange >= band.min && record.percentageChange <= band.max).length
+  })));
+}
+
+function performanceCountBarChart(items) {
+  if (!items.length) return '<p class="analysis-empty">No comparison data.</p>';
+  const max = Math.max(1, ...items.map((item) => item.value));
+  return `<div class="analysis-bar-chart">${items.map((item) => `<div class="analysis-bar-row">
+    <span>${escapeHtml(item.label)}</span>
+    <div class="analysis-bar-track"><i style="width:${(item.value / max) * 100}%"></i></div>
+    <strong>${item.value}</strong>
+  </div>`).join("")}</div>`;
+}
+
+function performanceChangeInterpretation(record) {
+  if (!record) return "";
+  if (record.classification === "Strong Improvement") {
+    return "Performance improved in both absolute percentage and relative class position.";
+  }
+  if (record.classification === "Mixed Progress") {
+    return "Percentage and class-relative movement differ, so the change should be interpreted cautiously.";
+  }
+  if (record.classification === "Stable") {
+    return "Performance remained generally stable between the two examinations.";
+  }
+  if (["Decline", "Significant Decline", "Needs Monitoring"].includes(record.classification)) {
+    return "Percentage or relative class performance declined. Additional academic support may be helpful.";
+  }
+  return "Observed performance changed between the two examinations.";
+}
+
+function sortPerformanceChangeRecords(records, sortBy) {
+  const sorted = [...records];
+  const classificationOrder = [
+    "Strong Improvement", "Improvement", "Relative Improvement", "Stable",
+    "Mixed Progress", "Needs Monitoring", "Decline", "Significant Decline"
+  ];
+  if (sortBy === "decline") return sorted.sort((a, b) => a.percentageChange - b.percentageChange);
+  if (sortBy === "relative") return sorted.sort((a, b) => b.relativeChange - a.relativeChange);
+  if (sortBy === "percentile") return sorted.sort((a, b) => (b.percentileChange ?? -Infinity) - (a.percentileChange ?? -Infinity));
+  if (sortBy === "classification") return sorted.sort((a, b) =>
+    classificationOrder.indexOf(a.classification) - classificationOrder.indexOf(b.classification));
+  return sorted.sort((a, b) => b.percentageChange - a.percentageChange);
+}
+
+function renderPerformanceChangeStudentDetail(record, fromExam, toExam) {
+  if (!els.performanceChangeStudentDetail || !record) return;
+  els.performanceChangeStudentDetail.classList.remove("hidden");
+  els.performanceChangeStudentDetail.innerHTML = `
+    <div class="analysis-panel-head"><div><h4>${escapeHtml(record.name)}</h4><span>${escapeHtml(record.className)} | ${escapeHtml(fromExam)} to ${escapeHtml(toExam)}</span></div><button class="analysis-list-toggle" type="button" data-close-performance-detail>Close</button></div>
+    <div class="performance-detail-metrics">
+      <span>Percentage Change<strong>${signedAnalysisValue(record.percentageChange)}</strong></span>
+      <span>Class-Relative Change<strong>${signedAnalysisValue(record.relativeChange)}</strong></span>
+      <span>Percentile Change<strong>${signedAnalysisValue(record.percentileChange, " percentile points")}</strong></span>
+      <span>Status<strong>${escapeHtml(record.classification)}</strong></span>
+    </div>
+    <div class="performance-student-slope" aria-label="Individual student performance trend">
+      <div><span>${escapeHtml(fromExam)}</span><i style="height:${Math.max(2, record.first.percentage)}%"></i><strong>${record.first.percentage.toFixed(2)}%</strong></div>
+      <b aria-hidden="true">&#8594;</b>
+      <div><span>${escapeHtml(toExam)}</span><i style="height:${Math.max(2, record.comparison.percentage)}%"></i><strong>${record.comparison.percentage.toFixed(2)}%</strong></div>
+    </div>
+    <div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Subject</th><th>${escapeHtml(fromExam)} %</th><th>${escapeHtml(toExam)} %</th><th>Change</th></tr></thead>
+      <tbody>${record.subjectChanges.map((item) => `<tr><td>${escapeHtml(item.subject)}</td><td>${item.firstPercentage.toFixed(2)}%</td><td>${item.comparisonPercentage.toFixed(2)}%</td><td class="${item.change > 0 ? "analysis-positive-value" : item.change < 0 ? "analysis-negative-value" : ""}">${signedAnalysisValue(item.change)}</td></tr>`).join("") || '<tr><td colspan="4">No comparable subject data.</td></tr>'}</tbody>
+    </table></div>
+    <p><strong>Strongest improvement:</strong> ${record.strongest && record.strongest.change > 0 ? `${escapeHtml(record.strongest.subject)} (${signedAnalysisValue(record.strongest.change)})` : "None identified"}</p>
+    <p><strong>Largest decline:</strong> ${record.largestDecline && record.largestDecline.change < 0 ? `${escapeHtml(record.largestDecline.subject)} (${signedAnalysisValue(record.largestDecline.change)})` : "None identified"}</p>
+    <p>${escapeHtml(performanceChangeInterpretation(record))}</p>`;
+}
+
+function renderPerformanceChangeAnalysis(data, fromExam, toExam, sortBy) {
+  const records = sortPerformanceChangeRecords(data.records, sortBy);
+  const count = (classification) => records.filter((record) => record.classification === classification).length;
+  const classes = data.classMetrics;
+  const firstAverage = average(records.map((record) => record.first.percentage));
+  const comparisonAverage = average(records.map((record) => record.comparison.percentage));
+  const firstPassed = records.filter((record) => record.first.result !== "Fail").length;
+  const comparisonPassed = records.filter((record) => record.comparison.result !== "Fail").length;
+  const firstPassPercentage = records.length ? (firstPassed / records.length) * 100 : 0;
+  const comparisonPassPercentage = records.length ? (comparisonPassed / records.length) * 100 : 0;
+
+  els.performanceChangeMessage.textContent = records.length
+    ? ""
+    : "No sufficient data is available for this comparison.";
+  els.performanceChangeSummary.innerHTML = [
+    ["Students Compared", records.length, "is-neutral"],
+    ["Strong Improvement", count("Strong Improvement"), "is-positive"],
+    ["Improvement", count("Improvement"), "is-positive"],
+    ["Relative Improvement", count("Relative Improvement"), "is-positive"],
+    ["Stable", count("Stable"), "is-steady"],
+    ["Mixed Progress", count("Mixed Progress"), "is-warning"],
+    ["Needs Monitoring", count("Needs Monitoring"), "is-watch"],
+    ["Decline", count("Decline"), "is-negative"],
+    ["Significant Decline", count("Significant Decline"), "is-negative"]
+  ].map(([label, value, className]) => `<article class="${className}"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  els.performanceChangeClassSummary.textContent = records.length
+    ? `${classes.length === 1 ? classes[0].className : "Selected classes"} average performance changed from ${firstAverage.toFixed(2)}% in ${fromExam} to ${comparisonAverage.toFixed(2)}% in ${toExam}, ${signedAnalysisValue(comparisonAverage - firstAverage)}. Of ${records.length} comparable students, ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Improved").length} improved, ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Stable").length} remained stable, and ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Declined").length} declined.`
+    : "";
+  els.performanceChangeClassBody.innerHTML = classes.length
+    ? classes.map((item) => `<tr><td>${escapeHtml(item.className)}</td><td>${item.students}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${item.firstPassPercentage.toFixed(2)}%</td><td>${item.comparisonPassPercentage.toFixed(2)}%</td><td>${signedAnalysisValue(item.passPercentageChange)}</td><td>${item.improved}</td><td>${item.stable}</td><td>${item.declined}</td></tr>`).join("")
+    : '<tr><td colspan="11">No comparable class data.</td></tr>';
+  els.performanceChangeOverallChart.innerHTML = performanceCountBarChart([
+    { label: "Improved", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Improved").length },
+    { label: "Stable", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Stable").length },
+    { label: "Declined", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Declined").length }
+  ]);
+  els.performanceChangeDistributionChart.innerHTML = performanceChangeHistogram(records);
+  els.performanceChangeExamChart.innerHTML = performanceGroupedBarChart([
+    { label: "Average", first: firstAverage, comparison: comparisonAverage },
+    { label: "Pass Percentage", first: firstPassPercentage, comparison: comparisonPassPercentage }
+  ], "label", "first", "comparison", fromExam, toExam);
+  els.performanceChangeSubjectChart.innerHTML = performanceGroupedBarChart(
+    data.subjectMetrics,
+    "subject",
+    "firstAverage",
+    "comparisonAverage",
+    fromExam,
+    toExam
+  );
+  els.performanceChangeSubjectBody.innerHTML = data.subjectMetrics.length
+    ? data.subjectMetrics.map((item) => `<tr><td>${escapeHtml(item.subject)}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${item.firstPassPercentage.toFixed(2)}%</td><td>${item.comparisonPassPercentage.toFixed(2)}%</td><td>${signedAnalysisValue(item.passPercentageChange)}</td><td>${item.improved}</td><td>${item.stable}</td><td>${item.declined}</td></tr>`).join("")
+    : '<tr><td colspan="10">No comparable subject data.</td></tr>';
+  els.performanceChangeBody.innerHTML = records.length
+    ? records.map((record) => `<tr data-performance-student="${escapeAttr(encodeURIComponent(record.key))}" tabindex="0">
+      <td>${escapeHtml(record.name)}</td><td>${record.roll}</td>
+      <td>${record.first.percentage.toFixed(2)}%</td><td>${record.comparison.percentage.toFixed(2)}%</td>
+      <td class="${record.percentageChange > 0 ? "analysis-positive-value" : record.percentageChange < 0 ? "analysis-negative-value" : ""}">${signedAnalysisValue(record.percentageChange)}</td>
+      <td>${signedAnalysisValue(record.firstRelative)}</td><td>${signedAnalysisValue(record.comparisonRelative)}</td>
+      <td>${signedAnalysisValue(record.relativeChange)}</td>
+      <td>${record.firstPercentile === null ? "-" : `${record.firstPercentile.toFixed(1)}th`}</td>
+      <td>${record.comparisonPercentile === null ? "-" : `${record.comparisonPercentile.toFixed(1)}th`}</td>
+      <td>${signedAnalysisValue(record.percentileChange, " percentile points")}</td>
+      <td><span class="analysis-status-badge ${performanceChangeClassName(record.classification)}">${escapeHtml(record.classification)}</span></td>
+    </tr>`).join("")
+    : '<tr><td colspan="12">No sufficient data is available for this comparison.</td></tr>';
+  return { ...data, records, firstAverage, comparisonAverage, firstPassPercentage, comparisonPassPercentage };
+}
+
 function renderAcademicAnalysis() {
   if (!els.analysisReport || activeView !== "analysis") return;
   initializeAnalysisFilters();
@@ -4923,6 +5502,16 @@ function renderAcademicAnalysis() {
   const progressClasses = selectedAnalysisProgressClasses();
   const progressFromExam = els.analysisProgressFromExamSelect.value;
   const progressToExam = els.analysisProgressToExamSelect.value;
+  const performanceSession = els.performanceChangeSessionSelect.value || session;
+  const performanceClassFilter = els.performanceChangeClassSelect.value || "All Classes";
+  const performanceClasses = performanceClassFilter === "All Classes"
+    ? classes
+    : [performanceClassFilter];
+  const performanceFromExam = els.performanceChangeFromExamSelect.value;
+  const performanceToExam = els.performanceChangeToExamSelect.value;
+  const performanceSubject = els.performanceChangeSubjectSelect.value || "All Subjects";
+  const performanceStudent = els.performanceChangeStudentSelect.value || "All Students";
+  const performanceSort = els.performanceChangeSortSelect.value || "improvement";
   const baseRecords = buildAcademicAnalysisSelectionRecords(session, classes, exam)
     .filter((record) => subjectFilter === "All Subjects"
       || record.subjects.some((subject) => subject.name === subjectFilter));
@@ -4966,16 +5555,95 @@ function renderAcademicAnalysis() {
   const growthRecords = studentProgress
     .filter((record) => record.appearedCount >= 2)
     .sort((a, b) => a.delta - b.delta);
-  const earlyWarning = studentProgress
+  let earlyWarning = studentProgress
     .filter((record) => record.riskScore > 0)
     .sort((a, b) => (b.riskScore - a.riskScore)
       || ((a.latest?.percentage ?? 0) - (b.latest?.percentage ?? 0)));
+  const rawPerformanceChange = buildPerformanceChangeData(
+    performanceSession,
+    performanceClasses,
+    performanceFromExam,
+    performanceToExam,
+    performanceSubject,
+    performanceStudent
+  );
+  const performanceChange = renderPerformanceChangeAnalysis(
+    rawPerformanceChange,
+    performanceFromExam,
+    performanceToExam,
+    performanceSort
+  );
+  const warningPerformanceChange = buildPerformanceChangeData(
+    session,
+    progressClasses,
+    progressFromExam,
+    progressToExam,
+    subjectFilter,
+    "All Students"
+  );
+  const performanceWarnings = warningPerformanceChange.records
+    .filter((record) =>
+      ["Significant Decline", "Needs Monitoring"].includes(record.classification)
+      || record.comparison.result === "Fail")
+    .map((record) => {
+      const reasons = [];
+      if (record.classification === "Significant Decline") {
+        reasons.push(`Performance declined by ${Math.abs(record.percentageChange).toFixed(2)} percentage points from ${progressFromExam} to ${progressToExam}`);
+      }
+      if (record.relativeChange < -performanceChangeTolerance) {
+        reasons.push(`relative class performance declined by ${Math.abs(record.relativeChange).toFixed(2)} percentage points`);
+      }
+      if (record.classification === "Needs Monitoring") reasons.push("Relative performance needs monitoring");
+      if (record.comparison.result === "Fail") reasons.push(`Failed in ${progressToExam}`);
+      return {
+        roll: record.roll,
+        name: record.name,
+        className: record.className,
+        latest: record.comparison,
+        delta: record.percentageChange,
+        appearedCount: 2,
+        missedExams: 0,
+        failedExams: record.comparison.result === "Fail" ? 1 : 0,
+        weakSubjects: record.comparison.failedSubjects || [],
+        riskScore: record.classification === "Significant Decline" ? 3 : 2,
+        riskLevel: record.classification === "Significant Decline" ? "High" : "Medium",
+        riskReasons: reasons
+      };
+    });
+  const repeatedDeclineWarnings = buildRepeatedPerformanceDeclineWarnings(
+    session,
+    progressClasses,
+    subjectFilter
+  );
+  const warningMap = new Map();
+  [
+    ...earlyWarning,
+    ...warningPerformanceChange.missingWarnings,
+    ...performanceWarnings,
+    ...repeatedDeclineWarnings
+  ].forEach((record) => {
+    const key = `${record.className}\u0000${record.roll}`;
+    const existing = warningMap.get(key);
+    if (!existing) {
+      warningMap.set(key, { ...record, riskReasons: [...new Set(record.riskReasons || [])] });
+      return;
+    }
+    existing.riskScore = Math.max(existing.riskScore, record.riskScore);
+    existing.riskLevel = existing.riskScore >= 3 ? "High" : existing.riskScore === 2 ? "Medium" : "Watch";
+    existing.riskReasons = [...new Set([...(existing.riskReasons || []), ...(record.riskReasons || [])])];
+    existing.weakSubjects = [...new Set([...(existing.weakSubjects || []), ...(record.weakSubjects || [])])];
+    existing.failedExams = Math.max(existing.failedExams || 0, record.failedExams || 0);
+    existing.missedExams = Math.max(existing.missedExams || 0, record.missedExams || 0);
+  });
+  earlyWarning = [...warningMap.values()].sort((a, b) => b.riskScore - a.riskScore);
 
   analysisCurrentData = {
     session, sectionFilter, classFilter, exam, subjectFilter, status, threshold, records, baseRecords,
     overview, classMetrics, subjectMetrics, topStudents, support, trend, attendancePercentage,
     examAppearances, examOpportunities, examAbsences, growthRecords, earlyWarning,
-    progressClassFilter, progressFromExam, progressToExam
+    progressClassFilter, progressFromExam, progressToExam, performanceChange,
+    performanceSession, performanceClassFilter, performanceFromExam, performanceToExam,
+    performanceSubject, performanceStudent, performanceSort
   };
   const scopeLabel = classFilter === "All Classes" ? sectionFilter : classFilter;
   els.analysisReportSubtitle.textContent = `${scopeLabel} ${exam} | Academic Session ${formatAcademicSession(session)}`;
@@ -5974,6 +6642,11 @@ function exportAnalysisExcel() {
     { Metric: "Growth Focus Class", Value: data.progressClassFilter },
     { Metric: "Growth First Exam", Value: data.progressFromExam },
     { Metric: "Growth Compare With", Value: data.progressToExam },
+    { Metric: "Performance Change Session", Value: data.performanceSession },
+    { Metric: "Performance Change Class", Value: data.performanceClassFilter },
+    { Metric: "Performance Change First Exam", Value: data.performanceFromExam },
+    { Metric: "Performance Change Comparison Exam", Value: data.performanceToExam },
+    { Metric: "Performance Change Subject", Value: data.performanceSubject },
     ...Object.entries(data.overview).map(([metric, value]) => ({ Metric: formatFirebaseFieldName(metric), Value: value }))
   ];
   const classRows = data.classMetrics.map((item) => ({
@@ -6025,11 +6698,59 @@ function exportAnalysisExcel() {
     Risk: record.riskLevel,
     Reasons: record.riskReasons.join(", ")
   }));
+  const performanceRows = data.performanceChange.records.map((record) => ({
+    "Student Name": record.name,
+    "Roll Number": record.roll,
+    Class: record.className,
+    "First Exam Percentage": Number(record.first.percentage.toFixed(2)),
+    "Comparison Exam Percentage": Number(record.comparison.percentage.toFixed(2)),
+    "Percentage Change": Number(record.percentageChange.toFixed(2)),
+    "First Relative Performance": Number(record.firstRelative.toFixed(2)),
+    "Comparison Relative Performance": Number(record.comparisonRelative.toFixed(2)),
+    "Relative Change": Number(record.relativeChange.toFixed(2)),
+    "First Percentile": record.firstPercentile === null ? "" : Number(record.firstPercentile.toFixed(2)),
+    "Comparison Percentile": record.comparisonPercentile === null ? "" : Number(record.comparisonPercentile.toFixed(2)),
+    "Percentile Change": record.percentileChange === null ? "" : Number(record.percentileChange.toFixed(2)),
+    Classification: record.classification,
+    Interpretation: performanceChangeInterpretation(record)
+  }));
+  const performanceSubjectRows = data.performanceChange.subjectMetrics.map((item) => ({
+    Subject: item.subject,
+    "First Exam Average Percentage": Number(item.firstAverage.toFixed(2)),
+    "Comparison Exam Average Percentage": Number(item.comparisonAverage.toFixed(2)),
+    "Average Change": Number(item.averageChange.toFixed(2)),
+    "First Exam Pass Percentage": Number(item.firstPassPercentage.toFixed(2)),
+    "Comparison Exam Pass Percentage": Number(item.comparisonPassPercentage.toFixed(2)),
+    "Pass Percentage Change": Number(item.passPercentageChange.toFixed(2)),
+    Improved: item.improved,
+    Stable: item.stable,
+    Declined: item.declined
+  }));
+  const performanceClassRows = data.performanceChange.classMetrics.map((item) => ({
+    Class: item.className,
+    "Students Compared": item.students,
+    "First Exam Average Percentage": Number(item.firstAverage.toFixed(2)),
+    "Comparison Exam Average Percentage": Number(item.comparisonAverage.toFixed(2)),
+    "Average Change": Number(item.averageChange.toFixed(2)),
+    "First Exam Pass Percentage": Number(item.firstPassPercentage.toFixed(2)),
+    "Comparison Exam Pass Percentage": Number(item.comparisonPassPercentage.toFixed(2)),
+    "Pass Percentage Change": Number(item.passPercentageChange.toFixed(2)),
+    Improved: item.improved,
+    Stable: item.stable,
+    Declined: item.declined
+  }));
+  const disclaimerRows = [{
+    Note: "Performance comparisons between different examination types should be interpreted carefully. Differences in maximum marks, syllabus coverage, examination difficulty, and question patterns may influence results. Performance Change indicates differences in observed results and does not necessarily represent definitive academic growth."
+  }];
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(overviewRows), "Overview");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(classRows), "Class Analysis");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(subjectRows), "Subject Analysis");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(growthRows), "Student Growth");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(warningRows), "Early Warning");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(performanceRows), "Performance Change");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(performanceSubjectRows), "Performance Subjects");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(performanceClassRows), "Performance Classes");
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(disclaimerRows), "Analysis Note");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(supportRows), "Students Needing Support");
   window.XLSX.writeFile(workbook, `Academic_Analysis_${fileSafeName(data.session)}.xlsx`);
 }

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=smart-attendance-save-20260703">
+  <link rel="stylesheet" href="./styles.css?v=sticky-growth-warning-tables-20260705">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -559,19 +559,74 @@
             </div>
           </section>
 
-          <section class="analysis-panel analysis-risk-panel">
-            <div class="analysis-panel-head">
-              <div><h4>Early-Warning Students</h4><span>Risk indicators from the two selected examinations</span></div>
-              <button id="toggleAnalysisRiskListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisRiskTableWrap">Show List</button>
-            </div>
-            <div id="analysisEarlyWarningSummary" class="analysis-mini-metrics"></div>
-            <div id="analysisRiskTableWrap" class="analysis-table-wrap analysis-risk-table-wrap hidden">
-              <table class="analysis-table analysis-risk-table">
-                <thead><tr><th>Student Name</th><th>Class</th><th>Latest %</th><th>Change</th><th>Missed Exams</th><th>Failed Exams</th><th>Weak Subjects</th><th>Risk</th><th>Reasons</th></tr></thead>
-                <tbody id="analysisEarlyWarningBody"></tbody>
-              </table>
-            </div>
-          </section>
+          <div class="analysis-grid analysis-grid-two analysis-risk-change-grid">
+            <section class="analysis-panel analysis-risk-panel">
+              <div class="analysis-panel-head">
+                <div><h4>Early-Warning Students</h4><span>Risk indicators from examination performance</span></div>
+                <button id="toggleAnalysisRiskListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisRiskTableWrap">Show List</button>
+              </div>
+              <div id="analysisEarlyWarningSummary" class="analysis-mini-metrics"></div>
+              <div id="analysisRiskTableWrap" class="analysis-table-wrap analysis-risk-table-wrap hidden">
+                <table class="analysis-table analysis-risk-table">
+                  <thead><tr><th>Student Name</th><th>Class</th><th>Latest %</th><th>Change</th><th>Missed Exams</th><th>Failed Exams</th><th>Weak Subjects</th><th>Risk</th><th>Reasons</th></tr></thead>
+                  <tbody id="analysisEarlyWarningBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="analysis-panel performance-change-panel">
+              <div class="analysis-panel-head">
+                <div><h4>Performance Change Analysis</h4><span>Standardized examination comparison</span></div>
+              </div>
+              <div class="performance-change-filters" aria-label="Performance change filters">
+                <label>Academic Session<select id="performanceChangeSessionSelect"></select></label>
+                <label>Class<select id="performanceChangeClassSelect"></select></label>
+                <label>First Examination<select id="performanceChangeFromExamSelect"></select></label>
+                <label>Comparison Examination<select id="performanceChangeToExamSelect"></select></label>
+                <label>Subject<select id="performanceChangeSubjectSelect"></select></label>
+                <label>Student<select id="performanceChangeStudentSelect"></select></label>
+                <label>Sort By<select id="performanceChangeSortSelect">
+                  <option value="improvement">Highest Improvement</option>
+                  <option value="decline">Highest Decline</option>
+                  <option value="percentage">Percentage Change</option>
+                  <option value="relative">Relative Change</option>
+                  <option value="percentile">Percentile Change</option>
+                  <option value="classification">Classification</option>
+                </select></label>
+              </div>
+              <p id="performanceChangeMessage" class="performance-change-message"></p>
+              <div id="performanceChangeSummary" class="analysis-mini-metrics performance-change-summary"></div>
+              <p id="performanceChangeClassSummary" class="performance-change-class-summary"></p>
+              <div class="analysis-table-wrap performance-change-class-wrap">
+                <table class="analysis-table performance-change-class-table">
+                  <thead><tr><th>Class</th><th>Students</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <tbody id="performanceChangeClassBody"></tbody>
+                </table>
+              </div>
+              <div class="performance-change-charts">
+                <div><h5>Overall Student Change</h5><div id="performanceChangeOverallChart"></div></div>
+                <div><h5>Change Distribution</h5><div id="performanceChangeDistributionChart"></div></div>
+              </div>
+              <div class="performance-change-charts">
+                <div><h5>Examination Comparison</h5><div id="performanceChangeExamChart"></div></div>
+                <div><h5>Subject Comparison</h5><div id="performanceChangeSubjectChart"></div></div>
+              </div>
+              <div class="analysis-table-wrap performance-change-subject-wrap">
+                <table class="analysis-table performance-change-subject-table">
+                  <thead><tr><th>Subject</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <tbody id="performanceChangeSubjectBody"></tbody>
+                </table>
+              </div>
+              <div class="analysis-table-wrap performance-change-table-wrap">
+                <table class="analysis-table performance-change-table">
+                  <thead><tr><th>Student Name</th><th>Roll No.</th><th>First Exam %</th><th>Comparison Exam %</th><th>Percentage Change</th><th>First Relative</th><th>Comparison Relative</th><th>Relative Change</th><th>First Percentile</th><th>Comparison Percentile</th><th>Percentile Change</th><th>Classification</th></tr></thead>
+                  <tbody id="performanceChangeBody"></tbody>
+                </table>
+              </div>
+              <div id="performanceChangeStudentDetail" class="performance-change-detail hidden"></div>
+              <p class="performance-change-disclaimer">Performance comparisons between different examination types should be interpreted carefully. Differences in maximum marks, syllabus coverage, examination difficulty, and question patterns may influence results. Performance Change indicates differences in observed results and does not necessarily represent definitive academic growth.</p>
+            </section>
+          </div>
 
         </div>
       </section>
@@ -662,6 +717,6 @@
   <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=independent-part-save-20260703"></script>
+  <script src="./app.js?v=growth-warning-filter-sync-20260705"></script>
 </body>
 </html>
