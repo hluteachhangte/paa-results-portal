@@ -149,6 +149,7 @@ const defaultState = {
   entryAccess: createDefaultEntryAccess(),
   attendanceAccess: createDefaultAttendanceAccess(),
   teacherAssignments: [],
+  teacherAssessment: createDefaultTeacherAssessmentData(),
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -182,6 +183,10 @@ let restoreMarksheetsAfterPrint = false;
 let analysisCurrentData = null;
 let teacherAnalyticsCurrentData = null;
 let editingTeacherAssignmentId = "";
+let selectedTeacherAssessmentId = "";
+let activeTeacherAssessmentTab = "overview";
+let editingTeacherAssessmentRecord = null;
+let teacherAssessmentCurrentData = null;
 let publicationSaveInProgress = false;
 const firebaseResultListeners = {
   app: null,
@@ -353,6 +358,26 @@ const els = {
   downloadTeacherAnalysisPdfBtn: document.querySelector("#downloadTeacherAnalysisPdfBtn"),
   exportTeacherAnalysisExcelBtn: document.querySelector("#exportTeacherAnalysisExcelBtn"),
   printTeacherAnalysisBtn: document.querySelector("#printTeacherAnalysisBtn"),
+  teacherAssessmentAccessDenied: document.querySelector("#teacherAssessmentAccessDenied"),
+  teacherAssessmentContent: document.querySelector("#teacherAssessmentContent"),
+  teacherAssessmentSessionSelect: document.querySelector("#teacherAssessmentSessionSelect"),
+  teacherAssessmentMonthSelect: document.querySelector("#teacherAssessmentMonthSelect"),
+  teacherAssessmentTeacherSelect: document.querySelector("#teacherAssessmentTeacherSelect"),
+  teacherAssessmentDepartmentSelect: document.querySelector("#teacherAssessmentDepartmentSelect"),
+  teacherAssessmentSubjectSelect: document.querySelector("#teacherAssessmentSubjectSelect"),
+  teacherAssessmentClassSelect: document.querySelector("#teacherAssessmentClassSelect"),
+  teacherAssessmentStatusSelect: document.querySelector("#teacherAssessmentStatusSelect"),
+  teacherAssessmentSearchInput: document.querySelector("#teacherAssessmentSearchInput"),
+  addTeacherAssessmentProfileBtn: document.querySelector("#addTeacherAssessmentProfileBtn"),
+  teacherAssessmentCards: document.querySelector("#teacherAssessmentCards"),
+  teacherAssessmentReport: document.querySelector("#teacherAssessmentReport"),
+  teacherAssessmentReportSubtitle: document.querySelector("#teacherAssessmentReportSubtitle"),
+  teacherAssessmentHero: document.querySelector("#teacherAssessmentHero"),
+  teacherAssessmentTabs: document.querySelector("#teacherAssessmentTabs"),
+  teacherAssessmentTabContent: document.querySelector("#teacherAssessmentTabContent"),
+  downloadTeacherAssessmentPdfBtn: document.querySelector("#downloadTeacherAssessmentPdfBtn"),
+  exportTeacherAssessmentExcelBtn: document.querySelector("#exportTeacherAssessmentExcelBtn"),
+  printTeacherAssessmentBtn: document.querySelector("#printTeacherAssessmentBtn"),
   printResultsTitle: document.querySelector("#printResultsTitle"),
   resultNotice: document.querySelector("#resultNotice"),
   publishStatus: document.querySelector("#publishStatus"),
@@ -392,6 +417,7 @@ function normalizeState(existingState = {}) {
   parsed.entryAccess = normalizeEntryAccess(existingState.entryAccess || parsed.entryAccess);
   parsed.attendanceAccess = normalizeAttendanceAccess(existingState.attendanceAccess || parsed.attendanceAccess);
   parsed.teacherAssignments = normalizeTeacherAssignments(existingState.teacherAssignments || parsed.teacherAssignments);
+  parsed.teacherAssessment = normalizeTeacherAssessmentData(existingState.teacherAssessment || parsed.teacherAssessment);
   parsed.sessions = normalizeSessions(parsed.sessions);
 
   const migratedActiveData = normalizeSessionData({
@@ -520,6 +546,41 @@ function normalizeTeacherAssignments(assignments = []) {
     subject: String(assignment.subject || "").trim(),
     part: ["Part A", "Part B"].includes(assignment.part) ? assignment.part : "Whole Subject"
   })).filter((assignment) => assignment.teacherName && assignment.subject);
+}
+
+function createDefaultTeacherAssessmentData() {
+  return {
+    profiles: [],
+    lessonPlans: [],
+    lessonTracking: [],
+    syllabus: [],
+    activities: [],
+    attendance: [],
+    observations: [],
+    remarks: [],
+    documents: [],
+    history: []
+  };
+}
+
+function normalizeTeacherAssessmentData(data = {}) {
+  const normalized = createDefaultTeacherAssessmentData();
+  Object.keys(normalized).forEach((key) => {
+    normalized[key] = (Array.isArray(data?.[key]) ? data[key] : []).map((record, index) => ({
+      ...record,
+      id: String(record.id || `${key}-${index + 1}`),
+      teacherId: String(record.teacherId || ""),
+      session: currentSessionKey(record.session || "2026 - 2027")
+    }));
+  });
+  normalized.profiles = normalized.profiles.map((profile) => ({
+    ...profile,
+    name: String(profile.name || "").trim(),
+    designation: String(profile.designation || "Teacher").trim() || "Teacher",
+    department: String(profile.department || "General").trim() || "General",
+    photoUrl: String(profile.photoUrl || "").trim()
+  })).filter((profile) => profile.teacherId && profile.name);
+  return normalized;
 }
 
 function slugifyTeacherName(name) {
@@ -994,7 +1055,7 @@ function loadSavedUiState() {
 
   try {
     const parsed = JSON.parse(saved);
-    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "entryAccess"];
+    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
     return {
       ...parsed,
       activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
@@ -1007,7 +1068,7 @@ function loadSavedUiState() {
 function viewFromLocationHash() {
   const hash = window.location.hash.replace(/^#/, "");
   const routeView = new URLSearchParams(hash).get("view") || hash.replace(/^view=/, "");
-  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "entryAccess"];
+  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
   return allowedViews.includes(routeView) ? routeView : "";
 }
 
@@ -1272,6 +1333,8 @@ function renderActiveViewOnly() {
     renderAcademicAnalysis();
   } else if (activeView === "teacherAnalytics") {
     renderTeacherAnalytics();
+  } else if (activeView === "teacherAssessment") {
+    renderTeacherAssessment();
   } else {
     render();
   }
@@ -2301,6 +2364,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
   document.body.classList.toggle("analysis-active", activeView === "analysis");
   document.body.classList.toggle("teacher-analytics-active", activeView === "teacherAnalytics");
+  document.body.classList.toggle("teacher-assessment-active", activeView === "teacherAssessment");
   document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
@@ -2313,6 +2377,7 @@ function renderActiveViewChrome() {
     students: "Students",
     analysis: "Academic Analysis",
     teacherAnalytics: "Teacher Performance Analytics",
+    teacherAssessment: "Teacher Assessment",
     entryAccess: "Entry Access Control"
   };
   els.viewTitle.textContent = titles[activeView] || "Marks Entry";
@@ -2328,13 +2393,14 @@ function render() {
   renderStudents();
   renderAcademicAnalysis();
   renderTeacherAnalytics();
+  renderTeacherAssessment();
   renderEntryAccessControl();
 }
 
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = !["attendance", "students", "analysis", "teacherAnalytics", "entryAccess"].includes(activeView);
+  const showMainFilters = !["attendance", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -7445,7 +7511,7 @@ function clearCurrentPrintTarget() {
 
 function startPrintMode(printClass, extraClass = "") {
   clearTimeout(printCleanupTimer);
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
   activePrintClass = printClass;
   document.body.classList.add(printClass);
   if (extraClass) document.body.classList.add(extraClass);
@@ -7460,7 +7526,7 @@ function startPrintMode(printClass, extraClass = "") {
 function clearPrintMode() {
   clearTimeout(printCleanupTimer);
   printCleanupTimer = null;
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
   clearCurrentPrintTarget();
   activePrintClass = "";
   if (restoreMarksheetsAfterPrint) {
@@ -8815,5 +8881,23 @@ function showToast(message) {
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2200);
 }
+
+function renderTeacherAssessment() {
+  window.TeacherAssessmentModule?.render();
+}
+
+window.TeacherAssessmentApp = {
+  getState: () => state,
+  saveState,
+  isAdmin,
+  showToast,
+  startPrintMode,
+  fileSafeName,
+  formatAcademicSession,
+  currentSessionKey,
+  classNames,
+  getActiveView: () => activeView,
+  getCurrentUser: () => currentUser
+};
 
 init();

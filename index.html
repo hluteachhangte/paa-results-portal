@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=stacked-performance-analysis-20260705">
+  <link rel="stylesheet" href="./styles.css?v=teacher-assessment-module-20260706">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -92,6 +92,10 @@
           <span class="mobile-nav-icon" aria-hidden="true">&#9636;</span>
           <span>Teacher Performance Analytics</span>
         </button>
+        <button class="hidden" type="button" data-mobile-view="teacherAssessment" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9745;</span>
+          <span>Teacher Assessment</span>
+        </button>
         <button class="hidden" type="button" data-mobile-view="entryAccess" data-admin-only="true">
           <span class="mobile-nav-icon" aria-hidden="true">&#9881;</span>
           <span>Settings</span>
@@ -138,6 +142,10 @@
         <button class="nav-tab hidden" data-view="teacherAnalytics" data-admin-only="true" type="button" title="Teacher performance analytics">
           <span aria-hidden="true">&#9636;</span>
           Teacher Performance Analytics
+        </button>
+        <button class="nav-tab hidden" data-view="teacherAssessment" data-admin-only="true" type="button" title="Teacher responsibility assessment">
+          <span aria-hidden="true">&#9745;</span>
+          Teacher Assessment
         </button>
         <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
           <span aria-hidden="true">&#128274;</span>
@@ -395,6 +403,67 @@
               <strong>Fairness Note</strong>
               <p>Teacher performance analytics should be used for academic support and planning. Student results are influenced by several factors including attendance, prior learning level, home support, and examination difficulty. This dashboard should not be used as the sole basis for teacher evaluation.</p>
             </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="teacherAssessmentView" class="view" aria-label="Teacher assessment">
+        <div id="teacherAssessmentAccessDenied" class="teacher-access-denied hidden">
+          <h3>Access Denied</h3>
+          <p>Access Denied. Administrator Permission Required.</p>
+        </div>
+
+        <div id="teacherAssessmentContent">
+          <div class="section-head teacher-assessment-page-head">
+            <div>
+              <h3>Teacher Assessment</h3>
+              <p>Lesson planning, teaching progress, syllabus coverage, attendance, observations, and professional responsibilities.</p>
+            </div>
+            <div class="inline-actions teacher-assessment-actions">
+              <button id="downloadTeacherAssessmentPdfBtn" class="primary-button" type="button">Download Assessment PDF</button>
+              <button id="exportTeacherAssessmentExcelBtn" class="ghost-button" type="button">Export Excel</button>
+              <button id="printTeacherAssessmentBtn" class="ghost-button" type="button">Print Report</button>
+            </div>
+          </div>
+
+          <div class="teacher-assessment-filters" aria-label="Teacher assessment filters">
+            <label>Academic Session<select id="teacherAssessmentSessionSelect"></select></label>
+            <label>Month<select id="teacherAssessmentMonthSelect"></select></label>
+            <label>Teacher<select id="teacherAssessmentTeacherSelect"></select></label>
+            <label>Department<select id="teacherAssessmentDepartmentSelect"></select></label>
+            <label>Subject<select id="teacherAssessmentSubjectSelect"></select></label>
+            <label>Class<select id="teacherAssessmentClassSelect"></select></label>
+            <label>Status<select id="teacherAssessmentStatusSelect"></select></label>
+            <label class="teacher-assessment-search">Search<input id="teacherAssessmentSearchInput" type="search" placeholder="Teacher, subject, or class"></label>
+          </div>
+
+          <section class="teacher-assessment-directory">
+            <div class="analysis-panel-head">
+              <div><h4>Teacher Directory</h4><span>Select a teacher to open the assessment dashboard</span></div>
+              <button id="addTeacherAssessmentProfileBtn" class="analysis-list-toggle" type="button">Add Profile</button>
+            </div>
+            <div id="teacherAssessmentCards" class="teacher-assessment-cards"></div>
+          </section>
+
+          <div id="teacherAssessmentReport" class="teacher-assessment-report hidden">
+            <header class="analysis-report-title">
+              <h3>PINEHILL ADVENTIST ACADEMY</h3>
+              <p id="teacherAssessmentReportSubtitle">Teacher Assessment</p>
+            </header>
+            <div id="teacherAssessmentHero" class="teacher-assessment-hero"></div>
+            <div id="teacherAssessmentTabs" class="teacher-assessment-tabs" role="tablist">
+              <button class="active" type="button" data-assessment-tab="overview">Overview</button>
+              <button type="button" data-assessment-tab="lessonPlans">Lesson Plan</button>
+              <button type="button" data-assessment-tab="lessonTracking">Lesson Tracking</button>
+              <button type="button" data-assessment-tab="syllabus">Syllabus Progress</button>
+              <button type="button" data-assessment-tab="activities">Activity Reports</button>
+              <button type="button" data-assessment-tab="attendance">Attendance</button>
+              <button type="button" data-assessment-tab="observations">Class Observation</button>
+              <button type="button" data-assessment-tab="remarks">Remarks</button>
+              <button type="button" data-assessment-tab="documents">Documents</button>
+              <button type="button" data-assessment-tab="history">History</button>
+            </div>
+            <div id="teacherAssessmentTabContent" class="teacher-assessment-tab-content"></div>
           </div>
         </div>
       </section>
@@ -717,6 +786,7 @@
   <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=growth-warning-filter-sync-20260705"></script>
+  <script src="./app.js?v=teacher-assessment-bridge-20260706"></script>
+  <script src="./teacher-assessment.js?v=teacher-assessment-module-20260706"></script>
 </body>
 </html>
