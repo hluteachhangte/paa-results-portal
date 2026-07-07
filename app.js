@@ -255,6 +255,7 @@ const els = {
   printCurrentMarksheetBtn: document.querySelector("#printCurrentMarksheetBtn"),
   printAllMarksheetsBtn: document.querySelector("#printAllMarksheetsBtn"),
   downloadMarksheetPdfBtn: document.querySelector("#downloadMarksheetPdfBtn"),
+  marksheetPublishBtn: document.querySelector("#marksheetPublishBtn"),
   marksheetZoomInput: document.querySelector("#marksheetZoomInput"),
   marksheetZoomValue: document.querySelector("#marksheetZoomValue"),
   zoomOutMarksheetBtn: document.querySelector("#zoomOutMarksheetBtn"),
@@ -427,6 +428,7 @@ function normalizeState(existingState = {}) {
     measurements: existingState.measurements ?? parsed.measurements,
     marks: existingState.marks ?? parsed.marks,
     published: existingState.published ?? parsed.published,
+    publishedMarksheets: existingState.publishedMarksheets ?? parsed.publishedMarksheets,
     dataEntryUpdates: existingState.dataEntryUpdates ?? parsed.dataEntryUpdates
   });
   if (!parsed.sessions[parsed.academicSession]) {
@@ -492,6 +494,7 @@ function createEmptySessionData() {
     measurements: {},
     marks: {},
     published: {},
+    publishedMarksheets: {},
     dataEntryUpdates: {}
   };
 }
@@ -504,6 +507,7 @@ function normalizeSessionData(data = {}) {
     measurements: data.measurements || {},
     marks: data.marks || {},
     published: data.published || {},
+    publishedMarksheets: data.publishedMarksheets || {},
     dataEntryUpdates: data.dataEntryUpdates || {}
   };
 }
@@ -522,6 +526,7 @@ function getActiveSessionData() {
     measurements: state.measurements,
     marks: state.marks,
     published: state.published,
+    publishedMarksheets: state.publishedMarksheets,
     dataEntryUpdates: state.dataEntryUpdates
   });
 }
@@ -534,6 +539,7 @@ function setActiveSessionData(targetState, data) {
   targetState.measurements = normalizedData.measurements;
   targetState.marks = normalizedData.marks;
   targetState.published = normalizedData.published;
+  targetState.publishedMarksheets = normalizedData.publishedMarksheets;
   targetState.dataEntryUpdates = normalizedData.dataEntryUpdates;
 }
 
@@ -1882,6 +1888,14 @@ function canViewResult() {
   return isPublished() || isAdmin();
 }
 
+function isMarksheetPublished() {
+  return Boolean(state.publishedMarksheets?.[examKey()]);
+}
+
+function canViewMarksheet() {
+  return isMarksheetPublished() || isAdmin();
+}
+
 function populateSelect(select, options) {
   select.innerHTML = options
     .map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`)
@@ -1989,6 +2003,7 @@ function init() {
   els.logoutBtn.addEventListener("click", logout);
   els.publishBtn.addEventListener("click", publishCurrentResult);
   els.unpublishBtn.addEventListener("click", toggleResultPublication);
+  els.marksheetPublishBtn?.addEventListener("click", toggleMarksheetPublication);
   document.querySelector("#exportBtn").addEventListener("click", exportCsv);
   els.exportExcelBtn?.addEventListener("click", exportExcelFromFirestore);
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
@@ -2386,6 +2401,7 @@ function renderActiveViewChrome() {
 function render() {
   renderViewFilters();
   renderPublishStatus();
+  renderMarksheetPublishStatus();
   renderEntry();
   renderAttendance();
   renderResults();
@@ -2427,6 +2443,21 @@ function renderPublishStatus() {
   els.unpublishBtn.setAttribute(
     "aria-label",
     status ? "Unpublish selected class result" : "Publish selected class result"
+  );
+}
+
+function renderMarksheetPublishStatus() {
+  if (!els.marksheetPublishBtn) return;
+  const status = isMarksheetPublished();
+  els.marksheetPublishBtn.classList.toggle("hidden", !isAdmin());
+  els.marksheetPublishBtn.disabled = publicationSaveInProgress;
+  els.marksheetPublishBtn.textContent = publicationSaveInProgress ? "Saving..." : status ? "Unpublish" : "Publish";
+  els.marksheetPublishBtn.classList.toggle("primary-button", !status);
+  els.marksheetPublishBtn.classList.toggle("ghost-button", status);
+  els.marksheetPublishBtn.classList.toggle("danger", status);
+  els.marksheetPublishBtn.setAttribute(
+    "aria-label",
+    status ? "Unpublish selected class marksheets" : "Publish selected class marksheets"
   );
 }
 
@@ -3906,7 +3937,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
   const term = isTermExam();
   const workingDays = getWorkingDays();
 
-  if (!canViewResult()) {
+  if (!canViewMarksheet()) {
     els.marksheetBody.innerHTML = `
       <div class="table-wrap">
         <table>
@@ -7289,8 +7320,8 @@ function printCurrentMarksheet() {
     showToast("Only Admin can print marksheets.");
     return;
   }
-  if (!canViewResult()) {
-    showToast("Publish the result before printing marksheets.");
+  if (!canViewMarksheet()) {
+    showToast("Publish the marksheets before printing.");
     return;
   }
   if (!els.marksheetBody?.querySelector(".marksheet")) {
@@ -7312,8 +7343,8 @@ function printAllMarksheets() {
     showToast("Only Admin can print marksheets.");
     return;
   }
-  if (!canViewResult()) {
-    showToast("Publish the result before printing marksheets.");
+  if (!canViewMarksheet()) {
+    showToast("Publish the marksheets before printing.");
     return;
   }
   const hasSearch = Boolean((els.marksheetNameSearchInput?.value || "").trim());
@@ -7332,8 +7363,8 @@ function printAllMarksheets() {
 }
 
 function saveMarksheetsPdf() {
-  if (!canViewResult()) {
-    showToast("Publish the result before saving PDF.");
+  if (!canViewMarksheet()) {
+    showToast("Publish the marksheets before saving PDF.");
     return;
   }
   showToast('Choose "Save as PDF" in the print dialog.');
@@ -7341,8 +7372,8 @@ function saveMarksheetsPdf() {
 }
 
 async function downloadMarksheetPDF() {
-  if (!canViewResult()) {
-    showToast("Publish the result before downloading marksheets.");
+  if (!canViewMarksheet()) {
+    showToast("Publish the marksheets before downloading.");
     return;
   }
   if (!window.html2canvas || !window.jspdf?.jsPDF) {
@@ -8021,6 +8052,67 @@ function toggleResultPublication() {
 
 function unpublishCurrentResult() {
   return persistResultPublication(false);
+}
+
+async function persistMarksheetPublication(shouldPublish) {
+  if (publicationSaveInProgress) return;
+  if (!isAdmin()) {
+    showToast(`Only admin can ${shouldPublish ? "publish" : "unpublish"} marksheets.`);
+    return;
+  }
+  const className = selectedClass();
+  const exam = selectedExam();
+  const key = examKey(className, exam);
+  if (hasUnsavedResultChanges(className, exam)) {
+    showToast(`Save ${className} ${exam} changes before ${shouldPublish ? "publishing" : "unpublishing"} marksheets.`);
+    return;
+  }
+
+  const previousValue = state.publishedMarksheets?.[key];
+  const publicationValue = shouldPublish ? { publishedAt: new Date().toISOString() } : null;
+  publicationSaveInProgress = true;
+  state.publishedMarksheets = state.publishedMarksheets || {};
+  if (shouldPublish) state.publishedMarksheets[key] = publicationValue;
+  else delete state.publishedMarksheets[key];
+  syncActiveSessionData();
+  localStorage.setItem(storageKey, JSON.stringify(state));
+  render();
+
+  try {
+    const session = currentSessionKey(state.academicSession);
+    if (window.MarkHubFirebase?.updateAppStateFields) {
+      const value = shouldPublish
+        ? publicationValue
+        : window.MarkHubFirebase.deleteFieldValue?.();
+      if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
+      await window.MarkHubFirebase.updateAppStateFields([
+        { path: ["state", "sessions", session, "publishedMarksheets", key], value }
+      ], structuredClone(state));
+      const stateJson = JSON.stringify(state);
+      lastSyncedFirebaseStateJson = stateJson;
+      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
+    } else if (!hasUnsavedLocalChanges() && window.MarkHubFirebase?.saveAppState) {
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+      lastSyncedFirebaseStateJson = JSON.stringify(state);
+    } else {
+      throw new Error("Firebase is not ready.");
+    }
+    showToast(`${className} ${exam} marksheets ${shouldPublish ? "published" : "unpublished"}.`);
+  } catch (error) {
+    console.error(`[Firestore] Could not ${shouldPublish ? "publish" : "unpublish"} marksheets`, error);
+    if (previousValue) state.publishedMarksheets[key] = previousValue;
+    else delete state.publishedMarksheets[key];
+    syncActiveSessionData();
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    showToast(`Could not ${shouldPublish ? "publish" : "unpublish"} the marksheets. Please try again.`);
+  } finally {
+    publicationSaveInProgress = false;
+    render();
+  }
+}
+
+function toggleMarksheetPublication() {
+  return persistMarksheetPublication(!isMarksheetPublished());
 }
 
 function exportCsv() {
