@@ -3657,9 +3657,9 @@ function getStructuredSubjectResult(student, group) {
       unitTest: secondTerm,
       exam,
       hasMark,
-      total: hasMark ? (isEntryStatusValue(sumEntryValues(values))
-        ? sumEntryValues(values)
-        : Math.round(sumEntryValues(values))) : ""
+      total: hasMark ? (isEntryStatusValue(sumEnteredMarks(values))
+        ? sumEnteredMarks(values)
+        : Math.round(sumEnteredMarks(values))) : ""
     };
   }
 
@@ -3667,7 +3667,7 @@ function getStructuredSubjectResult(student, group) {
   const exam = getStudentMark(student, group.exam).value;
   const unitTest = getStructuredUnitTestMark(student, group.name);
   const hasMark = activities !== "" || unitTest !== "" || exam !== "";
-  const totalValue = sumEntryValues([activities, unitTest, exam]);
+  const totalValue = sumEnteredMarks([activities, unitTest, exam]);
   return {
     activities,
     unitTest,
@@ -3682,7 +3682,7 @@ function getStructuredUnitTestMark(student, subject) {
     ? ["FT Unit Test 1", "FT Unit Test 2"]
     : ["ST Unit Test 1", "ST Unit Test 2"];
   const values = exams.map((exam) => getStoredStudentMark(student, selectedClass(), exam, subject).value);
-  return sumEntryValues(values);
+  return sumEnteredComponentMarks(values);
 }
 
 function getStoredStructuredTermTotal(student, subject, term) {
@@ -3693,7 +3693,7 @@ function getStoredStructuredTermTotal(student, subject, term) {
     : ["ST Unit Test 1", "ST Unit Test 2"];
   const unitTestValues = unitTests.map((unitTest) => getStoredStudentMark(student, selectedClass(), unitTest, subject).value);
   const values = [activities, exam, ...unitTestValues];
-  return sumEntryValues(values);
+  return sumEnteredMarks(values);
 }
 
 function weightedTermMark(value) {
@@ -3850,6 +3850,23 @@ function sumEntryValues(values) {
   if (values.some((value) => value === "" || value === undefined || value === null || isAbsentEntry(value))) return -1;
   const scoredValues = values.filter(isScoredEntry).map(Number).filter(Number.isFinite);
   return scoredValues.length ? scoredValues.reduce((sum, value) => sum + value, 0) : "";
+}
+
+function sumEnteredMarks(values) {
+  if (!values.length) return "";
+  const hasValue = values.some((value) => value !== "" && value !== undefined && value !== null);
+  if (!hasValue) return "";
+  if (values.every(isNotEnrolledEntry)) return -2;
+  const scoredValues = values.filter(isScoredEntry).map(Number).filter(Number.isFinite);
+  return scoredValues.length ? scoredValues.reduce((sum, value) => sum + value, 0) : 0;
+}
+
+function sumEnteredComponentMarks(values) {
+  if (!values.length || values.every((value) => value === "" || value === undefined || value === null)) return "";
+  if (values.every(isNotEnrolledEntry)) return -2;
+  const scoredValues = values.filter(isScoredEntry).map(Number).filter(Number.isFinite);
+  if (scoredValues.length) return scoredValues.reduce((sum, value) => sum + value, 0);
+  return values.some(isAbsentEntry) ? -1 : "";
 }
 
 function studentExamEntryValues(student, className = selectedClass(), exam = selectedExam()) {
