@@ -2696,6 +2696,17 @@ th:first-child {
   border-right: 1px solid #829b97 !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .subject-group,
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .student-name-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term tbody td:nth-child(2),
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .standalone-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .standalone-value,
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .subject-start,
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .subject-end {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
 .result-pdf-page .result-pdf-table.structured-results .vertical-header {
   position: relative !important;
   top: auto !important;
@@ -2715,6 +2726,13 @@ th:first-child {
   writing-mode: horizontal-tb !important;
   white-space: nowrap;
   transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-six-term .vertical-header span {
+  top: auto;
+  bottom: 4px;
+  transform: translateX(-50%) rotate(-90deg);
   transform-origin: center;
 }
 

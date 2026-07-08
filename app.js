@@ -6941,7 +6941,7 @@ async function downloadResultsPDF() {
     });
 
     for (const [index, page] of pages.entries()) {
-      const canvas = await captureResultPdfPage(page);
+      const canvas = await captureResultPdfPage(page, layout);
       if (index > 0) pdf.addPage("a3", layout.orientation);
       addResultCanvasToPdf(pdf, canvas, layout);
       page.remove();
@@ -6983,20 +6983,24 @@ function resultPdfLayout(className, exam = selectedExam()) {
   const pageWidth = landscape ? 420 : 297;
   const pageHeight = landscape ? 297 : 420;
   const margin = 5;
+  const classSixTerm = isClassSixTermPdf(className, exam);
   return {
     orientation: landscape ? "landscape" : "portrait",
     pageWidth,
     pageHeight,
     margin,
     contentWidth: pageWidth - (margin * 2),
-    contentHeight: pageHeight - (margin * 2)
+    contentHeight: pageHeight - (margin * 2),
+    rowsPerPage: classSixTerm ? 23 : (landscape ? 28 : 30),
+    captureScale: 3,
+    classSixTerm
   };
 }
 
 function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
-  const rowsPerPage = layout.orientation === "portrait" ? 30 : 28;
+  const rowsPerPage = layout.rowsPerPage || (layout.orientation === "portrait" ? 30 : 28);
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
@@ -7178,6 +7182,11 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
+  table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
+}
+
+function isClassSixTermPdf(className, exam) {
+  return className === "Class VI" && termExams.includes(exam);
 }
 
 function abbreviateHighClassResultPdfHeaders(table, className, exam) {
@@ -7204,7 +7213,7 @@ function abbreviateHighClassResultPdfHeaders(table, className, exam) {
 }
 
 function abbreviateUnitTestResultPdfHeaders(table, exam) {
-  if (!primaryUnitTests.includes(exam)) return;
+  if (!primaryUnitTests.includes(exam) && !table.classList.contains("result-pdf-class-six-term")) return;
   const replacements = {
     MATHEMATICS: "MATHS",
     "SKILL DEVELOPMENT": "SKILL DEV.",
@@ -7260,11 +7269,11 @@ function createResultPdfSummary(rows) {
   return summary;
 }
 
-async function captureResultPdfPage(page) {
+async function captureResultPdfPage(page, layout = {}) {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return window.html2canvas(page, {
     backgroundColor: "#ffffff",
-    scale: 3,
+    scale: layout.captureScale || 3,
     useCORS: true,
     allowTaint: true,
     logging: false,
