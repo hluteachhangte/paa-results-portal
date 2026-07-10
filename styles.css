@@ -13,6 +13,29 @@
   --shadow: 0 18px 45px rgba(23, 32, 42, 0.09);
 }
 
+/* Slightly smaller menu labels for longer navigation items. */
+@media screen {
+  .sidebar .nav-tab[data-view="marksheet"],
+  .sidebar .nav-tab[data-view="students"],
+  .sidebar .nav-tab-link.attendance-menu-link,
+  .sidebar .nav-tab[data-view="analysis"],
+  .sidebar .nav-tab[data-view="teacherAnalytics"],
+  .sidebar .nav-tab[data-view="teacherAssessment"],
+  .sidebar .nav-tab[data-view="entryAccess"] {
+    font-size: 0.86rem;
+  }
+
+  .mobile-nav-drawer [data-mobile-view="students"],
+  .mobile-nav-drawer .attendance-menu-link,
+  .mobile-nav-drawer [data-mobile-view="marksheet"],
+  .mobile-nav-drawer [data-mobile-view="analysis"],
+  .mobile-nav-drawer [data-mobile-view="teacherAnalytics"],
+  .mobile-nav-drawer [data-mobile-view="teacherAssessment"],
+  .mobile-nav-drawer [data-mobile-view="entryAccess"] {
+    font-size: 0.86rem;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -461,6 +484,173 @@ svg {
 
   .main-content {
     grid-column: 2;
+  }
+}
+
+/* Elegant varied glass colors for Marks Entry summary and admin controls. */
+@media screen {
+  body.entry-active #mainFilters .metric-card,
+  body.entry-active .top-actions .user-badge,
+  body.entry-active .top-actions .ghost-button,
+  body.entry-active #downloadMarksTemplateBtn,
+  body.entry-active #importMarksBtn {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.54);
+    color: var(--text-primary);
+    box-shadow:
+      0 14px 30px rgba(65, 101, 164, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(18px) saturate(142%);
+    -webkit-backdrop-filter: blur(18px) saturate(142%);
+  }
+
+  body.entry-active #mainFilters .metric-card::before,
+  body.entry-active .top-actions .user-badge::before,
+  body.entry-active .top-actions .ghost-button::before,
+  body.entry-active #downloadMarksTemplateBtn::before,
+  body.entry-active #importMarksBtn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.48), transparent 42%),
+      radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.5), transparent 5.6rem);
+    opacity: 0.88;
+  }
+
+  body.entry-active #mainFilters .metric-card > *,
+  body.entry-active .top-actions .user-badge,
+  body.entry-active .top-actions .ghost-button,
+  body.entry-active #downloadMarksTemplateBtn,
+  body.entry-active #importMarksBtn {
+    z-index: 1;
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(1) {
+    background:
+      linear-gradient(135deg, rgba(79, 124, 255, 0.25), rgba(94, 189, 255, 0.14)),
+      rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(2) {
+    background:
+      linear-gradient(135deg, rgba(61, 204, 147, 0.25), rgba(94, 189, 255, 0.12)),
+      rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(3) {
+    background:
+      linear-gradient(135deg, rgba(130, 104, 255, 0.24), rgba(189, 77, 244, 0.12)),
+      rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(4) {
+    background:
+      linear-gradient(135deg, rgba(255, 155, 69, 0.25), rgba(255, 211, 102, 0.14)),
+      rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(5) {
+    background:
+      linear-gradient(135deg, rgba(236, 124, 200, 0.24), rgba(130, 104, 255, 0.12)),
+      rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active .top-actions .user-badge {
+    background:
+      linear-gradient(135deg, rgba(94, 189, 255, 0.22), rgba(255, 255, 255, 0.64)),
+      rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #exportCsvBtn,
+  body.entry-active #downloadMarksTemplateBtn {
+    background:
+      linear-gradient(135deg, rgba(79, 124, 255, 0.23), rgba(255, 255, 255, 0.68)),
+      rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #exportExcelBtn {
+    background:
+      linear-gradient(135deg, rgba(61, 204, 147, 0.24), rgba(255, 255, 255, 0.68)),
+      rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active #importMarksBtn {
+    background:
+      linear-gradient(135deg, rgba(130, 104, 255, 0.24), rgba(255, 255, 255, 0.68)),
+      rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #logoutBtn {
+    background:
+      linear-gradient(135deg, rgba(255, 106, 106, 0.18), rgba(255, 255, 255, 0.7)),
+      rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active #mainFilters .metric-card:hover,
+  body.entry-active .top-actions .ghost-button:hover,
+  body.entry-active #downloadMarksTemplateBtn:hover,
+  body.entry-active #importMarksBtn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 18px 36px rgba(65, 101, 164, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  body.entry-active #mainFilters .metric-card span,
+  body.entry-active .top-actions .user-badge,
+  body.entry-active .top-actions .ghost-button,
+  body.entry-active #downloadMarksTemplateBtn,
+  body.entry-active #importMarksBtn {
+    font-weight: 800;
+  }
+}
+
+/* Final mobile brand and session-field refinements. */
+@media screen and (max-width: 768px) {
+  .mobile-nav-bar,
+  .mobile-nav-brand,
+  .mobile-nav-brand span,
+  .mobile-drawer-head,
+  .mobile-drawer-head strong {
+    color: var(--text-primary);
+  }
+
+  .mobile-drawer-head span,
+  .mobile-menu-group > span {
+    color: var(--text-secondary);
+  }
+
+  .mobile-nav-brand span {
+    font-weight: 900;
+  }
+
+  .academic-session {
+    flex-wrap: nowrap;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .academic-session input {
+    width: 116px;
+    min-width: 116px;
+    padding-inline: 6px;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+@media screen and (max-width: 420px) {
+  .academic-session {
+    font-size: 0.72rem;
+  }
+
+  .academic-session input {
+    width: 108px;
+    min-width: 108px;
+    font-size: 0.9rem;
   }
 }
 
@@ -9671,6 +9861,130 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   @media (max-width: 768px) {
     #analysisView .analysis-bar-row {
       grid-template-columns: minmax(92px, 1.2fr) minmax(100px, 2.4fr) 54px;
+    }
+  }
+}
+
+/* Final winning color layer for Marks Entry cards and controls. */
+@media screen {
+  body.entry-active #mainFilters .metric-card,
+  body.entry-active .top-actions .user-badge,
+  body.entry-active .top-actions .ghost-button,
+  body.entry-active #downloadMarksTemplateBtn,
+  body.entry-active #importMarksBtn {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.56);
+    color: var(--text-primary);
+    box-shadow: 0 14px 30px rgba(65, 101, 164, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(18px) saturate(142%);
+    -webkit-backdrop-filter: blur(18px) saturate(142%);
+  }
+
+  body.entry-active #mainFilters .metric-card::before,
+  body.entry-active .top-actions .user-badge::before,
+  body.entry-active .top-actions .ghost-button::before,
+  body.entry-active #downloadMarksTemplateBtn::before,
+  body.entry-active #importMarksBtn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent 42%), radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.52), transparent 5.6rem);
+    opacity: 0.9;
+  }
+
+  body.entry-active #mainFilters .metric-card > *,
+  body.entry-active .top-actions .user-badge,
+  body.entry-active .top-actions .ghost-button,
+  body.entry-active #downloadMarksTemplateBtn,
+  body.entry-active #importMarksBtn {
+    z-index: 1;
+    font-weight: 800;
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(1) {
+    background: linear-gradient(135deg, rgba(79, 124, 255, 0.25), rgba(94, 189, 255, 0.14)), rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(2) {
+    background: linear-gradient(135deg, rgba(61, 204, 147, 0.25), rgba(94, 189, 255, 0.12)), rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(3) {
+    background: linear-gradient(135deg, rgba(130, 104, 255, 0.24), rgba(189, 77, 244, 0.12)), rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(4) {
+    background: linear-gradient(135deg, rgba(255, 155, 69, 0.25), rgba(255, 211, 102, 0.14)), rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active #mainFilters .metric-card:nth-child(5) {
+    background: linear-gradient(135deg, rgba(236, 124, 200, 0.24), rgba(130, 104, 255, 0.12)), rgba(255, 255, 255, 0.66);
+  }
+
+  body.entry-active .top-actions .user-badge {
+    background: linear-gradient(135deg, rgba(94, 189, 255, 0.22), rgba(255, 255, 255, 0.64)), rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #exportCsvBtn,
+  body.entry-active #downloadMarksTemplateBtn {
+    background: linear-gradient(135deg, rgba(79, 124, 255, 0.23), rgba(255, 255, 255, 0.68)), rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #exportExcelBtn {
+    background: linear-gradient(135deg, rgba(61, 204, 147, 0.24), rgba(255, 255, 255, 0.68)), rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active #importMarksBtn {
+    background: linear-gradient(135deg, rgba(130, 104, 255, 0.24), rgba(255, 255, 255, 0.68)), rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active .top-actions #logoutBtn {
+    background: linear-gradient(135deg, rgba(255, 106, 106, 0.18), rgba(255, 255, 255, 0.7)), rgba(255, 255, 255, 0.72);
+  }
+
+  body.entry-active #mainFilters .metric-card:hover,
+  body.entry-active .top-actions .ghost-button:hover,
+  body.entry-active #downloadMarksTemplateBtn:hover,
+  body.entry-active #importMarksBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(65, 101, 164, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+}
+
+/* Smaller page headings for long management pages. */
+@media screen {
+  body.marksheet-active #viewTitle,
+  body.students-active #viewTitle,
+  body.analysis-active #viewTitle,
+  body.teacher-analytics-active #viewTitle,
+  body.teacher-assessment-active #viewTitle,
+  body.entry-access-active #viewTitle,
+  .attendance-honor-page .topbar h2 {
+    font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+    line-height: 1.12;
+  }
+
+  body.analysis-active #analysisView > .section-head h3,
+  body.teacher-analytics-active .teacher-analytics-page-head h3,
+  body.teacher-assessment-active .teacher-assessment-page-head h3,
+  body.entry-access-active #entryAccessView > .section-head h3,
+  body.students-active #studentsView > .section-head h3,
+  .attendance-honor-page .attendance-honor-card > .section-head h3 {
+    font-size: clamp(1.05rem, 1.55vw, 1.32rem);
+    line-height: 1.16;
+  }
+
+  @media (max-width: 768px) {
+    body.marksheet-active #viewTitle,
+    body.students-active #viewTitle,
+    body.analysis-active #viewTitle,
+    body.teacher-analytics-active #viewTitle,
+    body.teacher-assessment-active #viewTitle,
+    body.entry-access-active #viewTitle,
+    .attendance-honor-page .topbar h2 {
+      font-size: 1.24rem;
     }
   }
 }
