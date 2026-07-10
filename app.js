@@ -3089,6 +3089,7 @@ function renderResults() {
   const workingDays = getWorkingDays();
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
+  els.resultsTable.classList.toggle("class-one-two-term-results", isClassOneTwoTermResult());
   els.resultsTable.style.width = "";
   els.resultsTable.style.removeProperty("--student-name-width");
   els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);
@@ -3218,6 +3219,10 @@ function isStructuredResultSheet(className = selectedClass(), exam = selectedExa
   return (["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VI", "Class VII", "Class VIII"].includes(className)
     && termExams.includes(exam))
     || (isHighClass(className) && exam === "Third Term");
+}
+
+function isClassOneTwoTermResult(className = selectedClass(), exam = selectedExam()) {
+  return ["Class I", "Class II"].includes(className) && termExams.includes(exam);
 }
 
 function isStructuredMarksheet(className = selectedClass(), exam = selectedExam()) {
@@ -7049,6 +7054,7 @@ function applyResultPdfTableScale(page, scale) {
   if (!table) return;
   const structured = table.classList.contains("structured-results");
   const referenceTwelvePoint = table.classList.contains("result-pdf-reference-twelve-point");
+  const classSixTerm = table.classList.contains("result-pdf-class-six-term");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
@@ -7067,8 +7073,12 @@ function applyResultPdfTableScale(page, scale) {
     const referenceCellTwelvePoint = !isHeader
       && referenceTwelvePoint
       && ["roll", "name", "subject", "component", "total", "percentage", "division"].includes(role);
-    const pdfBaseFont = referenceCellTwelvePoint ? 12 : (!isHeader && baseFont === 10 ? 12 : baseFont);
-    const pdfFont = referenceCellTwelvePoint ? 12 : Math.max(7, pdfBaseFont * scale);
+    const pdfBaseFont = referenceCellTwelvePoint || (!isHeader && classSixTerm)
+      ? 12
+      : (!isHeader && baseFont === 10 ? 12 : baseFont);
+    const pdfFont = referenceCellTwelvePoint || (!isHeader && classSixTerm)
+      ? 12
+      : Math.max(7, pdfBaseFont * scale);
     cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
   });
 }
@@ -7108,6 +7118,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   }
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
+  markClassSixTermPdfHeaders(table);
   tableBody.appendChild(table);
   page.appendChild(tableBody);
 
@@ -7233,6 +7244,23 @@ function abbreviateResultPdfRow(row) {
   row.querySelectorAll(".status-pill").forEach((status) => {
     if (String(status.textContent || "").trim().toLowerCase() === "simple pass") {
       status.textContent = "S.P.";
+    }
+  });
+  row.querySelectorAll(".failed-mark").forEach((mark) => {
+    if (String(mark.textContent || "").trim().toUpperCase() === "AB") {
+      mark.classList.add("absent-mark");
+    }
+  });
+}
+
+function markClassSixTermPdfHeaders(table) {
+  if (!table.classList.contains("result-pdf-class-six-term")) return;
+  table.querySelectorAll("thead th").forEach((cell) => {
+    const label = cell.querySelector("span") || cell;
+    const text = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (["ATTND.", "G. TOTAL", "DIV."].includes(text)) {
+      cell.classList.add("result-pdf-small-header");
+      label.classList.add("result-pdf-small-header-label");
     }
   });
 }
