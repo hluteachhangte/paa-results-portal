@@ -36,6 +36,1101 @@
   }
 }
 
+/* Final mobile topbar fit: keep session field and admin controls tidy. */
+@media screen and (max-width: 768px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .topbar > div:first-child {
+    min-width: 0;
+    padding-left: 0;
+  }
+
+  .academic-session {
+    display: grid;
+    grid-template-columns: max-content 118px;
+    align-items: center;
+    width: 100%;
+    max-width: 290px;
+    gap: 6px;
+    margin-left: 0;
+    white-space: nowrap;
+    font-size: 0.74rem;
+  }
+
+  .academic-session input {
+    width: 118px;
+    min-width: 0;
+    max-width: 118px;
+    min-height: 31px;
+    padding: 0 6px;
+    font-size: 0.95rem;
+    text-align: center;
+  }
+
+  #viewTitle {
+    margin-top: 4px;
+    padding-left: 0;
+  }
+
+  .top-actions {
+    order: -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .top-actions .user-badge,
+  .top-actions .ghost-button {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .top-actions .user-badge {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .top-actions #resetBtn {
+    grid-column: 1 / -1;
+    width: min(100%, 430px);
+    min-height: 34px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .topbar {
+    padding: 12px;
+  }
+
+  .academic-session {
+    grid-template-columns: max-content 102px;
+    max-width: 252px;
+    font-size: 0.68rem;
+  }
+
+  .academic-session input {
+    width: 102px;
+    max-width: 102px;
+    font-size: 0.82rem;
+  }
+
+  .top-actions {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .top-actions .user-badge {
+    grid-column: 1 / -1;
+  }
+
+  .top-actions .ghost-button {
+    min-width: 0;
+    padding: 0 9px;
+    font-size: 0.68rem;
+  }
+
+  .top-actions #logoutBtn {
+    justify-self: end;
+  }
+}
+
+/* Final winning mobile polish for nav bar and Reset control. */
+@media screen and (max-width: 768px) {
+  .mobile-nav-bar {
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    border-bottom: 1px solid rgba(169, 205, 255, 0.24);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span {
+    color: #ffffff;
+  }
+
+  .mobile-menu-button {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .mobile-drawer-head {
+    margin: 2px 0 12px;
+    padding: 12px 12px;
+    border: 1px solid rgba(169, 205, 255, 0.24);
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-drawer-head strong,
+  .mobile-drawer-head span {
+    color: #ffffff;
+  }
+
+  .mobile-drawer-head span {
+    opacity: 0.82;
+  }
+
+  .mobile-menu-close {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .top-actions #resetBtn {
+    justify-self: center;
+    width: min(72%, 260px);
+    min-height: 30px;
+    padding: 0 14px;
+    font-size: 0.7rem;
+    border-radius: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .top-actions #resetBtn {
+    width: min(68%, 220px);
+    min-height: 29px;
+    font-size: 0.68rem;
+  }
+}
+
+/* Absolute final neutral acrylic override. Keep print/PDF untouched. */
+@media screen {
+  body {
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.45), transparent 32%),
+      radial-gradient(circle at 82% 30%, rgba(255, 239, 213, 0.2), transparent 26%),
+      linear-gradient(145deg, #dfdfdc 0%, #d1d1cf 48%, #c5c5c3 100%);
+  }
+
+  .main-content,
+  .sidebar,
+  .attendance-honor-page .sidebar,
+  .topbar,
+  .filters,
+  .attendance-filters,
+  .section-head,
+  .view.active,
+  .student-form,
+  .analysis-panel,
+  .teacher-analytics-panel,
+  .teacher-assessment-card,
+  .attendance-honor-card,
+  .analysis-filters,
+  .analysis-comparison-controls,
+  .teacher-analytics-filters,
+  .teacher-assessment-filters,
+  .teacher-assignment-form,
+  .performance-change-filters,
+  .login-card {
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-bottom-color: rgba(76, 76, 72, 0.12);
+    border-radius: 26px;
+    background:
+      linear-gradient(180deg, rgba(250, 250, 247, 0.62), rgba(224, 224, 220, 0.42)),
+      rgba(242, 242, 239, 0.42);
+    color: var(--text-primary);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(74, 74, 70, 0.08),
+      0 14px 30px rgba(54, 54, 50, 0.16);
+    backdrop-filter: blur(22px) saturate(115%);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+  }
+
+  .sidebar,
+  .attendance-honor-page .sidebar {
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.74), rgba(224, 224, 220, 0.5)),
+      rgba(239, 239, 236, 0.44);
+  }
+
+  .brand-block h1,
+  .brand-block p,
+  .topbar h2,
+  .section-head h3,
+  #viewTitle,
+  .analysis-panel h3,
+  .analysis-panel h4,
+  .teacher-analytics-panel h3,
+  .teacher-assessment-card h3 {
+    color: var(--text-primary);
+  }
+
+  .brand-block p,
+  .topbar p,
+  .section-head p,
+  label,
+  .eyebrow,
+  .panel-label,
+  .metric-card span {
+    color: var(--text-secondary);
+  }
+
+  .metric-card,
+  .stat-card,
+  .analysis-overview article,
+  .analysis-mini-metrics article,
+  .teacher-analytics-overview article,
+  .teacher-completion-grid article,
+  .entry-access-dashboard article,
+  .result-summary > div,
+  .publish-panel,
+  .teacher-fairness-note {
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-bottom-color: rgba(76, 76, 72, 0.12);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, rgba(250, 250, 247, 0.68), rgba(221, 221, 217, 0.46)),
+      rgba(242, 242, 239, 0.46);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.92), 0 6px 14px rgba(54, 54, 50, 0.13);
+    backdrop-filter: blur(14px) saturate(112%);
+    -webkit-backdrop-filter: blur(14px) saturate(112%);
+  }
+
+  .primary-button,
+  .ghost-button,
+  .analysis-list-toggle,
+  .nav-tab,
+  .nav-tab-link,
+  .mobile-menu-group a,
+  .mobile-menu-group button {
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-bottom-color: rgba(70, 70, 66, 0.12);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(250, 250, 247, 0.7), rgba(221, 221, 217, 0.5));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 6px 12px rgba(49, 49, 45, 0.16);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  }
+
+  .primary-button,
+  .nav-tab.active,
+  .nav-tab-link.active,
+  .mobile-menu-group a.active,
+  .mobile-menu-group button.active {
+    color: #ffffff;
+    background: linear-gradient(180deg, #649df8 0%, #4a83e9 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 8px 18px rgba(63, 125, 230, 0.3);
+  }
+
+  .ghost-button.danger,
+  .primary-button.danger,
+  button.danger {
+    color: #ffffff;
+    background: linear-gradient(180deg, #ec7c86 0%, #dc6671 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.38), 0 8px 18px rgba(220, 102, 113, 0.24);
+  }
+
+  input,
+  select,
+  textarea,
+  .marks-input,
+  .grade-input {
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-bottom-color: rgba(70, 70, 66, 0.14);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(244, 244, 241, 0.72), rgba(216, 216, 212, 0.52));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.92), inset 0 -2px 4px rgba(53, 53, 49, 0.08), 0 4px 9px rgba(53, 53, 49, 0.12);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus-visible,
+  a:focus-visible {
+    outline: none;
+    border-color: rgba(79, 141, 247, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(79, 141, 247, 0.18), 0 5px 12px rgba(53, 53, 49, 0.14);
+  }
+
+  .view:not(#marksheetView) > .table-wrap,
+  #resultsView > .table-wrap,
+  #entryView > .table-wrap,
+  #attendanceView > .table-wrap,
+  #studentsView > .table-wrap,
+  .analysis-table-wrap,
+  .teacher-assignment-table-wrap,
+  .teacher-assessment-records-wrap,
+  .attendance-honor-table-wrap {
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 20px;
+    background: rgba(240, 240, 237, 0.72);
+    box-shadow: 0 12px 25px rgba(53, 53, 49, 0.15);
+    overflow: auto;
+  }
+
+  .view:not(#marksheetView) thead th,
+  .analysis-table thead th,
+  .teacher-assignment-table thead th,
+  .teacher-assessment-table thead th,
+  .attendance-honor-table thead th {
+    background: rgba(224, 224, 220, 0.92);
+    color: #28303a;
+    border-color: rgba(76, 76, 72, 0.12);
+  }
+
+  .view:not(#marksheetView) tbody td,
+  .analysis-table tbody td,
+  .teacher-assignment-table tbody td,
+  .teacher-assessment-table tbody td,
+  .attendance-honor-table tbody td {
+    color: var(--text-primary);
+    border-color: rgba(76, 76, 72, 0.1);
+    background: rgba(246, 246, 243, 0.72);
+  }
+
+  .view:not(#marksheetView) tbody tr:nth-child(even) td,
+  .analysis-table tbody tr:nth-child(even) td {
+    background: rgba(231, 231, 227, 0.72);
+  }
+
+  .mobile-nav-bar,
+  .mobile-nav-drawer,
+  .mobile-drawer-head {
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.84), rgba(224, 224, 220, 0.64)),
+      rgba(239, 239, 236, 0.58);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 12px 24px rgba(54, 54, 50, 0.16);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span,
+  .mobile-drawer-head *,
+  .mobile-drawer-head strong,
+  .mobile-drawer-head span {
+    color: var(--text-primary) !important;
+  }
+
+  @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+    .main-content,
+    .sidebar,
+    .topbar,
+    .filters,
+    .attendance-filters,
+    .section-head,
+    .view.active,
+    .analysis-panel,
+    .teacher-analytics-panel,
+    .teacher-assessment-card,
+    .login-card,
+    .mobile-nav-bar,
+    .mobile-nav-drawer {
+      background: rgba(238, 238, 235, 0.95);
+    }
+  }
+}
+
+/* Neutral frosted-acrylic dashboard theme. Screen-only and logic-safe. */
+@media screen {
+  :root {
+    --page-bg: #d5d5d3;
+    --page-bg-light: #e7e7e4;
+    --surface-glass: rgba(242, 242, 239, 0.42);
+    --surface-glass-strong: rgba(246, 246, 243, 0.64);
+    --surface-glass-solid: rgba(235, 235, 232, 0.9);
+    --border-light: rgba(255, 255, 255, 0.72);
+    --border-soft: rgba(255, 255, 255, 0.42);
+    --border-dark: rgba(76, 76, 72, 0.12);
+    --text-primary: #17191c;
+    --text-secondary: #606368;
+    --text-muted: #8a8d91;
+    --accent-blue: #4f8df7;
+    --accent-blue-soft: rgba(79, 141, 247, 0.28);
+    --accent-amber: #ffb15a;
+    --accent-amber-soft: rgba(255, 177, 90, 0.3);
+    --success: #4dbd83;
+    --danger: #dc6671;
+    --warning: #e7a449;
+    --shadow-deep: 0 18px 35px rgba(54, 54, 50, 0.2);
+    --shadow-soft: 0 8px 18px rgba(54, 54, 50, 0.15);
+    --shadow-small: 0 4px 10px rgba(54, 54, 50, 0.16);
+    --radius-sm: 12px;
+    --radius-md: 18px;
+    --radius-lg: 26px;
+    --radius-xl: 34px;
+    --primary: var(--accent-blue);
+    --primary-dark: #326fd8;
+    --line: var(--border-dark);
+    --muted: var(--text-muted);
+  }
+
+  html {
+    background: #c5c5c3;
+  }
+
+  body {
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.45), transparent 32%),
+      radial-gradient(circle at 82% 30%, rgba(255, 239, 213, 0.2), transparent 26%),
+      linear-gradient(145deg, #dfdfdc 0%, #d1d1cf 48%, #c5c5c3 100%);
+    font-family: Inter, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.32;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.26) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(circle at 50% 24%, black, transparent 78%);
+  }
+
+  .glass-panel,
+  .glass-card,
+  .glass-card-strong,
+  .glass-control,
+  .glass-button,
+  .glass-input,
+  .glass-select,
+  .glass-modal,
+  .glass-toast,
+  .glass-badge,
+  .glass-tab,
+  .glass-switch {
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), var(--shadow-soft);
+    backdrop-filter: blur(18px) saturate(115%);
+    -webkit-backdrop-filter: blur(18px) saturate(115%);
+  }
+
+  .app-shell,
+  .attendance-honor-page .app-shell {
+    gap: 20px;
+    padding: 16px;
+  }
+
+  .main-content {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 30px;
+    background: rgba(239, 239, 236, 0.38);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(74, 74, 70, 0.08),
+      0 22px 46px rgba(53, 53, 49, 0.2);
+    backdrop-filter: blur(24px) saturate(115%);
+    -webkit-backdrop-filter: blur(24px) saturate(115%);
+    overflow: hidden;
+  }
+
+  .main-content::before {
+    content: "";
+    position: absolute;
+    inset: 1px 2px auto 2px;
+    height: 30%;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), transparent);
+    pointer-events: none;
+  }
+
+  .main-content > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sidebar,
+  .attendance-honor-page .sidebar {
+    border: 1px solid var(--border-light);
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.72), rgba(224, 224, 220, 0.48)),
+      rgba(239, 239, 236, 0.38);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(24px) saturate(112%);
+    -webkit-backdrop-filter: blur(24px) saturate(112%);
+  }
+
+  .brand-block h1,
+  .brand-block p {
+    color: var(--text-primary);
+  }
+
+  .brand-block p {
+    color: var(--text-secondary);
+  }
+
+  .nav-tab,
+  .nav-tab-link,
+  .mobile-menu-group a,
+  .mobile-menu-group button {
+    border: 1px solid rgba(255, 255, 255, 0.68);
+    border-bottom-color: rgba(70, 70, 66, 0.12);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(250, 250, 247, 0.68), rgba(221, 221, 217, 0.46));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 5px 11px rgba(54, 54, 50, 0.12);
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  }
+
+  .nav-tab:hover,
+  .nav-tab-link:hover,
+  .mobile-menu-group a:hover,
+  .mobile-menu-group button:hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 8px 16px rgba(54, 54, 50, 0.16);
+  }
+
+  .nav-tab.active,
+  .nav-tab-link.active,
+  .mobile-menu-group a.active,
+  .mobile-menu-group button.active {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.58);
+    background: linear-gradient(180deg, #649df8 0%, #4a83e9 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 9px 20px rgba(63, 125, 230, 0.28);
+  }
+
+  .topbar,
+  .filters,
+  .attendance-filters,
+  .section-head,
+  .view.active,
+  .student-form,
+  .analysis-filters,
+  .analysis-comparison-controls,
+  .teacher-analytics-filters,
+  .teacher-assessment-filters,
+  .teacher-assignment-form,
+  .performance-change-filters,
+  .attendance-honor-card {
+    border: 1px solid var(--border-light);
+    border-bottom-color: var(--border-dark);
+    border-radius: 24px;
+    background: rgba(246, 246, 243, 0.58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), var(--shadow-soft);
+    backdrop-filter: blur(18px) saturate(112%);
+    -webkit-backdrop-filter: blur(18px) saturate(112%);
+  }
+
+  .topbar h2,
+  .section-head h3,
+  #viewTitle,
+  .analysis-panel h3,
+  .analysis-panel h4,
+  .teacher-analytics-panel h3,
+  .teacher-assessment-card h3 {
+    color: var(--text-primary);
+  }
+
+  .topbar p,
+  .section-head p,
+  .panel-label,
+  .metric-card span,
+  label,
+  .eyebrow {
+    color: var(--text-secondary);
+  }
+
+  .metric-card,
+  .stat-card,
+  .analysis-overview article,
+  .analysis-mini-metrics article,
+  .teacher-analytics-overview article,
+  .teacher-completion-grid article,
+  .teacher-assessment-summary article,
+  .entry-access-dashboard article,
+  .attendance-analysis-details,
+  .result-summary > div {
+    border: 1px solid var(--border-light);
+    border-bottom-color: var(--border-dark);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, rgba(250, 250, 247, 0.64), rgba(226, 226, 222, 0.44)),
+      rgba(242, 242, 239, 0.46);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.92), var(--shadow-small);
+    backdrop-filter: blur(14px) saturate(112%);
+    -webkit-backdrop-filter: blur(14px) saturate(112%);
+  }
+
+  .metric-card strong,
+  .stat-card strong,
+  .analysis-overview strong,
+  .analysis-mini-metrics strong,
+  .teacher-analytics-overview strong {
+    color: var(--text-primary);
+  }
+
+  .analysis-panel,
+  .teacher-analytics-panel,
+  .teacher-assessment-card,
+  .teacher-assignment-panel,
+  .publish-panel,
+  .entry-access-panel,
+  .teacher-access-denied,
+  .performance-change-detail,
+  .teacher-fairness-note {
+    border: 1px solid var(--border-light);
+    border-bottom-color: var(--border-dark);
+    border-radius: 24px;
+    background: rgba(246, 246, 243, 0.58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--shadow-soft);
+    backdrop-filter: blur(18px) saturate(112%);
+    -webkit-backdrop-filter: blur(18px) saturate(112%);
+  }
+
+  input,
+  select,
+  textarea,
+  .marks-input,
+  .grade-input {
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-bottom-color: rgba(70, 70, 66, 0.14);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(244, 244, 241, 0.72), rgba(216, 216, 212, 0.52));
+    color: var(--text-primary);
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.92),
+      inset 0 -2px 4px rgba(53, 53, 49, 0.08),
+      0 4px 9px rgba(53, 53, 49, 0.12);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus-visible,
+  a:focus-visible {
+    outline: none;
+    border-color: rgba(79, 141, 247, 0.7);
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.9),
+      0 0 0 3px rgba(79, 141, 247, 0.18),
+      0 5px 12px rgba(53, 53, 49, 0.14);
+  }
+
+  .primary-button,
+  .ghost-button,
+  .analysis-list-toggle,
+  .mobile-menu-button,
+  .mobile-menu-close,
+  .marksheet-zoom-control button {
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-bottom-color: rgba(70, 70, 66, 0.12);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(250, 250, 247, 0.7), rgba(221, 221, 217, 0.5));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 6px 12px rgba(49, 49, 45, 0.18);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  }
+
+  .primary-button,
+  .nav-tab.active {
+    color: #ffffff;
+    background: linear-gradient(180deg, #649df8 0%, #4a83e9 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 8px 18px rgba(63, 125, 230, 0.34);
+  }
+
+  .ghost-button.danger,
+  .primary-button.danger,
+  button.danger {
+    color: #ffffff;
+    background: linear-gradient(180deg, #ec7c86 0%, #dc6671 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.38), 0 8px 18px rgba(220, 102, 113, 0.26);
+  }
+
+  .primary-button:hover,
+  .ghost-button:hover,
+  .analysis-list-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 10px 18px rgba(49, 49, 45, 0.2);
+  }
+
+  .primary-button:active,
+  .ghost-button:active,
+  .analysis-list-toggle:active {
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(53, 53, 49, 0.13), 0 3px 8px rgba(49, 49, 45, 0.12);
+  }
+
+  button:disabled,
+  .primary-button:disabled,
+  .ghost-button:disabled {
+    opacity: 0.55;
+    transform: none;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 3px 7px rgba(49, 49, 45, 0.1);
+  }
+
+  .view:not(#marksheetView) > .table-wrap,
+  #resultsView > .table-wrap,
+  #entryView > .table-wrap,
+  #attendanceView > .table-wrap,
+  #studentsView > .table-wrap,
+  .analysis-table-wrap,
+  .teacher-assignment-table-wrap,
+  .teacher-assessment-records-wrap,
+  .attendance-honor-table-wrap {
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 20px;
+    background: rgba(240, 240, 237, 0.72);
+    box-shadow: 0 12px 25px rgba(53, 53, 49, 0.15);
+    overflow: auto;
+  }
+
+  .view:not(#marksheetView) table,
+  .analysis-table,
+  .teacher-assignment-table,
+  .teacher-assessment-table,
+  .attendance-honor-table {
+    color: var(--text-primary);
+    background: transparent;
+  }
+
+  .view:not(#marksheetView) thead th,
+  .analysis-table thead th,
+  .teacher-assignment-table thead th,
+  .teacher-assessment-table thead th,
+  .attendance-honor-table thead th {
+    background: rgba(224, 224, 220, 0.92);
+    color: #28303a;
+    border-color: rgba(76, 76, 72, 0.12);
+  }
+
+  .view:not(#marksheetView) tbody td,
+  .analysis-table tbody td,
+  .teacher-assignment-table tbody td,
+  .teacher-assessment-table tbody td,
+  .attendance-honor-table tbody td {
+    color: var(--text-primary);
+    border-color: rgba(76, 76, 72, 0.1);
+    background: rgba(246, 246, 243, 0.72);
+  }
+
+  .view:not(#marksheetView) tbody tr:nth-child(even) td,
+  .analysis-table tbody tr:nth-child(even) td,
+  .teacher-assignment-table tbody tr:nth-child(even) td,
+  .teacher-assessment-table tbody tr:nth-child(even) td,
+  .attendance-honor-table tbody tr:nth-child(even) td {
+    background: rgba(231, 231, 227, 0.72);
+  }
+
+  .view:not(#marksheetView) tbody tr:hover td,
+  .analysis-table tbody tr:hover td,
+  .teacher-assignment-table tbody tr:hover td,
+  .teacher-assessment-table tbody tr:hover td {
+    background: rgba(214, 226, 244, 0.72);
+  }
+
+  .status-pill,
+  .division-label,
+  .result-label,
+  .analysis-status-badge,
+  .entry-access-save-status,
+  .save-status,
+  .field-warning,
+  .toast,
+  .user-badge,
+  .glass-badge {
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 999px;
+    background: rgba(246, 246, 243, 0.68);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), var(--shadow-small);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .login-screen {
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.45), transparent 32%),
+      radial-gradient(circle at 82% 30%, rgba(255, 239, 213, 0.2), transparent 26%),
+      linear-gradient(145deg, #dfdfdc 0%, #d1d1cf 48%, #c5c5c3 100%);
+  }
+
+  .login-card {
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 30px;
+    background: rgba(246, 246, 243, 0.64);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), var(--shadow-deep);
+    backdrop-filter: blur(24px) saturate(115%);
+    -webkit-backdrop-filter: blur(24px) saturate(115%);
+  }
+
+  .login-card h1,
+  .login-card p {
+    color: var(--text-primary);
+  }
+
+  .login-card .eyebrow,
+  .login-help {
+    color: var(--text-secondary);
+  }
+
+  .mobile-nav-bar,
+  .mobile-nav-drawer {
+    border-color: var(--border-light);
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.82), rgba(224, 224, 220, 0.6)),
+      rgba(239, 239, 236, 0.54);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(22px) saturate(114%);
+    -webkit-backdrop-filter: blur(22px) saturate(114%);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span,
+  .mobile-drawer-head strong,
+  .mobile-drawer-head span {
+    color: var(--text-primary) !important;
+  }
+
+  .mobile-drawer-head {
+    border-color: rgba(255, 255, 255, 0.72);
+    background: rgba(246, 246, 243, 0.64);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), var(--shadow-small);
+  }
+
+  .mobile-nav-overlay {
+    background: rgba(31, 35, 42, 0.28);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .analysis-bar-track,
+  .performance-grouped-row > div,
+  .analysis-histogram-item > div,
+  .analysis-column-track {
+    background: linear-gradient(180deg, rgba(225, 225, 222, 0.72), rgba(246, 246, 243, 0.68));
+    border-color: rgba(76, 76, 72, 0.12);
+  }
+
+  .analysis-bar-track i,
+  .analysis-column-track i,
+  .analysis-histogram-item i {
+    background: linear-gradient(180deg, #6aa0f7, #4f8df7);
+    box-shadow: 0 -6px 14px rgba(79, 141, 247, 0.22);
+  }
+
+  .passed,
+  .good,
+  .result-pass,
+  .division-first {
+    color: #21835a !important;
+  }
+
+  .failed,
+  .bad,
+  .result-fail {
+    color: #bd3f4c !important;
+  }
+
+  .division-distinction {
+    color: #4f68bd !important;
+  }
+
+  .division-second {
+    color: #356f9f !important;
+  }
+
+  .division-third {
+    color: #b06c1e !important;
+  }
+
+  @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+    .main-content,
+    .sidebar,
+    .topbar,
+    .filters,
+    .attendance-filters,
+    .section-head,
+    .view.active,
+    .analysis-panel,
+    .teacher-analytics-panel,
+    .teacher-assessment-card,
+    .login-card,
+    .mobile-nav-bar,
+    .mobile-nav-drawer {
+      background: rgba(238, 238, 235, 0.95);
+    }
+  }
+
+  @media (max-width: 992px) {
+    .app-shell,
+    .attendance-honor-page .app-shell {
+      padding: 10px;
+    }
+
+    .main-content {
+      border-radius: 24px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .main-content {
+      border-radius: 22px;
+    }
+
+    .mobile-nav-bar {
+      border-radius: 0 0 20px 20px;
+    }
+
+    .mobile-menu-button,
+    .mobile-menu-close {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    input,
+    select,
+    textarea,
+    .primary-button,
+    .ghost-button {
+      min-height: 44px;
+    }
+
+    .view:not(#marksheetView) > .table-wrap,
+    #resultsView > .table-wrap,
+    #entryView > .table-wrap,
+    #attendanceView > .table-wrap,
+    #studentsView > .table-wrap,
+    .analysis-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Final mobile polish for nav bar and Reset control. */
+@media screen and (max-width: 768px) {
+  .mobile-nav-bar {
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    border-bottom: 1px solid rgba(169, 205, 255, 0.24);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span {
+    color: #ffffff;
+  }
+
+  .mobile-menu-button {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .top-actions #resetBtn {
+    justify-self: center;
+    width: min(72%, 260px);
+    min-height: 30px;
+    padding: 0 14px;
+    font-size: 0.7rem;
+    border-radius: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .top-actions #resetBtn {
+    width: min(68%, 220px);
+    min-height: 29px;
+    font-size: 0.68rem;
+  }
+}
+
+/* Final winning mobile polish for nav bar and Reset control. */
+@media screen and (max-width: 768px) {
+  .mobile-nav-bar {
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    border-bottom: 1px solid rgba(169, 205, 255, 0.24);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span {
+    color: #ffffff;
+  }
+
+  .mobile-menu-button {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .top-actions #resetBtn {
+    justify-self: center;
+    width: min(72%, 260px);
+    min-height: 30px;
+    padding: 0 14px;
+    font-size: 0.7rem;
+    border-radius: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .top-actions #resetBtn {
+    width: min(68%, 220px);
+    min-height: 29px;
+    font-size: 0.68rem;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -9986,5 +11081,390 @@ body.attendance-active #attendanceView > .table-wrap thead th {
     .attendance-honor-page .topbar h2 {
       font-size: 1.24rem;
     }
+  }
+}
+
+/* Final winning mobile topbar fit. */
+@media screen and (max-width: 768px) {
+  .mobile-nav-bar {
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    border-bottom: 1px solid rgba(169, 205, 255, 0.24);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span {
+    color: #ffffff;
+  }
+
+  .mobile-menu-button {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .mobile-drawer-head {
+    background:
+      linear-gradient(135deg, rgba(11, 36, 84, 0.94), rgba(20, 67, 132, 0.82)),
+      rgba(11, 36, 84, 0.78);
+    border: 1px solid rgba(169, 205, 255, 0.24);
+    color: #ffffff !important;
+    box-shadow: 0 14px 30px rgba(11, 36, 84, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .mobile-drawer-head *,
+  .mobile-drawer-head strong,
+  .mobile-drawer-head span {
+    color: #ffffff !important;
+  }
+
+  .mobile-drawer-head span {
+    opacity: 0.86;
+  }
+
+  .mobile-menu-close {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .topbar > div:first-child {
+    min-width: 0;
+    padding-left: 0;
+  }
+
+  .academic-session {
+    display: grid;
+    grid-template-columns: max-content 118px;
+    align-items: center;
+    width: 100%;
+    max-width: 290px;
+    gap: 6px;
+    margin-left: 0;
+    white-space: nowrap;
+    font-size: 0.74rem;
+  }
+
+  .academic-session input {
+    width: 118px;
+    min-width: 0;
+    max-width: 118px;
+    min-height: 31px;
+    padding: 0 6px;
+    font-size: 0.95rem;
+    text-align: center;
+  }
+
+  #viewTitle {
+    margin-top: 4px;
+    padding-left: 0;
+  }
+
+  .top-actions {
+    order: -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .top-actions .user-badge,
+  .top-actions .ghost-button {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .top-actions .user-badge {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .top-actions #resetBtn {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(72%, 260px);
+    min-height: 30px;
+    padding: 0 14px;
+    font-size: 0.7rem;
+    border-radius: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .topbar {
+    padding: 12px;
+  }
+
+  .academic-session {
+    grid-template-columns: max-content 102px;
+    max-width: 252px;
+    font-size: 0.68rem;
+  }
+
+  .academic-session input {
+    width: 102px;
+    max-width: 102px;
+    font-size: 0.82rem;
+  }
+
+  .top-actions {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .top-actions .user-badge {
+    grid-column: 1 / -1;
+  }
+
+  .top-actions .ghost-button {
+    min-width: 0;
+    padding: 0 9px;
+    font-size: 0.68rem;
+  }
+
+  .top-actions #logoutBtn {
+    justify-self: end;
+  }
+
+  .top-actions #resetBtn {
+    width: min(68%, 220px);
+    min-height: 29px;
+    font-size: 0.68rem;
+  }
+}
+
+/* Absolute final neutral acrylic override. Keep print/PDF untouched. */
+@media screen {
+  body {
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.45), transparent 32%),
+      radial-gradient(circle at 82% 30%, rgba(255, 239, 213, 0.2), transparent 26%),
+      linear-gradient(145deg, #dfdfdc 0%, #d1d1cf 48%, #c5c5c3 100%);
+  }
+
+  .main-content,
+  .sidebar,
+  .attendance-honor-page .sidebar,
+  .topbar,
+  .filters,
+  .attendance-filters,
+  .section-head,
+  .view.active,
+  .student-form,
+  .analysis-panel,
+  .teacher-analytics-panel,
+  .teacher-assessment-card,
+  .attendance-honor-card,
+  .analysis-filters,
+  .analysis-comparison-controls,
+  .teacher-analytics-filters,
+  .teacher-assessment-filters,
+  .teacher-assignment-form,
+  .performance-change-filters,
+  .login-card {
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-bottom-color: rgba(76, 76, 72, 0.12);
+    border-radius: 26px;
+    background:
+      linear-gradient(180deg, rgba(250, 250, 247, 0.62), rgba(224, 224, 220, 0.42)),
+      rgba(242, 242, 239, 0.42);
+    color: var(--text-primary);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      inset 0 -1px 0 rgba(74, 74, 70, 0.08),
+      0 14px 30px rgba(54, 54, 50, 0.16);
+    backdrop-filter: blur(22px) saturate(115%);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+  }
+
+  .sidebar,
+  .attendance-honor-page .sidebar {
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.74), rgba(224, 224, 220, 0.5)),
+      rgba(239, 239, 236, 0.44);
+  }
+
+  .brand-block h1,
+  .brand-block p,
+  .topbar h2,
+  .section-head h3,
+  #viewTitle,
+  .analysis-panel h3,
+  .analysis-panel h4,
+  .teacher-analytics-panel h3,
+  .teacher-assessment-card h3 {
+    color: var(--text-primary);
+  }
+
+  .brand-block p,
+  .topbar p,
+  .section-head p,
+  label,
+  .eyebrow,
+  .panel-label,
+  .metric-card span {
+    color: var(--text-secondary);
+  }
+
+  .metric-card,
+  .stat-card,
+  .analysis-overview article,
+  .analysis-mini-metrics article,
+  .teacher-analytics-overview article,
+  .teacher-completion-grid article,
+  .entry-access-dashboard article,
+  .result-summary > div,
+  .publish-panel,
+  .teacher-fairness-note {
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-bottom-color: rgba(76, 76, 72, 0.12);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, rgba(250, 250, 247, 0.68), rgba(221, 221, 217, 0.46)),
+      rgba(242, 242, 239, 0.46);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.92), 0 6px 14px rgba(54, 54, 50, 0.13);
+    backdrop-filter: blur(14px) saturate(112%);
+    -webkit-backdrop-filter: blur(14px) saturate(112%);
+  }
+
+  .primary-button,
+  .ghost-button,
+  .analysis-list-toggle,
+  .nav-tab,
+  .nav-tab-link,
+  .mobile-menu-group a,
+  .mobile-menu-group button {
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-bottom-color: rgba(70, 70, 66, 0.12);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(250, 250, 247, 0.7), rgba(221, 221, 217, 0.5));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 6px 12px rgba(49, 49, 45, 0.16);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+  }
+
+  .primary-button,
+  .nav-tab.active,
+  .nav-tab-link.active,
+  .mobile-menu-group a.active,
+  .mobile-menu-group button.active {
+    color: #ffffff;
+    background: linear-gradient(180deg, #649df8 0%, #4a83e9 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 8px 18px rgba(63, 125, 230, 0.3);
+  }
+
+  .ghost-button.danger,
+  .primary-button.danger,
+  button.danger {
+    color: #ffffff;
+    background: linear-gradient(180deg, #ec7c86 0%, #dc6671 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.38), 0 8px 18px rgba(220, 102, 113, 0.24);
+  }
+
+  input,
+  select,
+  textarea,
+  .marks-input,
+  .grade-input {
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-bottom-color: rgba(70, 70, 66, 0.14);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(244, 244, 241, 0.72), rgba(216, 216, 212, 0.52));
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.92), inset 0 -2px 4px rgba(53, 53, 49, 0.08), 0 4px 9px rgba(53, 53, 49, 0.12);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus-visible,
+  a:focus-visible {
+    outline: none;
+    border-color: rgba(79, 141, 247, 0.7);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(79, 141, 247, 0.18), 0 5px 12px rgba(53, 53, 49, 0.14);
+  }
+
+  .view:not(#marksheetView) > .table-wrap,
+  #resultsView > .table-wrap,
+  #entryView > .table-wrap,
+  #attendanceView > .table-wrap,
+  #studentsView > .table-wrap,
+  .analysis-table-wrap,
+  .teacher-assignment-table-wrap,
+  .teacher-assessment-records-wrap,
+  .attendance-honor-table-wrap {
+    border: 1px solid rgba(255, 255, 255, 0.66);
+    border-radius: 20px;
+    background: rgba(240, 240, 237, 0.72);
+    box-shadow: 0 12px 25px rgba(53, 53, 49, 0.15);
+    overflow: auto;
+  }
+
+  .view:not(#marksheetView) thead th,
+  .analysis-table thead th,
+  .teacher-assignment-table thead th,
+  .teacher-assessment-table thead th,
+  .attendance-honor-table thead th {
+    background: rgba(224, 224, 220, 0.92);
+    color: #28303a;
+    border-color: rgba(76, 76, 72, 0.12);
+  }
+
+  .view:not(#marksheetView) tbody td,
+  .analysis-table tbody td,
+  .teacher-assignment-table tbody td,
+  .teacher-assessment-table tbody td,
+  .attendance-honor-table tbody td {
+    color: var(--text-primary);
+    border-color: rgba(76, 76, 72, 0.1);
+    background: rgba(246, 246, 243, 0.72);
+  }
+
+  .view:not(#marksheetView) tbody tr:nth-child(even) td,
+  .analysis-table tbody tr:nth-child(even) td {
+    background: rgba(231, 231, 227, 0.72);
+  }
+
+  .mobile-nav-bar,
+  .mobile-nav-drawer,
+  .mobile-drawer-head {
+    background:
+      linear-gradient(180deg, rgba(247, 247, 244, 0.84), rgba(224, 224, 220, 0.64)),
+      rgba(239, 239, 236, 0.58);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 12px 24px rgba(54, 54, 50, 0.16);
+  }
+
+  .mobile-nav-brand,
+  .mobile-nav-brand span,
+  .mobile-drawer-head *,
+  .mobile-drawer-head strong,
+  .mobile-drawer-head span {
+    color: var(--text-primary) !important;
   }
 }
