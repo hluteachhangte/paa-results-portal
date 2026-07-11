@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=neutral-acrylic-theme-20260711-1">
+  <link rel="stylesheet" href="./styles.css?v=mobile-hide-session-20260711-11">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -51,6 +51,10 @@
       </div>
       <div class="mobile-menu-group">
         <span>Home</span>
+        <button type="button" data-mobile-view="dashboard">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9638;</span>
+          <span>Dashboard</span>
+        </button>
         <button type="button" data-mobile-view="entry">
           <span class="mobile-nav-icon" aria-hidden="true">&#9998;</span>
           <span>Marks Entry</span>
@@ -112,7 +116,11 @@
       </div>
 
       <nav class="nav-tabs" aria-label="Views">
-        <button class="nav-tab active" data-view="entry" type="button" title="Marks entry">
+        <button class="nav-tab active" data-view="dashboard" type="button" title="Dashboard">
+          <span aria-hidden="true">&#9638;</span>
+          Dashboard
+        </button>
+        <button class="nav-tab" data-view="entry" type="button" title="Marks entry">
           <span aria-hidden="true">✎</span>
           Marks Entry
         </button>
@@ -180,11 +188,11 @@
           <button id="exportExcelBtn" class="ghost-button hidden" type="button" title="Export to Excel">
             Export to Excel
           </button>
-          <button id="logoutBtn" class="ghost-button" type="button" title="Logout">Logout</button>
           <button id="resetBtn" class="ghost-button danger" type="button" title="Reset demo data">
             <span aria-hidden="true">↺</span>
             Reset
           </button>
+          <button id="logoutBtn" class="ghost-button" type="button" title="Logout">Logout</button>
         </div>
       </header>
 
@@ -225,7 +233,118 @@
         </div>
       </section>
 
-      <section id="entryView" class="view active" aria-label="Marks entry">
+      <section id="dashboardView" class="view active" aria-label="School dashboard">
+        <div class="dashboard-shell">
+          <header class="dashboard-hero">
+            <div>
+              <p class="dashboard-kicker">Pinehill Adventist Academy</p>
+              <h3 id="dashboardGreeting">Welcome back</h3>
+              <span id="dashboardSession" class="dashboard-session-pill">Academic Session 2026 - 2027</span>
+            </div>
+            <div class="dashboard-top-tools">
+              <label class="dashboard-search">
+                <span class="sr-only">Search dashboard</span>
+                <input id="dashboardSearchInput" type="search" placeholder="Search student, class, exam...">
+              </label>
+              <button class="dashboard-notification" type="button" aria-label="Notifications">
+                <span aria-hidden="true">&#128276;</span>
+                <b id="dashboardNotificationBadge">0</b>
+              </button>
+              <div class="dashboard-profile" aria-label="Current user">
+                <div class="dashboard-avatar" aria-hidden="true">PA</div>
+                <div>
+                  <strong id="dashboardUserName">Admin</strong>
+                  <span id="dashboardUserRole">Administrator</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div class="dashboard-stats" aria-label="Dashboard summary">
+            <article class="dashboard-stat-card stat-blue">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#127891;</span>
+              <div><span>Total Students</span><strong id="dashboardTotalStudents">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-green">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#128101;</span>
+              <div><span>Total Teachers</span><strong id="dashboardTotalTeachers">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-purple">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#128214;</span>
+              <div><span>Total Classes</span><strong id="dashboardTotalClasses">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-orange">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#9745;</span>
+              <div><span>Overall Pass Percentage</span><strong id="dashboardOverallPass">0.00%</strong></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="dashboard-card dashboard-result-overview">
+              <div class="dashboard-card-head">
+                <div><h4>Result Overview</h4><span id="dashboardResultMeta">Current examination summary</span></div>
+                <select id="dashboardExamSelect" aria-label="Dashboard exam"></select>
+              </div>
+              <div class="dashboard-result-layout">
+                <div id="dashboardResultDonut" class="dashboard-donut" role="img" aria-label="Result division distribution"><strong>0%</strong></div>
+                <div id="dashboardResultLegend" class="dashboard-legend"></div>
+              </div>
+              <button id="dashboardFullReportBtn" class="ghost-button dashboard-link-button" type="button">View Full Report</button>
+            </section>
+
+            <section class="dashboard-card dashboard-activity-card">
+              <div class="dashboard-card-head">
+                <div><h4>Recent Activities</h4><span>Latest saved school activity</span></div>
+              </div>
+              <div id="dashboardRecentActivities" class="dashboard-activity-list"></div>
+            </section>
+
+            <section class="dashboard-card dashboard-class-card">
+              <div class="dashboard-card-head">
+                <div><h4>Class Performance Overview</h4><span>Average and pass percentage by class</span></div>
+              </div>
+              <div id="dashboardClassPerformance" class="dashboard-class-list"></div>
+            </section>
+
+            <section class="dashboard-card dashboard-attendance-card">
+              <div class="dashboard-card-head">
+                <div><h4>Attendance Summary</h4><span>Term attendance from current records</span></div>
+                <select id="dashboardMonthSelect" aria-label="Attendance term">
+                  <option value="First Term">First Term</option>
+                  <option value="Second Term">Second Term</option>
+                  <option value="Third Term">Third Term</option>
+                </select>
+              </div>
+              <div class="dashboard-attendance-layout">
+                <div id="dashboardAttendanceCircle" class="dashboard-attendance-circle" role="img" aria-label="Attendance percentage"><strong id="dashboardAttendancePercent">0.00%</strong></div>
+                <div class="dashboard-attendance-stats">
+                  <span><b id="dashboardAttendancePresent">0</b> Present</span>
+                  <span><b id="dashboardAttendanceAbsent">0</b> Absent</span>
+                  <span><b id="dashboardAttendanceLeave">0</b> Leave/NE</span>
+                </div>
+              </div>
+              <p id="dashboardAttendanceMeta" class="dashboard-muted">No attendance data yet.</p>
+              <button id="dashboardAttendanceBtn" class="ghost-button dashboard-link-button" type="button">View Attendance</button>
+            </section>
+
+            <section class="dashboard-card dashboard-actions-card">
+              <div class="dashboard-card-head">
+                <div><h4>Quick Actions</h4><span>Jump to daily work</span></div>
+              </div>
+              <div class="dashboard-actions">
+                <button type="button" data-dashboard-view="entry">&#9998;<span>Enter Marks</span></button>
+                <button type="button" data-dashboard-view="results">&#9636;<span>View Results</span></button>
+                <button type="button" data-dashboard-view="students">&#43;<span>Add Student</span></button>
+                <button type="button" data-dashboard-view="attendance">&#9783;<span>Take Attendance</span></button>
+                <button type="button" data-dashboard-view="analysis">&#9638;<span>Academic Analysis</span></button>
+                <button type="button" data-dashboard-view="entryAccess" data-admin-only="true">&#9881;<span>Settings</span></button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="entryView" class="view" aria-label="Marks entry">
         <div class="section-head">
           <div>
             <h3>Enter Subject Marks</h3>

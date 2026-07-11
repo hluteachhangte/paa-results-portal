@@ -155,7 +155,7 @@ const defaultState = {
 };
 
 let state = loadState();
-let activeView = loadSavedUiState().activeView || "entry";
+let activeView = loadSavedUiState().activeView || "dashboard";
 let currentUser = loadCurrentUser();
 let editingStudentRoll = null;
 let applyingRemoteState = false;
@@ -203,6 +203,31 @@ const els = {
   mobileMenuCloseBtn: document.querySelector("#mobileMenuCloseBtn"),
   mobileNavDrawer: document.querySelector("#mobileNavDrawer"),
   mobileNavOverlay: document.querySelector("#mobileNavOverlay"),
+  dashboardGreeting: document.querySelector("#dashboardGreeting"),
+  dashboardSession: document.querySelector("#dashboardSession"),
+  dashboardSearchInput: document.querySelector("#dashboardSearchInput"),
+  dashboardNotificationBadge: document.querySelector("#dashboardNotificationBadge"),
+  dashboardUserName: document.querySelector("#dashboardUserName"),
+  dashboardUserRole: document.querySelector("#dashboardUserRole"),
+  dashboardTotalStudents: document.querySelector("#dashboardTotalStudents"),
+  dashboardTotalTeachers: document.querySelector("#dashboardTotalTeachers"),
+  dashboardTotalClasses: document.querySelector("#dashboardTotalClasses"),
+  dashboardOverallPass: document.querySelector("#dashboardOverallPass"),
+  dashboardExamSelect: document.querySelector("#dashboardExamSelect"),
+  dashboardResultMeta: document.querySelector("#dashboardResultMeta"),
+  dashboardResultDonut: document.querySelector("#dashboardResultDonut"),
+  dashboardResultLegend: document.querySelector("#dashboardResultLegend"),
+  dashboardFullReportBtn: document.querySelector("#dashboardFullReportBtn"),
+  dashboardRecentActivities: document.querySelector("#dashboardRecentActivities"),
+  dashboardClassPerformance: document.querySelector("#dashboardClassPerformance"),
+  dashboardMonthSelect: document.querySelector("#dashboardMonthSelect"),
+  dashboardAttendanceCircle: document.querySelector("#dashboardAttendanceCircle"),
+  dashboardAttendancePercent: document.querySelector("#dashboardAttendancePercent"),
+  dashboardAttendancePresent: document.querySelector("#dashboardAttendancePresent"),
+  dashboardAttendanceAbsent: document.querySelector("#dashboardAttendanceAbsent"),
+  dashboardAttendanceLeave: document.querySelector("#dashboardAttendanceLeave"),
+  dashboardAttendanceMeta: document.querySelector("#dashboardAttendanceMeta"),
+  dashboardAttendanceBtn: document.querySelector("#dashboardAttendanceBtn"),
   publicFirebaseResultSearch: document.querySelector("#publicFirebaseResultSearch"),
   publicFirebaseRollInput: document.querySelector("#publicFirebaseRollInput"),
   publicFirebaseResultStatus: document.querySelector("#publicFirebaseResultStatus"),
@@ -1061,10 +1086,10 @@ function loadSavedUiState() {
 
   try {
     const parsed = JSON.parse(saved);
-    const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
+    const allowedViews = ["dashboard", "entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
     return {
       ...parsed,
-      activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "entry"
+      activeView: allowedViews.includes(routeView) ? routeView : allowedViews.includes(parsed.activeView) ? parsed.activeView : "dashboard"
     };
   } catch {
     return { ...fallback, activeView: routeView || fallback.activeView };
@@ -1074,7 +1099,7 @@ function loadSavedUiState() {
 function viewFromLocationHash() {
   const hash = window.location.hash.replace(/^#/, "");
   const routeView = new URLSearchParams(hash).get("view") || hash.replace(/^view=/, "");
-  const allowedViews = ["entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
+  const allowedViews = ["dashboard", "entry", "attendance", "results", "marksheet", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"];
   return allowedViews.includes(routeView) ? routeView : "";
 }
 
@@ -1323,7 +1348,9 @@ function setSelectValueIfAvailable(select, value) {
 
 function renderActiveViewOnly() {
   renderPublishStatus();
-  if (activeView === "entry") {
+  if (activeView === "dashboard") {
+    renderDashboard();
+  } else if (activeView === "entry") {
     renderEntry();
   } else if (activeView === "attendance") {
     renderAttendance();
@@ -1474,7 +1501,9 @@ function renderAuth() {
 
   startFirebaseStateSync();
 
-  els.userBadge.textContent = `You logged in as ${currentUser.role === "admin" ? "Admin" : "Teacher"}`;
+  const roleLabel = currentUser.role === "admin" ? "Admin" : "Teacher";
+  els.userBadge.textContent = `You logged in as ${roleLabel}`;
+  els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
   if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
   els.publishBtn.classList.toggle("hidden", !isAdmin());
@@ -1499,6 +1528,8 @@ function handleLogin(event) {
     return;
   }
 
+  activeView = "dashboard";
+  saveUiState();
   saveCurrentUser({ username, role: account.role, name: account.name });
   els.loginForm.reset();
   showToast(`Logged in as ${account.name}.`);
@@ -1934,6 +1965,18 @@ function init() {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
   });
   setupMobileNavigation();
+  els.dashboardExamSelect?.addEventListener("change", () => renderDashboard());
+  els.dashboardMonthSelect?.addEventListener("change", () => renderDashboard());
+  els.dashboardFullReportBtn?.addEventListener("click", () => switchView("results"));
+  els.dashboardAttendanceBtn?.addEventListener("click", () => switchView("attendance"));
+  document.querySelectorAll("[data-dashboard-view]").forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.dashboardView));
+  });
+  els.dashboardSearchInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (els.dashboardSearchInput.value.trim()) switchView("students");
+  });
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -2306,7 +2349,7 @@ function getInputRestoreSelector(input) {
 function switchView(view) {
   if (view === "entryAccess" && !isAdmin()) {
     showToast("Only admin can open Entry Access Control.");
-    view = "entry";
+    view = "dashboard";
   }
   activeView = view;
   updateExamSelect();
@@ -2371,7 +2414,171 @@ function updateMobileNavActiveState() {
   });
 }
 
+function renderDashboard() {
+  if (!els.dashboardTotalStudents) return;
+  const session = currentSessionKey(state.academicSession);
+  const classes = classNames.filter((className) => state.classes?.[className]);
+  const examOptions = [...new Set(classes.flatMap((className) => currentExams(className)))];
+  const currentDashboardExam = els.dashboardExamSelect?.value || selectedExam() || "First Term";
+  if (els.dashboardExamSelect) {
+    populateSelect(els.dashboardExamSelect, examOptions.length ? examOptions : examNames);
+    setSelectValueIfAvailable(els.dashboardExamSelect, currentDashboardExam);
+  }
+  const exam = els.dashboardExamSelect?.value || currentDashboardExam;
+  const students = classes.flatMap((className) => state.classes[className] || []);
+  const records = buildAcademicAnalysisSelectionRecords(session, classes, exam);
+  const overview = analysisOverviewMetrics(records);
+  const teacherNames = new Set([
+    ...normalizeTeacherAssignments(state.teacherAssignments).map((assignment) => assignment.teacherName),
+    ...(state.teacherAssessment?.profiles || []).map((profile) => profile.name)
+  ].filter(Boolean));
+
+  els.dashboardGreeting.textContent = `Welcome back, ${currentUser?.name || "Teacher"}`;
+  els.dashboardSession.textContent = `Academic Session ${session}`;
+  els.dashboardUserName.textContent = currentUser?.name || "Teacher";
+  els.dashboardUserRole.textContent = isAdmin() ? "Administrator" : "Teacher";
+  els.dashboardTotalStudents.textContent = String(students.length);
+  els.dashboardTotalTeachers.textContent = String(teacherNames.size || normalizeTeacherAssignments(state.teacherAssignments).length);
+  els.dashboardTotalClasses.textContent = String(classes.length);
+  els.dashboardOverallPass.textContent = `${overview.passPercentage.toFixed(2)}%`;
+  els.dashboardNotificationBadge.textContent = String(dashboardActivityItems().length);
+
+  renderDashboardResultOverview(exam, overview, records);
+  renderDashboardClassPerformance(records);
+  renderDashboardAttendance();
+  renderDashboardActivities();
+}
+
+function renderDashboardResultOverview(exam, overview, records) {
+  const distribution = [
+    { label: "Dist.", value: overview.distinction, color: "#8b5cf6" },
+    { label: "I", value: overview.first, color: "#22c55e" },
+    { label: "II", value: overview.second, color: "#3b82f6" },
+    { label: "III", value: overview.third, color: "#f59e0b" },
+    { label: "S.P.", value: overview.simplePass, color: "#06b6d4" },
+    { label: "Fail/Absent", value: overview.failed, color: "#ef4444" }
+  ];
+  els.dashboardResultMeta.textContent = `${exam} | ${overview.present} appeared of ${overview.total} students`;
+  els.dashboardResultDonut.style.background = dashboardConicGradient(distribution);
+  els.dashboardResultDonut.innerHTML = `<strong>${overview.passPercentage.toFixed(1)}%</strong><span>Pass</span>`;
+  els.dashboardResultLegend.innerHTML = distribution.map((item) => `
+    <span><i style="background:${item.color}"></i>${escapeHtml(item.label)} <strong>${item.value}</strong></span>
+  `).join("");
+  if (!records.length) {
+    els.dashboardResultLegend.innerHTML = '<p class="dashboard-muted">No result data available for this examination yet.</p>';
+  }
+}
+
+function renderDashboardClassPerformance(records) {
+  const metrics = analysisClassMetrics(records)
+    .sort((a, b) => classNames.indexOf(a.className) - classNames.indexOf(b.className));
+  els.dashboardClassPerformance.innerHTML = metrics.length ? metrics.map((metric) => `
+    <article class="dashboard-class-row">
+      <div>
+        <strong>${escapeHtml(metric.className)}</strong>
+        <span>${metric.average.toFixed(2)}% average</span>
+      </div>
+      <div class="dashboard-progress" aria-label="${escapeAttr(metric.className)} pass percentage">
+        <i style="width:${Math.max(2, Math.min(100, metric.passPercentage))}%"></i>
+      </div>
+      <b>${metric.passPercentage.toFixed(2)}%</b>
+    </article>
+  `).join("") : '<p class="dashboard-muted">No class performance data available yet.</p>';
+}
+
+function renderDashboardAttendance() {
+  const term = els.dashboardMonthSelect?.value || "First Term";
+  let possibleDays = 0;
+  let attendedDays = 0;
+  let present = 0;
+  let absent = 0;
+  let leave = 0;
+  classNames.forEach((className) => {
+    const students = state.classes?.[className] || [];
+    const workingDays = Number(state.workingDays?.[term]) || 0;
+    students.forEach((student) => {
+      const value = getStudentAttendance(student, className, term);
+      if (isNotEnrolledEntry(value)) {
+        leave += 1;
+        return;
+      }
+      if (workingDays > 0) possibleDays += workingDays;
+      if (isScoredEntry(value)) {
+        attendedDays += Math.max(0, Number(value) || 0);
+        if (Number(value) > 0) present += 1;
+        else absent += 1;
+      } else {
+        absent += 1;
+      }
+    });
+  });
+  const percent = possibleDays ? Math.round((attendedDays / possibleDays) * 10000) / 100 : 0;
+  const items = [
+    { label: "Present", value: attendedDays, color: "#22c55e" },
+    { label: "Absent", value: Math.max(0, possibleDays - attendedDays), color: "#ef4444" }
+  ];
+  els.dashboardAttendanceCircle.style.background = dashboardConicGradient(items);
+  els.dashboardAttendancePercent.textContent = `${percent.toFixed(2)}%`;
+  els.dashboardAttendancePresent.textContent = String(present);
+  els.dashboardAttendanceAbsent.textContent = String(absent);
+  els.dashboardAttendanceLeave.textContent = String(leave);
+  els.dashboardAttendanceMeta.textContent = possibleDays
+    ? `${attendedDays.toFixed(0)} of ${possibleDays.toFixed(0)} attendance days recorded for ${term}.`
+    : `Enter working days and attendance for ${term} to show attendance percentage.`;
+}
+
+function renderDashboardActivities() {
+  const items = dashboardActivityItems();
+  els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 6).map((item) => `
+    <article>
+      <span class="${item.typeClass}" aria-hidden="true">${item.icon}</span>
+      <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.meta)}</small></div>
+      <time>${escapeHtml(item.time)}</time>
+    </article>
+  `).join("") : '<p class="dashboard-muted">No saved marks or attendance activities yet.</p>';
+}
+
+function dashboardActivityItems() {
+  const updates = Object.entries(state.dataEntryUpdates || {}).map(([key, value]) => {
+    const [type, className, exam, subject] = key.split("::");
+    const updatedAt = value?.updatedAt ? new Date(value.updatedAt) : null;
+    const label = type === "marks" ? "Marks saved" : type === "attendance" ? "Attendance saved" : "Measurement saved";
+    return {
+      title: `${label}${className ? ` for ${className}` : ""}`,
+      meta: [exam, subject, value?.updatedBy ? `by ${value.updatedBy}` : ""].filter(Boolean).join(" | "),
+      time: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toLocaleDateString() : "Saved",
+      sortTime: updatedAt?.getTime() || 0,
+      icon: type === "marks" ? "M" : type === "attendance" ? "A" : "P",
+      typeClass: type === "marks" ? "activity-marks" : type === "attendance" ? "activity-attendance" : "activity-measurement"
+    };
+  }).sort((a, b) => b.sortTime - a.sortTime);
+  if (updates.length) return updates;
+  const studentTotal = classNames.reduce((sum, className) => sum + (state.classes?.[className]?.length || 0), 0);
+  return studentTotal ? [{
+    title: "Student records ready",
+    meta: `${studentTotal} students across ${classNames.length} classes`,
+    time: "Current",
+    sortTime: 0,
+    icon: "S",
+    typeClass: "activity-students"
+  }] : [];
+}
+
+function dashboardConicGradient(items) {
+  const total = items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+  if (!total) return "conic-gradient(#d9e5f6 0deg 360deg)";
+  let cursor = 0;
+  const stops = items.map((item) => {
+    const start = (cursor / total) * 360;
+    cursor += Number(item.value) || 0;
+    const end = (cursor / total) * 360;
+    return `${item.color} ${start}deg ${end}deg`;
+  });
+  return `conic-gradient(${stops.join(",")})`;
+}
+
 function renderActiveViewChrome() {
+  document.body.classList.toggle("dashboard-active", activeView === "dashboard");
   document.body.classList.toggle("entry-active", activeView === "entry");
   document.body.classList.toggle("attendance-active", activeView === "attendance");
   document.body.classList.toggle("results-active", activeView === "results");
@@ -2385,6 +2592,7 @@ function renderActiveViewChrome() {
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
   updateMobileNavActiveState();
   const titles = {
+    dashboard: "Dashboard",
     entry: "Marks Entry",
     attendance: "Attendance and Physical Measurement",
     results: "Results",
@@ -2395,13 +2603,14 @@ function renderActiveViewChrome() {
     teacherAssessment: "Teacher Assessment",
     entryAccess: "Entry Access Control"
   };
-  els.viewTitle.textContent = titles[activeView] || "Marks Entry";
+  els.viewTitle.textContent = titles[activeView] || "Dashboard";
 }
 
 function render() {
   renderViewFilters();
   renderPublishStatus();
   renderMarksheetPublishStatus();
+  renderDashboard();
   renderEntry();
   renderAttendance();
   renderResults();
@@ -2416,7 +2625,7 @@ function render() {
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = !["attendance", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"].includes(activeView);
+  const showMainFilters = !["dashboard", "attendance", "students", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
