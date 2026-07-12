@@ -2,7 +2,7 @@ const storageKey = "results-desk-state-v1";
 const authKey = "markhub-current-user-v1";
 const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
-const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-v1";
+const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1";
 
 const users = {
   admin: { password: "admin_#123", role: "admin", name: "Admin" },
@@ -159,6 +159,7 @@ let state = loadState();
 let activeView = loadSavedUiState().activeView || "dashboard";
 let currentUser = loadCurrentUser();
 let editingStudentRoll = null;
+let dashboardStudentHighlight = null;
 let applyingRemoteState = false;
 let firebaseStateSyncStarted = false;
 let firebaseStateSaveTimer = null;
@@ -1510,7 +1511,7 @@ function renderAuth() {
   startFirebaseStateSync();
 
   const roleLabel = currentUser.role === "admin" ? "Admin" : "Teacher";
-  els.userBadge.textContent = `You logged in as ${roleLabel}`;
+  els.userBadge.textContent = roleLabel;
   els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
   if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
@@ -1755,6 +1756,144 @@ function currentExams(className = selectedClass()) {
   return examGroups.primaryMiddle;
 }
 
+function normalizeDashboardSearch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function classSearchAliases(className) {
+  const romanAliases = {
+    "Class I": ["class 1", "one"],
+    "Class II": ["class 2", "two"],
+    "Class III": ["class 3", "three"],
+    "Class IV": ["class 4", "four"],
+    "Class V": ["class 5", "five"],
+    "Class VI": ["class 6", "six"],
+    "Class VII": ["class 7", "seven"],
+    "Class VIII": ["class 8", "eight"],
+    "Class IX": ["class 9", "nine"],
+    "Class X": ["class 10", "ten"]
+  };
+  return [className, ...(romanAliases[className] || [])].map(normalizeDashboardSearch);
+}
+
+function examSearchAliases(exam) {
+  const aliases = {
+    "FT Unit Test 1": ["ft ut 1", "ftut1", "unit test 1"],
+    "FT Unit Test 2": ["ft ut 2", "ftut2", "unit test 2"],
+    "ST Unit Test 1": ["st ut 1", "stut1", "second term unit test 1"],
+    "ST Unit Test 2": ["st ut 2", "stut2", "second term unit test 2"],
+    "First Term": ["1st term", "first"],
+    "Second Term": ["2nd term", "second"],
+    "Third Term": ["3rd term", "third"],
+    CT1: ["ct 1", "class test 1"],
+    CT2: ["ct 2", "class test 2"],
+    CT3: ["ct 3", "class test 3"],
+    CT4: ["ct 4", "class test 4"]
+  };
+  return [exam, ...(aliases[exam] || [])].map(normalizeDashboardSearch);
+}
+
+function findDashboardClassSearch(query) {
+  return classNames.find((className) =>
+    classSearchAliases(className).some((alias) => alias && (query === alias || query.includes(alias)))
+  ) || "";
+}
+
+function findDashboardExamSearch(query, className = selectedClass()) {
+  const availableExams = currentExams(className);
+  return availableExams.find((exam) =>
+    examSearchAliases(exam).some((alias) => alias && (query === alias || query.includes(alias)))
+  ) || "";
+}
+
+function findDashboardStudentSearch(query, options = {}) {
+  const allowRollMatch = options.allowRollMatch !== false;
+  const queryNumber = query.match(/\b\d+\b/)?.[0] || "";
+  const classHint = findDashboardClassSearch(query);
+  const classes = classHint ? [classHint] : classNames;
+  for (const className of classes) {
+    const student = (state.classes[className] || []).find((item) => {
+      const name = normalizeDashboardSearch(item.name);
+      const roll = normalizeDashboardSearch(item.roll);
+      const idNo = normalizeDashboardSearch(item.idNo);
+      return name.includes(query)
+        || (allowRollMatch && queryNumber && roll === queryNumber)
+        || (idNo && query.includes(idNo));
+    });
+    if (student) return { className, student };
+  }
+  return null;
+}
+
+function setDashboardSearchClass(className) {
+  if (!className || !state.classes[className]) return;
+  els.classSelect.value = className;
+  if (els.studentsClassSelect) els.studentsClassSelect.value = className;
+  if (els.attendanceClassSelect) els.attendanceClassSelect.value = className;
+  updateExamSelect();
+  updateSubjectSelect();
+}
+
+function handleDashboardSearch(event) {
+  if (event?.type === "keydown" && event.key !== "Enter") return;
+  event?.preventDefault();
+  const rawQuery = els.dashboardSearchInput?.value || "";
+  const query = normalizeDashboardSearch(rawQuery);
+  if (!query) return;
+
+  const viewMatches = [
+    { view: "entry", terms: ["marks", "mark entry", "entry"] },
+    { view: "attendance", terms: ["attendance", "physical", "height", "weight"] },
+    { view: "results", terms: ["result", "results", "publish"] },
+    { view: "marksheet", terms: ["marksheet", "marksheets", "print marksheet"] },
+    { view: "students", terms: ["student", "students", "roll"] },
+    { view: "analysis", terms: ["analysis", "academic analysis", "trend"] },
+    { view: "teacherAnalytics", terms: ["teacher performance", "teacher analytics"] },
+    { view: "teacherAssessment", terms: ["teacher assessment"] },
+    { view: "entryAccess", terms: ["entry access", "settings", "access control"] }
+  ];
+  const matchedView = viewMatches.find((item) => item.terms.some((term) => query.includes(term)));
+  const matchedClass = findDashboardClassSearch(query);
+  const matchedExam = findDashboardExamSearch(query, matchedClass || selectedClass());
+  const matchedStudent = findDashboardStudentSearch(query, {
+    allowRollMatch: !matchedExam || query.includes("roll") || query.includes("student")
+  });
+
+  if (matchedStudent) {
+    dashboardStudentHighlight = String(matchedStudent.student.roll);
+    setDashboardSearchClass(matchedStudent.className);
+    switchView("students");
+    showToast(`Showing ${matchedStudent.student.name} in ${matchedStudent.className}.`);
+    return;
+  }
+
+  if (matchedClass) {
+    dashboardStudentHighlight = null;
+    setDashboardSearchClass(matchedClass);
+  }
+  if (matchedExam) setSelectValueIfAvailable(els.examSelect, matchedExam);
+
+  if (matchedView) {
+    switchView(matchedView.view);
+    return;
+  }
+  if (matchedExam) {
+    switchView("results");
+    return;
+  }
+  if (matchedClass) {
+    switchView("students");
+    showToast(`Showing ${matchedClass}.`);
+    return;
+  }
+
+  showToast(`No dashboard match found for "${rawQuery.trim()}".`);
+}
+
 function markSubjects(className = selectedClass()) {
   return currentSubjects(className).filter((subject) => !isGradeSubject(subject, className));
 }
@@ -1981,11 +2120,8 @@ function init() {
   document.querySelectorAll("[data-dashboard-view]").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.dashboardView));
   });
-  els.dashboardSearchInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    if (els.dashboardSearchInput.value.trim()) switchView("students");
-  });
+  els.dashboardSearchInput?.addEventListener("keydown", handleDashboardSearch);
+  els.dashboardSearchInput?.addEventListener("search", handleDashboardSearch);
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -2564,27 +2700,22 @@ function focusDashboardActivities() {
   window.setTimeout(() => activityCard.classList.remove("dashboard-card-pulse"), 1600);
 }
 
-function dashboardActivitySignature(items = dashboardActivityItems()) {
-  return items.map((item) => [
-    item.title,
-    item.meta,
-    item.time,
-    item.sortTime,
-    item.typeClass
-  ].join("|")).join("::");
+function dashboardActivityLatestTime(items = dashboardActivityItems()) {
+  return items.reduce((latest, item) => Math.max(latest, Number(item.sortTime) || 0), 0);
 }
 
-function getDashboardNotificationsSeenSignature() {
+function getDashboardNotificationsSeenTime() {
   try {
-    return localStorage.getItem(dashboardNotificationSeenKey) || "";
+    const value = localStorage.getItem(dashboardNotificationSeenKey);
+    return value === null ? null : Number(value) || 0;
   } catch (error) {
-    return "";
+    return null;
   }
 }
 
-function setDashboardNotificationsSeenSignature(signature) {
+function setDashboardNotificationsSeenTime(timestamp) {
   try {
-    localStorage.setItem(dashboardNotificationSeenKey, signature);
+    localStorage.setItem(dashboardNotificationSeenKey, String(timestamp));
   } catch (error) {
     // Ignore storage errors; the current screen still updates for this session.
   }
@@ -2592,9 +2723,10 @@ function setDashboardNotificationsSeenSignature(signature) {
 
 function updateDashboardNotificationBadge(items = dashboardActivityItems()) {
   if (!els.dashboardNotificationBadge) return;
-  const signature = dashboardActivitySignature(items);
-  const isChecked = Boolean(signature) && signature === getDashboardNotificationsSeenSignature();
-  const count = isChecked ? 0 : items.length;
+  const seenTime = getDashboardNotificationsSeenTime();
+  const count = seenTime === null
+    ? items.length
+    : items.filter((item) => (Number(item.sortTime) || 0) > seenTime).length;
   els.dashboardNotificationBadge.textContent = String(count);
   els.dashboardNotificationBadge.hidden = count === 0;
   els.dashboardNotificationBtn?.classList.toggle("is-checked", count === 0);
@@ -2606,7 +2738,7 @@ function updateDashboardNotificationBadge(items = dashboardActivityItems()) {
 
 function markDashboardNotificationsSeen() {
   const items = dashboardActivityItems();
-  setDashboardNotificationsSeenSignature(dashboardActivitySignature(items));
+  setDashboardNotificationsSeenTime(dashboardActivityLatestTime(items) || Date.now());
   updateDashboardNotificationBadge(items);
 }
 
@@ -8130,7 +8262,7 @@ function setAllEntryAccess(enabled) {
 function renderStudents() {
   const admin = isAdmin();
   els.studentsBody.innerHTML = sortedStudents().map((student) => `
-    <tr>
+    <tr class="${dashboardStudentHighlight === String(student.roll) ? "student-search-highlight" : ""}" data-student-roll="${escapeAttr(student.roll)}">
       <td>${student.roll}</td>
       <td>${escapeHtml(student.idNo || "-")}</td>
       <td>${escapeHtml(student.name)}</td>
@@ -8155,6 +8287,10 @@ function renderStudents() {
   document.querySelectorAll("[data-remove-roll]").forEach((button) => {
     button.addEventListener("click", () => removeStudent(Number(button.dataset.removeRoll)));
   });
+  if (dashboardStudentHighlight) {
+    document.querySelector(`[data-student-roll="${CSS.escape(dashboardStudentHighlight)}"]`)
+      ?.scrollIntoView({ block: "center", inline: "nearest" });
+  }
 }
 
 function sortedStudents() {

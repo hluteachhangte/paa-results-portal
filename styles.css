@@ -13183,12 +13183,12 @@ body.dashboard-active .stat-orange::before {
   .mobile-menu-button {
     border: 1px solid rgba(255, 255, 255, 0.74) !important;
     background:
-      linear-gradient(145deg, rgba(94, 189, 255, 0.82), rgba(49, 92, 232, 0.88)),
+      linear-gradient(145deg, rgba(1, 117, 122, 0.88), rgba(1, 87, 96, 0.94)),
       rgba(255, 255, 255, 0.28) !important;
     color: #ffffff !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      0 10px 24px rgba(49, 92, 232, 0.26) !important;
+      0 10px 24px rgba(1, 117, 122, 0.26) !important;
     backdrop-filter: blur(16px) saturate(150%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
   }
@@ -13918,5 +13918,97 @@ body.dashboard-active #resetBtn {
 
   .dashboard-notification.is-checked {
     opacity: 0.86;
+  }
+}
+
+@media screen {
+  body.dashboard-active .dashboard-profile strong,
+  body.dashboard-active #dashboardUserName {
+    color: #ffffff !important;
+  }
+
+  body.entry-active #clearMarksBtn,
+  body.entry-active #saveMarksBtn,
+  body.attendance-active #clearAttendanceBtn,
+  body.attendance-active #saveAttendanceBtn {
+    color: #000000 !important;
+  }
+}
+
+@media screen and (max-width: 760px) {
+  body.attendance-active #clearAttendanceBtn,
+  body.attendance-active #saveAttendanceBtn {
+    grid-column: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body.attendance-active #clearAttendanceBtn {
+    grid-column: 1 / 2 !important;
+  }
+
+  body.attendance-active #saveAttendanceBtn {
+    grid-column: 2 / 3 !important;
+  }
+}
+
+@media screen {
+  body.dashboard-active .dashboard-profile strong,
+  body.dashboard-active #dashboardUserName {
+    color: #000000 !important;
+  }
+}
+
+@media screen {
+  .topbar #userBadge,
+  .topbar .user-badge {
+    color: #ffffff !important;
+  }
+}
+
+@media screen and (max-width: 760px) {
+  body.dashboard-active .topbar #userBadge {
+    display: none !important;
+  }
+
+  body.dashboard-active #dashboardUserName {
+    display: none !important;
+  }
+}
+
+@media screen and (max-width: 760px) {
+  body.dashboard-active .topbar .top-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  body.dashboard-active .topbar .top-actions #userBadge,
+  body.dashboard-active .topbar .top-actions #resetBtn {
+    display: none !important;
+  }
+
+  body.dashboard-active .topbar .top-actions #exportBtn,
+  body.dashboard-active .topbar .top-actions #exportExcelBtn,
+  body.dashboard-active .topbar .top-actions #logoutBtn {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
+    flex-basis: auto !important;
+    justify-content: center !important;
+    padding: 8px 6px !important;
+    font-size: clamp(0.58rem, 2.4vw, 0.72rem) !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media screen {
+  .student-search-highlight td {
+    background: rgba(164, 195, 184, 0.34) !important;
+    box-shadow: inset 0 0 0 2px rgba(1, 117, 122, 0.32);
   }
 }
