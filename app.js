@@ -206,6 +206,7 @@ const els = {
   dashboardGreeting: document.querySelector("#dashboardGreeting"),
   dashboardSession: document.querySelector("#dashboardSession"),
   dashboardSearchInput: document.querySelector("#dashboardSearchInput"),
+  dashboardNotificationBtn: document.querySelector("#dashboardNotificationBtn"),
   dashboardNotificationBadge: document.querySelector("#dashboardNotificationBadge"),
   dashboardUserName: document.querySelector("#dashboardUserName"),
   dashboardUserRole: document.querySelector("#dashboardUserRole"),
@@ -1973,6 +1974,7 @@ function init() {
   setupMobileNavigation();
   els.dashboardExamSelect?.addEventListener("change", () => renderDashboard());
   els.dashboardMonthSelect?.addEventListener("change", () => renderDashboard());
+  els.dashboardNotificationBtn?.addEventListener("click", focusDashboardActivities);
   els.dashboardFullReportBtn?.addEventListener("click", () => switchView("results"));
   els.dashboardAttendanceBtn?.addEventListener("click", () => switchView("attendance"));
   document.querySelectorAll("[data-dashboard-view]").forEach((button) => {
@@ -2546,6 +2548,18 @@ function renderDashboardActivities() {
       <time>${escapeHtml(item.time)}</time>
     </article>
   `).join("") : '<p class="dashboard-muted">No saved marks or attendance activities yet.</p>';
+}
+
+function focusDashboardActivities() {
+  const activityCard = els.dashboardRecentActivities?.closest(".dashboard-activity-card");
+  if (!activityCard) return;
+  activityCard.setAttribute("tabindex", "-1");
+  activityCard.scrollIntoView({ behavior: "smooth", block: "center" });
+  activityCard.focus({ preventScroll: true });
+  activityCard.classList.remove("dashboard-card-pulse");
+  void activityCard.offsetWidth;
+  activityCard.classList.add("dashboard-card-pulse");
+  window.setTimeout(() => activityCard.classList.remove("dashboard-card-pulse"), 1600);
 }
 
 function dashboardActivityItems() {

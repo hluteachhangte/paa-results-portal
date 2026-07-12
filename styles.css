@@ -13435,11 +13435,11 @@ body.dashboard-active #resetBtn {
     border-radius: 22px !important;
     background:
       radial-gradient(circle at 8% 0%, rgba(94, 189, 255, 0.2), transparent 34%),
-      radial-gradient(circle at 88% 20%, rgba(189, 77, 244, 0.22), transparent 36%),
-      linear-gradient(135deg, rgba(49, 44, 81, 0.94), rgba(49, 44, 81, 0.76)) !important;
+      radial-gradient(circle at 88% 20%, rgba(61, 204, 147, 0.22), transparent 36%),
+      linear-gradient(135deg, rgba(1, 117, 122, 0.94), rgba(1, 117, 122, 0.76)) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.28),
-      0 18px 38px rgba(49, 44, 81, 0.24) !important;
+      0 18px 38px rgba(1, 117, 122, 0.24) !important;
     backdrop-filter: blur(22px) saturate(150%) !important;
     -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
   }
@@ -13509,5 +13509,394 @@ body.dashboard-active #resetBtn {
   .topbar {
     border-radius: 18px !important;
     padding: 12px !important;
+  }
+}
+
+@media screen {
+  .dashboard-notification {
+    cursor: pointer;
+  }
+
+  .dashboard-notification:focus-visible,
+  .dashboard-activity-card:focus-visible {
+    outline: 3px solid rgba(79, 124, 255, 0.42);
+    outline-offset: 3px;
+  }
+
+  .dashboard-card-pulse {
+    animation: dashboardActivityPulse 1.45s ease;
+  }
+
+  @keyframes dashboardActivityPulse {
+    0% {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 0 rgba(79, 124, 255, 0.42),
+        var(--shadow-card);
+      transform: translateY(0);
+    }
+    42% {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 0 0 8px rgba(79, 124, 255, 0.16),
+        0 22px 44px rgba(76, 111, 190, 0.22);
+      transform: translateY(-2px);
+    }
+    100% {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 0 rgba(79, 124, 255, 0),
+        var(--shadow-card);
+      transform: translateY(0);
+    }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body:not(.dashboard-active) .main-content {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  body:not(.dashboard-active) .view.active {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.dashboard-active) .view.active > .section-head,
+  body:not(.dashboard-active) .view.active > .filters,
+  body:not(.dashboard-active) .view.active > .attendance-filters,
+  body:not(.dashboard-active) .view.active > .student-form,
+  body:not(.dashboard-active) .view.active > .publish-panel,
+  body:not(.dashboard-active) .view.active > .result-summary,
+  body:not(.dashboard-active) .view.active > .entry-access-dashboard,
+  body:not(.dashboard-active) .view.active > .entry-access-panel,
+  body:not(.dashboard-active) .view.active > .analysis-page-head,
+  body:not(.dashboard-active) .view.active > .analysis-filters,
+  body:not(.dashboard-active) .view.active > .teacher-analytics-filters,
+  body:not(.dashboard-active) .view.active > .teacher-assessment-filters,
+  body:not(.dashboard-active) .view.active > .table-wrap,
+  body:not(.dashboard-active) .view.active .analysis-panel,
+  body:not(.dashboard-active) .view.active .teacher-analytics-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-card,
+  body:not(.dashboard-active) .view.active .teacher-assignment-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-entry-panel,
+  body:not(.dashboard-active) .view.active .entry-access-table-wrap,
+  body:not(.dashboard-active) .view.active .analysis-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assignment-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assessment-records-wrap,
+  body:not(.dashboard-active) .view.active .firebase-result-search,
+  body:not(.dashboard-active) .view.active .firebase-result-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body:not(.dashboard-active) .view.active > .section-head,
+  body:not(.dashboard-active) .view.active > .filters,
+  body:not(.dashboard-active) .view.active > .attendance-filters,
+  body:not(.dashboard-active) .view.active > .student-form,
+  body:not(.dashboard-active) .view.active > .publish-panel,
+  body:not(.dashboard-active) .view.active > .result-summary,
+  body:not(.dashboard-active) .view.active > .entry-access-dashboard,
+  body:not(.dashboard-active) .view.active > .entry-access-panel,
+  body:not(.dashboard-active) .view.active > .analysis-page-head,
+  body:not(.dashboard-active) .view.active > .analysis-filters,
+  body:not(.dashboard-active) .view.active > .teacher-analytics-filters,
+  body:not(.dashboard-active) .view.active > .teacher-assessment-filters,
+  body:not(.dashboard-active) .view.active .analysis-panel,
+  body:not(.dashboard-active) .view.active .teacher-analytics-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-card,
+  body:not(.dashboard-active) .view.active .teacher-assignment-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-entry-panel {
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(94, 189, 255, 0.22), transparent 34%),
+      radial-gradient(circle at 100% 8%, rgba(189, 77, 244, 0.16), transparent 34%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 247, 255, 0.72)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.86),
+      0 14px 30px rgba(65, 101, 164, 0.12) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  }
+
+  body:not(.dashboard-active) .view.active > .table-wrap,
+  body:not(.dashboard-active) .view.active .analysis-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assignment-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assessment-records-wrap,
+  body:not(.dashboard-active) .view.active .entry-access-table-wrap {
+    border: 1px solid rgba(255, 255, 255, 0.76) !important;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(235, 244, 255, 0.72)),
+      rgba(255, 255, 255, 0.66) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 12px 26px rgba(65, 101, 164, 0.1) !important;
+    backdrop-filter: blur(16px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  }
+
+  body.entry-active #entryView > .section-head,
+  body.attendance-active #attendanceView > .entry-access-notice,
+  body.results-active #resultsView > .section-head,
+  body.marksheet-active #marksheetView > .section-head,
+  body.students-active #studentsView > .section-head,
+  body.analysis-active #analysisView > .analysis-page-head,
+  body.teacher-analytics-active #teacherAnalyticsView > .teacher-analytics-page-head,
+  body.teacher-assessment-active #teacherAssessmentView > .teacher-assessment-page-head,
+  body.entry-access-active #entryAccessView > .section-head {
+    background:
+      radial-gradient(circle at 10% 10%, rgba(94, 189, 255, 0.26), transparent 32%),
+      radial-gradient(circle at 92% 12%, rgba(130, 104, 255, 0.22), transparent 36%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(236, 243, 255, 0.72)) !important;
+  }
+
+  body.dashboard-active .main-content,
+  body.dashboard-active .dashboard-shell {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  body.dashboard-active .dashboard-hero,
+  body.dashboard-active .dashboard-stats,
+  body.dashboard-active .dashboard-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body.dashboard-active .dashboard-card,
+  body.dashboard-active .dashboard-stat-card {
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(94, 189, 255, 0.18), transparent 34%),
+      radial-gradient(circle at 100% 10%, rgba(130, 104, 255, 0.16), transparent 34%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.72)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      0 14px 30px rgba(65, 101, 164, 0.12) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body:not(.dashboard-active) .view.active > .section-head,
+  body:not(.dashboard-active) .view.active > .filters,
+  body:not(.dashboard-active) .view.active > .attendance-filters,
+  body:not(.dashboard-active) .view.active > .student-form,
+  body:not(.dashboard-active) .view.active > .publish-panel,
+  body:not(.dashboard-active) .view.active > .result-summary,
+  body:not(.dashboard-active) .view.active > .entry-access-dashboard,
+  body:not(.dashboard-active) .view.active > .entry-access-panel,
+  body:not(.dashboard-active) .view.active > .analysis-page-head,
+  body:not(.dashboard-active) .view.active > .analysis-filters,
+  body:not(.dashboard-active) .view.active > .teacher-analytics-filters,
+  body:not(.dashboard-active) .view.active > .teacher-assessment-filters,
+  body:not(.dashboard-active) .view.active .analysis-panel,
+  body:not(.dashboard-active) .view.active .teacher-analytics-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-card,
+  body:not(.dashboard-active) .view.active .teacher-assignment-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-entry-panel {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body:not(.dashboard-active) .view.active > .table-wrap,
+  body:not(.dashboard-active) .view.active .analysis-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assignment-table-wrap,
+  body:not(.dashboard-active) .view.active .teacher-assessment-records-wrap,
+  body:not(.dashboard-active) .view.active .entry-access-table-wrap {
+    border-color: rgba(81, 122, 199, 0.12) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body:not(.dashboard-active) .view.active > .section-head,
+  body:not(.dashboard-active) .view.active > .analysis-page-head,
+  body:not(.dashboard-active) .view.active > .student-form,
+  body:not(.dashboard-active) .view.active > .filters,
+  body:not(.dashboard-active) .view.active > .attendance-filters {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body:not(.dashboard-active) .view.active .analysis-panel,
+  body:not(.dashboard-active) .view.active .teacher-analytics-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-card,
+  body:not(.dashboard-active) .view.active .teacher-assignment-panel,
+  body:not(.dashboard-active) .view.active .teacher-assessment-entry-panel {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media screen {
+  body.results-active #resultSummary.result-summary {
+    justify-content: center !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div {
+    min-width: 132px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    border-radius: 16px !important;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(242, 247, 255, 0.66)),
+      rgba(255, 255, 255, 0.54) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 12px 22px rgba(65, 101, 164, 0.1) !important;
+    backdrop-filter: blur(16px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(145%) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div span,
+  body.results-active #resultSummary.result-summary > div strong {
+    width: 100% !important;
+    text-align: center !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 1) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(94, 189, 255, 0.34),
+      0 0 18px rgba(94, 189, 255, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 2) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(61, 204, 147, 0.34),
+      0 0 18px rgba(61, 204, 147, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 3) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(255, 155, 69, 0.36),
+      0 0 18px rgba(255, 155, 69, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 4) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(255, 106, 106, 0.34),
+      0 0 18px rgba(255, 106, 106, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 5) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(130, 104, 255, 0.36),
+      0 0 18px rgba(130, 104, 255, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 6) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(189, 77, 244, 0.32),
+      0 0 18px rgba(189, 77, 244, 0.18) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 7) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(79, 146, 255, 0.34),
+      0 0 18px rgba(79, 146, 255, 0.2) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 8) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(236, 124, 200, 0.32),
+      0 0 18px rgba(236, 124, 200, 0.18) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n + 9) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(49, 92, 232, 0.32),
+      0 0 18px rgba(49, 92, 232, 0.18) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div:nth-child(10n) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(12, 40, 104, 0.26),
+      0 0 18px rgba(12, 40, 104, 0.14) !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body.results-active #resultSummary.result-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.results-active #resultSummary.result-summary > div {
+    min-width: 0 !important;
+    padding: 8px 6px !important;
+  }
+}
+
+@media screen {
+  body.results-active #resultsView > .section-head.print-controls {
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(246, 250, 255, 0.66)),
+      rgba(255, 255, 255, 0.56) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 14px 28px rgba(65, 101, 164, 0.12) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  }
+}
+
+@media screen {
+  body.entry-active #clearMarksBtn,
+  body.attendance-active #clearAttendanceBtn {
+    color: #6f2432 !important;
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    background:
+      linear-gradient(135deg, rgba(255, 183, 195, 0.96), rgba(255, 204, 213, 0.82)),
+      #ffb7c3 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.54),
+      0 12px 24px rgba(255, 183, 195, 0.28) !important;
+  }
+
+  body.entry-active #saveMarksBtn,
+  body.attendance-active #saveAttendanceBtn {
+    color: #18483d !important;
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    background:
+      linear-gradient(135deg, rgba(164, 195, 184, 0.98), rgba(199, 222, 214, 0.82)),
+      #a4c3b8 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.56),
+      0 12px 24px rgba(164, 195, 184, 0.3) !important;
   }
 }
