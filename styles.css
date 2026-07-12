@@ -13900,3 +13900,23 @@ body.dashboard-active #resetBtn {
       0 12px 24px rgba(164, 195, 184, 0.3) !important;
   }
 }
+
+@media screen {
+  .brand-block .brand-logo,
+  .mobile-nav-brand img,
+  .attendance-honor-page .brand-block .brand-logo {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}
+
+@media screen {
+  .dashboard-notification b[hidden] {
+    display: none !important;
+  }
+
+  .dashboard-notification.is-checked {
+    opacity: 0.86;
+  }
+}

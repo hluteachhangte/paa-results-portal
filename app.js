@@ -2,6 +2,7 @@ const storageKey = "results-desk-state-v1";
 const authKey = "markhub-current-user-v1";
 const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
+const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-v1";
 
 const users = {
   admin: { password: "admin_#123", role: "admin", name: "Admin" },
@@ -2453,12 +2454,13 @@ function renderDashboard() {
   els.dashboardTotalTeachers.textContent = String(teacherNames.size || normalizeTeacherAssignments(state.teacherAssignments).length);
   els.dashboardTotalClasses.textContent = String(classes.length);
   els.dashboardOverallPass.textContent = `${overview.passPercentage.toFixed(2)}%`;
-  els.dashboardNotificationBadge.textContent = String(dashboardActivityItems().length);
+  const dashboardActivities = dashboardActivityItems();
+  updateDashboardNotificationBadge(dashboardActivities);
 
   renderDashboardResultOverview(exam, overview, records);
   renderDashboardClassPerformance(records);
   renderDashboardAttendance();
-  renderDashboardActivities();
+  renderDashboardActivities(dashboardActivities);
 }
 
 function renderDashboardResultOverview(exam, overview, records) {
@@ -2539,8 +2541,7 @@ function renderDashboardAttendance() {
     : `Enter working days and attendance for ${term} to show attendance percentage.`;
 }
 
-function renderDashboardActivities() {
-  const items = dashboardActivityItems();
+function renderDashboardActivities(items = dashboardActivityItems()) {
   els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 6).map((item) => `
     <article>
       <span class="${item.typeClass}" aria-hidden="true">${item.icon}</span>
@@ -2553,6 +2554,7 @@ function renderDashboardActivities() {
 function focusDashboardActivities() {
   const activityCard = els.dashboardRecentActivities?.closest(".dashboard-activity-card");
   if (!activityCard) return;
+  markDashboardNotificationsSeen();
   activityCard.setAttribute("tabindex", "-1");
   activityCard.scrollIntoView({ behavior: "smooth", block: "center" });
   activityCard.focus({ preventScroll: true });
@@ -2560,6 +2562,52 @@ function focusDashboardActivities() {
   void activityCard.offsetWidth;
   activityCard.classList.add("dashboard-card-pulse");
   window.setTimeout(() => activityCard.classList.remove("dashboard-card-pulse"), 1600);
+}
+
+function dashboardActivitySignature(items = dashboardActivityItems()) {
+  return items.map((item) => [
+    item.title,
+    item.meta,
+    item.time,
+    item.sortTime,
+    item.typeClass
+  ].join("|")).join("::");
+}
+
+function getDashboardNotificationsSeenSignature() {
+  try {
+    return localStorage.getItem(dashboardNotificationSeenKey) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function setDashboardNotificationsSeenSignature(signature) {
+  try {
+    localStorage.setItem(dashboardNotificationSeenKey, signature);
+  } catch (error) {
+    // Ignore storage errors; the current screen still updates for this session.
+  }
+}
+
+function updateDashboardNotificationBadge(items = dashboardActivityItems()) {
+  if (!els.dashboardNotificationBadge) return;
+  const signature = dashboardActivitySignature(items);
+  const isChecked = Boolean(signature) && signature === getDashboardNotificationsSeenSignature();
+  const count = isChecked ? 0 : items.length;
+  els.dashboardNotificationBadge.textContent = String(count);
+  els.dashboardNotificationBadge.hidden = count === 0;
+  els.dashboardNotificationBtn?.classList.toggle("is-checked", count === 0);
+  els.dashboardNotificationBtn?.setAttribute(
+    "aria-label",
+    count ? `Show recent activities, ${count} unchecked notification${count === 1 ? "" : "s"}` : "Show recent activities, no unchecked notifications"
+  );
+}
+
+function markDashboardNotificationsSeen() {
+  const items = dashboardActivityItems();
+  setDashboardNotificationsSeenSignature(dashboardActivitySignature(items));
+  updateDashboardNotificationBadge(items);
 }
 
 function dashboardActivityItems() {
