@@ -1764,6 +1764,24 @@ function normalizeDashboardSearch(value) {
     .trim();
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function dashboardQueryHasAlias(query, alias) {
+  const normalizedAlias = normalizeDashboardSearch(alias);
+  if (!query || !normalizedAlias) return false;
+  return query === normalizedAlias || ` ${query} `.includes(` ${normalizedAlias} `);
+}
+
+function removeDashboardAlias(query, alias) {
+  const normalizedAlias = normalizeDashboardSearch(alias);
+  if (!query || !normalizedAlias) return query;
+  return ` ${query} `
+    .replace(new RegExp(` ${escapeRegExp(normalizedAlias)} `, "g"), " ")
+    .trim();
+}
+
 function classSearchAliases(className) {
   const romanAliases = {
     "Class I": ["class 1", "one"],
@@ -1798,21 +1816,52 @@ function examSearchAliases(exam) {
 }
 
 function findDashboardClassSearch(query) {
-  return classNames.find((className) =>
-    classSearchAliases(className).some((alias) => alias && (query === alias || query.includes(alias)))
+  return [...classNames].sort((a, b) => {
+    const aLength = Math.max(...classSearchAliases(a).map((alias) => alias.length));
+    const bLength = Math.max(...classSearchAliases(b).map((alias) => alias.length));
+    return bLength - aLength;
+  }).find((className) =>
+    classSearchAliases(className).some((alias) => dashboardQueryHasAlias(query, alias))
   ) || "";
 }
 
-function findDashboardExamSearch(query, className = selectedClass()) {
-  const availableExams = currentExams(className);
+function findDashboardExamSearch(query, className = "") {
+  const availableExams = className ? currentExams(className) : examNames;
   return availableExams.find((exam) =>
-    examSearchAliases(exam).some((alias) => alias && (query === alias || query.includes(alias)))
+    examSearchAliases(exam).some((alias) => dashboardQueryHasAlias(query, alias))
   ) || "";
+}
+
+function dashboardSearchClassForExam(exam) {
+  return classNames.find((className) => currentExams(className).includes(exam)) || "";
+}
+
+function cleanDashboardStudentQuery(query, className = "", exam = "") {
+  let cleaned = query;
+  ["student", "students", "roll", "roll no", "roll number"].forEach((term) => {
+    cleaned = removeDashboardAlias(cleaned, term);
+  });
+  if (className) {
+    classSearchAliases(className)
+      .sort((a, b) => b.length - a.length)
+      .forEach((alias) => {
+        cleaned = removeDashboardAlias(cleaned, alias);
+      });
+  }
+  if (exam) {
+    examSearchAliases(exam)
+      .sort((a, b) => b.length - a.length)
+      .forEach((alias) => {
+        cleaned = removeDashboardAlias(cleaned, alias);
+      });
+  }
+  return cleaned.trim();
 }
 
 function findDashboardStudentSearch(query, options = {}) {
   const allowRollMatch = options.allowRollMatch !== false;
-  const queryNumber = query.match(/\b\d+\b/)?.[0] || "";
+  const searchQuery = options.searchQuery || query;
+  const queryNumber = searchQuery.match(/\b\d+\b/)?.[0] || "";
   const classHint = findDashboardClassSearch(query);
   const classes = classHint ? [classHint] : classNames;
   for (const className of classes) {
@@ -1820,9 +1869,9 @@ function findDashboardStudentSearch(query, options = {}) {
       const name = normalizeDashboardSearch(item.name);
       const roll = normalizeDashboardSearch(item.roll);
       const idNo = normalizeDashboardSearch(item.idNo);
-      return name.includes(query)
+      return (searchQuery && name.includes(searchQuery))
         || (allowRollMatch && queryNumber && roll === queryNumber)
-        || (idNo && query.includes(idNo));
+        || (idNo && searchQuery.includes(idNo));
     });
     if (student) return { className, student };
   }
@@ -1856,11 +1905,16 @@ function handleDashboardSearch(event) {
     { view: "teacherAssessment", terms: ["teacher assessment"] },
     { view: "entryAccess", terms: ["entry access", "settings", "access control"] }
   ];
-  const matchedView = viewMatches.find((item) => item.terms.some((term) => query.includes(term)));
-  const matchedClass = findDashboardClassSearch(query);
-  const matchedExam = findDashboardExamSearch(query, matchedClass || selectedClass());
+  const matchedView = viewMatches.find((item) => item.terms.some((term) => dashboardQueryHasAlias(query, term)));
+  let matchedClass = findDashboardClassSearch(query);
+  const matchedExam = findDashboardExamSearch(query, matchedClass || selectedClass()) || findDashboardExamSearch(query);
+  if (matchedExam && !matchedClass && !currentExams(selectedClass()).includes(matchedExam)) {
+    matchedClass = dashboardSearchClassForExam(matchedExam);
+  }
+  const studentQuery = cleanDashboardStudentQuery(query, matchedClass, matchedExam);
   const matchedStudent = findDashboardStudentSearch(query, {
-    allowRollMatch: !matchedExam || query.includes("roll") || query.includes("student")
+    searchQuery: studentQuery,
+    allowRollMatch: !matchedExam || dashboardQueryHasAlias(query, "roll") || dashboardQueryHasAlias(query, "student")
   });
 
   if (matchedStudent) {
@@ -2681,7 +2735,10 @@ function renderDashboardActivities(items = dashboardActivityItems()) {
   els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 6).map((item) => `
     <article>
       <span class="${item.typeClass}" aria-hidden="true">${item.icon}</span>
-      <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.meta)}</small></div>
+      <div class="dashboard-activity-copy">
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.meta)}</small>
+      </div>
       <time>${escapeHtml(item.time)}</time>
     </article>
   `).join("") : '<p class="dashboard-muted">No saved marks or attendance activities yet.</p>';
@@ -2750,7 +2807,13 @@ function dashboardActivityItems() {
     return {
       title: `${label}${className ? ` for ${className}` : ""}`,
       meta: [exam, subject, value?.updatedBy ? `by ${value.updatedBy}` : ""].filter(Boolean).join(" | "),
-      time: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toLocaleDateString() : "Saved",
+      time: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      }) : "Saved",
       sortTime: updatedAt?.getTime() || 0,
       icon: type === "marks" ? "M" : type === "attendance" ? "A" : "P",
       typeClass: type === "marks" ? "activity-marks" : type === "attendance" ? "activity-attendance" : "activity-measurement"
