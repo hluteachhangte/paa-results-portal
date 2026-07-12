@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=students-mobile-two-column-20260712-38">
+  <link rel="stylesheet" href="./styles.css?v=dashboard-mobile-icon-center-20260712-43">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -287,11 +287,11 @@
           <div class="dashboard-grid">
             <section class="dashboard-card dashboard-result-overview">
               <div class="dashboard-card-head">
-                <div><h4>Result Overview</h4><span id="dashboardResultMeta">Current examination summary</span></div>
+                <div><h4>Result Classification Overview</h4><span id="dashboardResultMeta">Distribution of students by result category</span></div>
                 <select id="dashboardExamSelect" aria-label="Dashboard exam"></select>
               </div>
               <div class="dashboard-result-layout">
-                <div id="dashboardResultDonut" class="dashboard-donut" role="img" aria-label="Result division distribution"><strong>0%</strong></div>
+                <div id="dashboardResultDonut" class="dashboard-donut result-radial-card" role="img" aria-label="Result classification chart showing the number of students in Distinction, First Division, Second Division, Third Division, Simple Pass, Fail, and Absent categories."></div>
                 <div id="dashboardResultLegend" class="dashboard-legend"></div>
               </div>
               <button id="dashboardFullReportBtn" class="ghost-button dashboard-link-button" type="button">View Full Report</button>
@@ -912,7 +912,7 @@
   <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=students-mobile-two-column-20260712-38"></script>
+  <script src="./app.js?v=dashboard-mobile-icon-center-20260712-43"></script>
   <script src="./teacher-assessment.js?v=teacher-assessment-module-20260706"></script>
 </body>
 </html>

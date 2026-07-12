@@ -2176,6 +2176,7 @@ function init() {
   });
   els.dashboardSearchInput?.addEventListener("keydown", handleDashboardSearch);
   els.dashboardSearchInput?.addEventListener("search", handleDashboardSearch);
+  setupDashboardResultTooltip();
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -2654,23 +2655,197 @@ function renderDashboard() {
 }
 
 function renderDashboardResultOverview(exam, overview, records) {
-  const distribution = [
-    { label: "Dist.", value: overview.distinction, color: "#8b5cf6" },
-    { label: "I", value: overview.first, color: "#22c55e" },
-    { label: "II", value: overview.second, color: "#3b82f6" },
-    { label: "III", value: overview.third, color: "#f59e0b" },
-    { label: "S.P.", value: overview.simplePass, color: "#06b6d4" },
-    { label: "Fail/Absent", value: overview.failed, color: "#ef4444" }
+  const summary = dashboardResultClassificationSummary(records);
+  const classLabel = "All Classes";
+  els.dashboardResultMeta.textContent = `${classLabel} | ${exam} | ${currentSessionKey(state.academicSession)} | ${overview.present} appeared of ${overview.total} students`;
+  els.dashboardResultDonut.innerHTML = dashboardResultRadialSvg(summary);
+  els.dashboardResultLegend.innerHTML = dashboardResultSummaryHtml(summary);
+}
+
+function dashboardResultClassificationSummary(records) {
+  const categories = [
+    { key: "distinction", label: "Dist.", fullLabel: "Distinction", count: 0, color: "#716A7D" },
+    { key: "firstDivision", label: "I", fullLabel: "First Division", count: 0, color: "#C77F8F" },
+    { key: "secondDivision", label: "II", fullLabel: "Second Division", count: 0, color: "#FA858C" },
+    { key: "thirdDivision", label: "III", fullLabel: "Third Division", count: 0, color: "#FDA58E" },
+    { key: "simplePass", label: "S.P.", fullLabel: "Simple Pass", count: 0, color: "#E9B862" },
+    { key: "fail", label: "Fail", fullLabel: "Fail", count: 0, color: "#DC6268" },
+    { key: "absent", label: "Absent", fullLabel: "Absent", count: 0, color: "#AEB5BA" }
   ];
-  els.dashboardResultMeta.textContent = `${exam} | ${overview.present} appeared of ${overview.total} students`;
-  els.dashboardResultDonut.style.background = dashboardConicGradient(distribution);
-  els.dashboardResultDonut.innerHTML = `<strong>${overview.passPercentage.toFixed(1)}%</strong><span>Pass</span>`;
-  els.dashboardResultLegend.innerHTML = distribution.map((item) => `
-    <span><i style="background:${item.color}"></i>${escapeHtml(item.label)} <strong>${item.value}</strong></span>
-  `).join("");
-  if (!records.length) {
-    els.dashboardResultLegend.innerHTML = '<p class="dashboard-muted">No result data available for this examination yet.</p>';
-  }
+  const byKey = Object.fromEntries(categories.map((category) => [category.key, category]));
+
+  records.forEach((record) => {
+    if (!record.appeared) {
+      byKey.absent.count += 1;
+    } else if (record.result === "Simple Pass") {
+      byKey.simplePass.count += 1;
+    } else if (record.result === "Fail") {
+      byKey.fail.count += 1;
+    } else if (record.division === "Dist.") {
+      byKey.distinction.count += 1;
+    } else if (record.division === "I") {
+      byKey.firstDivision.count += 1;
+    } else if (record.division === "II") {
+      byKey.secondDivision.count += 1;
+    } else if (record.division === "III") {
+      byKey.thirdDivision.count += 1;
+    }
+  });
+
+  const total = records.length;
+  const maxCount = Math.max(0, ...categories.map((category) => category.count));
+  return {
+    total,
+    maxCount,
+    categories: categories.map((category) => ({
+      ...category,
+      percentage: total ? (category.count / total) * 100 : 0
+    }))
+  };
+}
+
+function radialArcPath(cx, baseline, radius, progress = 1) {
+  const clamped = clamp(progress, 0, 1);
+  const startX = cx - radius;
+  if (clamped <= 0) return "";
+  const angle = Math.PI - (Math.PI * clamped);
+  const endX = cx + (Math.cos(angle) * radius);
+  const endY = baseline - (Math.sin(angle) * radius);
+  const largeArc = clamped > 0.5 ? 1 : 0;
+  return `M ${startX.toFixed(2)} ${baseline} A ${radius} ${radius} 0 ${largeArc} 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
+}
+
+function formatCategoryPercent(value) {
+  const rounded = Math.round((Number(value) || 0) * 100) / 100;
+  return `${rounded.toFixed(rounded % 1 === 0 ? 0 : 2)}%`;
+}
+
+function dashboardResultRadialSvg(summary) {
+  const cx = 430;
+  const baseline = 372;
+  const radii = [310, 270, 230, 190, 150, 110, 70];
+  const strokeWidth = 28;
+  const connectorXs = [120, 230, 340, 450, 560, 670, 780];
+  const safeMax = summary.maxCount || 1;
+  const arcs = summary.categories.map((category, index) => {
+    const progress = category.count / safeMax;
+    const percent = formatCategoryPercent(category.percentage);
+    const tooltip = `${category.fullLabel}\n${category.count} student${category.count === 1 ? "" : "s"}\n${percent} of total`;
+    const path = radialArcPath(cx, baseline, radii[index], 1);
+    return `
+      <path class="result-radial-bg" d="${path}" pathLength="1"></path>
+      ${category.count ? `<g class="result-radial-segment" tabindex="0" role="img" data-result-tooltip="${escapeAttr(tooltip)}" aria-label="${escapeAttr(`${category.fullLabel}: ${category.count} students, ${percent} of total`)}">
+        <title>${escapeHtml(tooltip)}</title>
+        <path class="result-radial-shadow" d="${path}" stroke="${category.color}" pathLength="1"></path>
+        <path class="result-radial-progress" d="${path}" stroke="${category.color}" pathLength="1" style="--arc-progress:${progress.toFixed(4)}"></path>
+        <path class="result-radial-highlight" d="${path}" pathLength="1" style="--arc-progress:${progress.toFixed(4)}"></path>
+      </g>` : ""}
+      <line class="result-radial-connector" x1="${connectorXs[index]}" y1="${baseline + 8}" x2="${connectorXs[index]}" y2="${baseline + 54}"></line>
+      <circle class="result-radial-dot" cx="${connectorXs[index]}" cy="${baseline + 64}" r="8" fill="${category.color}">
+        <title>${escapeHtml(tooltip)}</title>
+      </circle>
+    `;
+  }).join("");
+  return `
+    <svg class="result-radial-chart" viewBox="0 0 860 470" role="img" aria-label="Result classification chart showing Distinction, First Division, Second Division, Third Division, Simple Pass, Fail, and Absent counts.">
+      <defs>
+        <linearGradient id="resultRadialGloss" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.62"></stop>
+          <stop offset="46%" stop-color="#ffffff" stop-opacity="0.18"></stop>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <line class="result-radial-baseline" x1="90" y1="${baseline}" x2="790" y2="${baseline}"></line>
+      ${arcs}
+      ${summary.total ? "" : '<text class="result-radial-empty" x="430" y="205" text-anchor="middle">No result data available for the selected filters.</text>'}
+    </svg>
+  `;
+}
+
+function dashboardResultSummaryHtml(summary) {
+  return `
+    <div class="result-radial-summary" aria-label="Result classification summary">
+      ${summary.categories.map((category) => {
+        const percent = formatCategoryPercent(category.percentage);
+        const tooltip = `${category.fullLabel}: ${category.count} student${category.count === 1 ? "" : "s"}, ${percent} of total`;
+        return `
+          <article class="result-radial-summary-item" title="${escapeAttr(tooltip)}" data-result-tooltip="${escapeAttr(tooltip)}" tabindex="0">
+            <i style="background:${category.color}" aria-hidden="true"></i>
+            <span>${escapeHtml(category.label)}</span>
+            <strong>${category.count}<em> Students</em></strong>
+            <small>${percent}</small>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function setupDashboardResultTooltip() {
+  let tooltip = null;
+  let activeTarget = null;
+  const ensureTooltip = () => {
+    if (tooltip) return tooltip;
+    tooltip = document.createElement("div");
+    tooltip.className = "result-radial-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.hidden = true;
+    document.body.appendChild(tooltip);
+    return tooltip;
+  };
+  const positionTooltip = (x, y) => {
+    if (!tooltip || tooltip.hidden) return;
+    const margin = 12;
+    const rect = tooltip.getBoundingClientRect();
+    const left = clamp(x + 14, margin, window.innerWidth - rect.width - margin);
+    const top = clamp(y + 14, margin, window.innerHeight - rect.height - margin);
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  };
+  const showTooltip = (target, x, y) => {
+    const message = target?.dataset?.resultTooltip;
+    if (!message) return;
+    activeTarget = target;
+    const node = ensureTooltip();
+    node.innerHTML = message.split("\n").map((line) => `<span>${escapeHtml(line)}</span>`).join("");
+    node.hidden = false;
+    positionTooltip(x, y);
+  };
+  const hideTooltip = (target = activeTarget) => {
+    if (target && activeTarget && target !== activeTarget && !activeTarget.contains(target)) return;
+    activeTarget = null;
+    if (tooltip) tooltip.hidden = true;
+  };
+
+  document.addEventListener("pointerover", (event) => {
+    const target = event.target.closest?.("[data-result-tooltip]");
+    if (target) showTooltip(target, event.clientX, event.clientY);
+  });
+  document.addEventListener("pointermove", (event) => {
+    if (activeTarget) positionTooltip(event.clientX, event.clientY);
+  });
+  document.addEventListener("pointerout", (event) => {
+    const target = event.target.closest?.("[data-result-tooltip]");
+    if (target && !target.contains(event.relatedTarget)) hideTooltip(target);
+  });
+  document.addEventListener("focusin", (event) => {
+    const target = event.target.closest?.("[data-result-tooltip]");
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    showTooltip(target, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  });
+  document.addEventListener("focusout", (event) => {
+    const target = event.target.closest?.("[data-result-tooltip]");
+    if (target) hideTooltip(target);
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest?.("[data-result-tooltip]");
+    if (!target) {
+      hideTooltip();
+      return;
+    }
+    showTooltip(target, event.clientX, event.clientY);
+  });
 }
 
 function renderDashboardClassPerformance(records) {
