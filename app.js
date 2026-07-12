@@ -262,6 +262,7 @@ const els = {
   downloadMarksTemplateBtn: document.querySelector("#downloadMarksTemplateBtn"),
   saveMarksBtn: document.querySelector("#saveMarksBtn"),
   entrySaveHint: document.querySelector("#entrySaveHint"),
+  mobileEntrySaveHint: document.querySelector("#mobileEntrySaveHint"),
   marksHead: document.querySelector("#marksHead"),
   marksBody: document.querySelector("#marksBody"),
   studentsBody: document.querySelector("#studentsBody"),
@@ -755,12 +756,17 @@ function refreshMarksSaveControls() {
   els.saveMarksBtn.disabled = marksSaveInProgress || locked || changedCount === 0;
   els.saveMarksBtn.textContent = marksSaveInProgress ? "Saving..." : "Save";
   if (els.entrySaveHint) {
-    els.entrySaveHint.textContent = locked
+    const saveHintText = locked
       ? entryAccessLockedMessage(selectedClass(), selectedExam())
       : changedCount
       ? `${changedCount} unsaved mark ${changedCount === 1 ? "change" : "changes"}. Click Save.`
       : "Enter marks, then click Save.";
+    els.entrySaveHint.textContent = saveHintText;
     els.entrySaveHint.classList.toggle("entry-locked-text", locked);
+    if (els.mobileEntrySaveHint) {
+      els.mobileEntrySaveHint.textContent = saveHintText;
+      els.mobileEntrySaveHint.classList.toggle("entry-locked-text", locked);
+    }
   }
 }
 
@@ -2050,6 +2056,10 @@ function init() {
   document.querySelector("#exportBtn").addEventListener("click", exportCsv);
   els.exportExcelBtn?.addEventListener("click", exportExcelFromFirestore);
   document.querySelector("#resetBtn").addEventListener("click", resetDemo);
+  document.querySelector("#mobileResetBtn")?.addEventListener("click", () => {
+    closeMobileMenu();
+    resetDemo();
+  });
   document.querySelector("#clearMarksBtn").addEventListener("click", clearMarks);
   els.saveMarksBtn?.addEventListener("click", saveAllMarks);
   els.saveEntryAccessBtn?.addEventListener("click", () => saveEntryAccessSettings());
