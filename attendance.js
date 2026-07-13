@@ -5,10 +5,16 @@
   const terms = ["First Term", "Second Term", "Third Term"];
   const fallbackSession = "2026 - 2027";
   const tableBody = document.querySelector("#perfectAttendanceBody");
+  const classFilter = document.querySelector("#attendanceHonorClassFilter");
+  const countLabel = document.querySelector("#attendanceHonorCount");
   const mobileMenuBtn = document.querySelector("#mobileMenuBtn");
   const mobileMenuCloseBtn = document.querySelector("#mobileMenuCloseBtn");
   const mobileNavDrawer = document.querySelector("#mobileNavDrawer");
   const mobileNavOverlay = document.querySelector("#mobileNavOverlay");
+  const classNames = [
+    "LKG", "UKG", "Class I", "Class II", "Class III", "Class IV", "Class V", "Class VI",
+    "Class VII", "Class VIII", "Class IX", "Class X"
+  ];
   let unsubscribeAppState = null;
 
   function escapeHtml(value) {
@@ -50,8 +56,13 @@
     });
   }
 
-  function getPerfectAttendanceStudents(data) {
+  function selectedClassFilter() {
+    return classFilter?.value || "All Classes";
+  }
+
+  function getPerfectAttendanceStudents(data, classFilterValue = "All Classes") {
     return Object.entries(data.classes)
+      .filter(([className]) => classFilterValue === "All Classes" || className === classFilterValue)
       .flatMap(([className, students]) => (students || [])
         .filter((student) => student?.name && hasFullAttendance(student, className, data))
         .map((student) => ({
@@ -60,10 +71,14 @@
           roll: student.roll,
           academicSession: data.academicSession
         })))
-      .sort((a, b) => a.className.localeCompare(b.className) || Number(a.roll) - Number(b.roll));
+      .sort((a, b) => {
+        const classOrder = classNames.indexOf(a.className) - classNames.indexOf(b.className);
+        return classOrder || Number(a.roll) - Number(b.roll);
+      });
   }
 
   function renderEmpty(message) {
+    if (countLabel) countLabel.textContent = "0";
     tableBody.innerHTML = `
       <tr>
         <td class="attendance-empty-state" colspan="4">${escapeHtml(message)}</td>
@@ -72,8 +87,12 @@
   }
 
   function renderStudents(students) {
+    if (countLabel) countLabel.textContent = String(students.length);
     if (!students.length) {
-      renderEmpty("No students have 100% attendance for the entered terms yet.");
+      const className = selectedClassFilter();
+      renderEmpty(className === "All Classes"
+        ? "No students have 100% attendance for the entered terms yet."
+        : `No students have 100% attendance in ${className} for the entered terms yet.`);
       return;
     }
 
@@ -93,7 +112,7 @@
     try {
       const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
       const data = getActiveSessionData(state);
-      renderStudents(getPerfectAttendanceStudents(data));
+      renderStudents(getPerfectAttendanceStudents(data, selectedClassFilter()));
     } catch {
       renderEmpty("Could not read attendance data from this browser.");
     }
@@ -105,7 +124,7 @@
     try {
       const data = getActiveSessionData(state || {});
       localStorage.setItem(storageKey, JSON.stringify(state || {}));
-      renderStudents(getPerfectAttendanceStudents(data));
+      renderStudents(getPerfectAttendanceStudents(data, selectedClassFilter()));
     } catch {
       renderEmpty("Could not read attendance data from Firestore.");
     }
@@ -205,6 +224,7 @@
   }
 
   renderAdminOnlyLinks();
+  classFilter?.addEventListener("change", renderPerfectAttendance);
   setupMobileNavigation();
   renderPerfectAttendance();
   startFirestoreAttendanceListener();
