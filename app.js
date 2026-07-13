@@ -210,6 +210,7 @@ const els = {
   dashboardSearchInput: document.querySelector("#dashboardSearchInput"),
   dashboardNotificationBtn: document.querySelector("#dashboardNotificationBtn"),
   dashboardNotificationBadge: document.querySelector("#dashboardNotificationBadge"),
+  dashboardAvatar: document.querySelector("#dashboardAvatar"),
   dashboardUserName: document.querySelector("#dashboardUserName"),
   dashboardUserRole: document.querySelector("#dashboardUserRole"),
   dashboardTotalStudents: document.querySelector("#dashboardTotalStudents"),
@@ -1444,6 +1445,63 @@ function isAdmin() {
   return currentUser?.role === "admin";
 }
 
+function getDashboardUserProfile() {
+  const baseName = String(currentUser?.name || currentUser?.username || "").trim();
+  const profile = (state.teacherAssessment?.profiles || []).find((item) => {
+    const teacherId = String(item.teacherId || "").trim();
+    const name = String(item.name || "").trim();
+    return (teacherId && teacherId === currentUser?.username)
+      || (name && baseName && name.toLowerCase() === baseName.toLowerCase())
+      || (name && currentUser?.username && slugifyTeacherName(name) === currentUser.username);
+  });
+  return {
+    name: String(profile?.name || currentUser?.name || currentUser?.username || "").trim(),
+    role: isAdmin()
+      ? "Administrator"
+      : String(profile?.designation || (currentUser?.role === "user" ? "Teacher" : currentUser?.role) || "Teacher").trim(),
+    photoUrl: String(
+      currentUser?.photoUrl
+      || currentUser?.photoURL
+      || currentUser?.profilePhoto
+      || currentUser?.avatarUrl
+      || profile?.photoUrl
+      || ""
+    ).trim()
+  };
+}
+
+function userInitials(name) {
+  const words = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0] || ""}${words.at(-1)?.[0] || ""}`.toUpperCase();
+}
+
+function renderDashboardAvatar(profile) {
+  if (!els.dashboardAvatar) return;
+  els.dashboardAvatar.classList.remove("has-photo", "has-icon");
+  els.dashboardAvatar.innerHTML = "";
+
+  if (profile.photoUrl) {
+    els.dashboardAvatar.classList.add("has-photo");
+    els.dashboardAvatar.innerHTML = `<img src="${escapeAttr(profile.photoUrl)}" alt="">`;
+    return;
+  }
+
+  const initials = userInitials(profile.name);
+  if (initials) {
+    els.dashboardAvatar.textContent = initials;
+    return;
+  }
+
+  els.dashboardAvatar.classList.add("has-icon");
+  els.dashboardAvatar.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 12.2c2.2 0 4-1.8 4-4.1S14.2 4 12 4 8 5.8 8 8.1s1.8 4.1 4 4.1Zm0 2.1c-3.4 0-6.5 1.7-7.9 4.4-.3.6.1 1.3.8 1.3h14.2c.7 0 1.1-.7.8-1.3-1.4-2.7-4.5-4.4-7.9-4.4Z"/>
+    </svg>
+  `;
+}
+
 function entryAccessGroupForClass(className = selectedClass()) {
   return isHighClass(className) ? "classes9to10" : "classes1to8";
 }
@@ -2643,10 +2701,12 @@ function renderDashboard() {
     ...(state.teacherAssessment?.profiles || []).map((profile) => profile.name)
   ].filter(Boolean));
 
-  els.dashboardGreeting.textContent = `Welcome back, ${currentUser?.name || "Teacher"}`;
+  const dashboardUser = getDashboardUserProfile();
+  els.dashboardGreeting.textContent = `Welcome back, ${dashboardUser.name || "Teacher"}`;
   els.dashboardSession.textContent = `Academic Session ${session}`;
-  els.dashboardUserName.textContent = currentUser?.name || "Teacher";
-  els.dashboardUserRole.textContent = isAdmin() ? "Administrator" : "Teacher";
+  els.dashboardUserName.textContent = dashboardUser.name || "Teacher";
+  els.dashboardUserRole.textContent = dashboardUser.role || (isAdmin() ? "Administrator" : "Teacher");
+  renderDashboardAvatar(dashboardUser);
   els.dashboardTotalStudents.textContent = String(students.length);
   els.dashboardTotalTeachers.textContent = String(teacherNames.size || normalizeTeacherAssignments(state.teacherAssignments).length);
   els.dashboardTotalClasses.textContent = String(classes.length);
@@ -2882,14 +2942,13 @@ function dashboardFormatPercent(value) {
 function dashboardPerformanceBar(className, metricLabel, value, type) {
   const percentage = clamp(Number(value) || 0, 0, 100);
   const label = dashboardFormatPercent(percentage);
-  const outsideOffset = `calc(${percentage}% + 8px)`;
   return `
     <div class="performance-metric-row">
       <span class="metric-label">${escapeHtml(metricLabel)}</span>
       <div class="performance-track" role="img" aria-label="${escapeAttr(`${className} ${metricLabel} ${label}`)}" title="${escapeAttr(`${className}\n${metricLabel}: ${label}`)}">
         <i class="performance-bar-fill ${type === "pass" ? "pass-bar-fill" : "average-bar-fill"}" style="width:${percentage}%"></i>
-        <span class="performance-bar-value is-outside" style="left:${outsideOffset}">${label}</span>
       </div>
+      <b class="performance-bar-value">${label}</b>
     </div>
   `;
 }
