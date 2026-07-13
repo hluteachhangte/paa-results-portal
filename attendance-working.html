@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=dashboard-chart-glass-compact-20260713-57">
+  <link rel="stylesheet" href="./styles.css?v=desktop-dashboard-two-chart-row-20260713-59">
 </head>
 <body class="attendance-honor-page">
   <div class="app-shell">
@@ -30,7 +30,9 @@
       </div>
       <div class="mobile-menu-group">
         <span>Home</span>
+        <a href="./index.html#view=dashboard"><span class="mobile-nav-icon" aria-hidden="true">&#9638;</span>Dashboard</a>
         <a href="./index.html#view=entry">Marks Entry</a>
+        <a href="./index.html#view=attendance">Attendance &amp; Physical Measurement</a>
       </div>
       <div class="mobile-menu-group">
         <span>Students</span>
@@ -44,7 +46,6 @@
       </div>
       <div class="mobile-menu-group">
         <span>Administration</span>
-        <a href="./index.html#view=attendance">Attendance & Physical Measurement</a>
         <a class="hidden" href="./index.html#view=entryAccess" data-admin-only="true">Settings</a>
       </div>
     </nav>
@@ -115,6 +116,6 @@
     </main>
   </div>
   <script type="module" src="./firebase.js?v=firestore-optimized-20260622"></script>
-  <script src="./attendance.js?v=attendance-honor-filter-20260713-55"></script>
+  <script src="./attendance.js?v=attendance-menu-dashboard-20260713-58"></script>
 </body>
 </html>

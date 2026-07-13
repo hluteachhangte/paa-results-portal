@@ -13431,15 +13431,18 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   }
 
   body.dashboard-active .dashboard-class-card,
-  body.dashboard-active .dashboard-attendance-card,
-  body.dashboard-active .dashboard-actions-card {
-    grid-column: span 2 !important;
+  body.dashboard-active .dashboard-attendance-card {
+    grid-column: span 3 !important;
     min-height: 100% !important;
   }
 
   body.dashboard-active .dashboard-card {
     display: flex !important;
     flex-direction: column !important;
+  }
+
+  body.dashboard-active .dashboard-actions-card {
+    display: none !important;
   }
 
   body.dashboard-active .dashboard-result-layout,
