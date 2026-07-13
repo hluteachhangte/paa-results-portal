@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>Pinehill Adventist Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=dashboard-chart-glass-compact-20260713-57">
+</head>
+<body>
+  <section id="loginScreen" class="login-screen" aria-label="Login">
+    <div class="login-stack">
+      <form id="loginForm" class="login-card">
+        <img class="brand-logo login-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
+        <div>
+          <p class="eyebrow">RESULTS PUBLICATION</p>
+          <h1>Pinehill Adventist Academy</h1>
+        </div>
+        <label>
+          Username
+          <input id="usernameInput" type="text" autocomplete="username" required>
+        </label>
+        <label>
+          Password
+          <input id="passwordInput" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="primary-button" type="submit">Login</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="mobile-nav-bar" aria-label="Mobile navigation">
+      <div class="mobile-nav-brand">
+        <img src="./school-logo.png" alt="" aria-hidden="true">
+        <span>Pinehill Adventist Academy</span>
+      </div>
+      <button id="mobileMenuBtn" class="mobile-menu-button" type="button" aria-label="Open navigation menu" aria-controls="mobileNavDrawer" aria-expanded="false">☰</button>
+    </header>
+    <div id="mobileNavOverlay" class="mobile-nav-overlay" hidden></div>
+    <nav id="mobileNavDrawer" class="mobile-nav-drawer" aria-label="Mobile menu" aria-hidden="true">
+      <div class="mobile-drawer-head">
+        <div>
+          <strong>Pinehill Adventist Academy</strong>
+          <span>RESULTS PUBLICATION</span>
+        </div>
+        <button id="mobileMenuCloseBtn" class="mobile-menu-close" type="button" aria-label="Close navigation menu">×</button>
+      </div>
+      <div class="mobile-menu-group">
+        <span>Home</span>
+        <button type="button" data-mobile-view="dashboard">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9638;</span>
+          <span>Dashboard</span>
+        </button>
+        <button type="button" data-mobile-view="entry">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9998;</span>
+          <span>Marks Entry</span>
+        </button>
+        <button type="button" data-mobile-view="attendance">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9783;</span>
+          <span>Attendance &amp; Physical Measurement</span>
+        </button>
+      </div>
+      <div class="mobile-menu-group">
+        <span>Students</span>
+        <button type="button" data-mobile-view="students">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9787;</span>
+          <span>Students</span>
+        </button>
+        <a class="attendance-menu-link" href="./attendance.html">
+          <span class="mobile-nav-icon" aria-hidden="true">&#10003;</span>
+          <span>100% Attendance</span>
+        </a>
+      </div>
+      <div class="mobile-menu-group">
+        <span>Results</span>
+        <button type="button" data-mobile-view="results">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9636;</span>
+          <span>Result Portal</span>
+        </button>
+        <button type="button" data-mobile-view="marksheet">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9633;</span>
+          <span>Marksheet</span>
+        </button>
+        <button type="button" data-mobile-view="analysis">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9783;</span>
+          <span>Academic Analysis</span>
+        </button>
+      </div>
+      <div class="mobile-menu-group">
+        <span>Administration</span>
+        <button class="hidden" type="button" data-mobile-view="teacherAnalytics" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9636;</span>
+          <span>Teacher Performance Analytics</span>
+        </button>
+        <button class="hidden" type="button" data-mobile-view="teacherAssessment" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9745;</span>
+          <span>Teacher Assessment</span>
+        </button>
+        <button class="hidden" type="button" data-mobile-view="entryAccess" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9881;</span>
+          <span>Settings</span>
+        </button>
+        <button id="mobileResetBtn" class="hidden mobile-reset-button" type="button" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#8634;</span>
+          <span>Reset</span>
+        </button>
+      </div>
+    </nav>
+    <aside class="sidebar" aria-label="Application navigation">
+      <div class="brand-block">
+        <img class="brand-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
+        <div>
+          <h1>Pinehill Adventist Academy</h1>
+          <p>RESULTS PUBLICATION</p>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" aria-label="Views">
+        <button class="nav-tab active" data-view="dashboard" type="button" title="Dashboard">
+          <span aria-hidden="true">&#9638;</span>
+          Dashboard
+        </button>
+        <button class="nav-tab" data-view="entry" type="button" title="Marks entry">
+          <span aria-hidden="true">✎</span>
+          Marks Entry
+        </button>
+        <button class="nav-tab" data-view="attendance" type="button" title="Attendance and physical measurement">
+          <span aria-hidden="true">◎</span>
+          Attendance and Physical Measurement
+        </button>
+        <button class="nav-tab" data-view="results" type="button" title="Published results">
+          <span aria-hidden="true">▦</span>
+          Results
+        </button>
+        <button class="nav-tab" data-view="marksheet" type="button" title="Student marksheets">
+          <span aria-hidden="true">▤</span>
+          Marksheets
+        </button>
+        <button class="nav-tab" data-view="students" type="button" title="Student list">
+          <span aria-hidden="true">＋</span>
+          Students
+        </button>
+        <a class="nav-tab-link nav-link attendance-menu-link" href="./attendance.html" title="100% attendance students">
+          <span aria-hidden="true">&#10003;</span>
+          100% Attendance
+        </a>
+        <button class="nav-tab" data-view="analysis" type="button" title="Academic analysis dashboard">
+          <span aria-hidden="true">&#9636;</span>
+          Academic Analysis
+        </button>
+        <button class="nav-tab hidden" data-view="teacherAnalytics" data-admin-only="true" type="button" title="Teacher performance analytics">
+          <span aria-hidden="true">&#9636;</span>
+          Teacher Performance Analytics
+        </button>
+        <button class="nav-tab hidden" data-view="teacherAssessment" data-admin-only="true" type="button" title="Teacher responsibility assessment">
+          <span aria-hidden="true">&#9745;</span>
+          Teacher Assessment
+        </button>
+        <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
+          <span aria-hidden="true">&#128274;</span>
+          Entry Access Control
+        </button>
+      </nav>
+
+      <section class="publish-panel" aria-label="Publish status">
+        <span class="panel-label">Current Result</span>
+        <strong id="publishStatus">Not published</strong>
+        <p id="publishMeta">Save marks, then publish for the selected class and exam.</p>
+        <button id="publishBtn" class="primary-button" type="button">Publish Result</button>
+      </section>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <label class="academic-session">
+            Academic Session :
+            <input id="academicSessionInput" type="text" value="2026 - 2027" aria-label="Academic session">
+          </label>
+          <h2 id="viewTitle">Marks Entry</h2>
+          <p id="mobileEntrySaveHint" class="mobile-entry-save-hint">Enter marks, then click Save.</p>
+        </div>
+        <div class="top-actions">
+          <span id="userBadge" class="user-badge">Not signed in</span>
+          <button id="exportBtn" class="ghost-button" type="button" title="Download CSV">
+            <span aria-hidden="true">⇩</span>
+            Export CSV
+          </button>
+          <button id="exportExcelBtn" class="ghost-button hidden" type="button" title="Export to Excel">
+            Export to Excel
+          </button>
+          <button id="resetBtn" class="ghost-button danger" type="button" title="Reset demo data">
+            <span aria-hidden="true">↺</span>
+            Reset
+          </button>
+          <button id="logoutBtn" class="ghost-button" type="button" title="Logout">Logout</button>
+        </div>
+      </header>
+
+      <section id="mainFilters" class="filters" aria-label="Result filters">
+        <label id="classField">
+          Class
+          <select id="classSelect"></select>
+        </label>
+        <label id="examField">
+          Exam
+          <select id="examSelect"></select>
+        </label>
+        <label id="subjectField">
+          Subject
+          <select id="subjectSelect"></select>
+        </label>
+        <div class="summary-grid" aria-label="Class summary">
+          <article class="metric-card">
+            <span>Students</span>
+            <strong id="studentCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Entered</span>
+            <strong id="enteredCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Average</span>
+            <strong id="averageMarks">0%</strong>
+          </article>
+          <article class="metric-card">
+            <span>Highest</span>
+            <strong id="highestMarks">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Lowest</span>
+            <strong id="lowestMarks">0</strong>
+          </article>
+        </div>
+      </section>
+
+      <section id="dashboardView" class="view active" aria-label="School dashboard">
+        <div class="dashboard-shell">
+          <header class="dashboard-hero">
+            <div>
+              <p class="dashboard-kicker">Pinehill Adventist Academy</p>
+              <h3 id="dashboardGreeting">Welcome back</h3>
+              <span id="dashboardSession" class="dashboard-session-pill">Academic Session 2026 - 2027</span>
+            </div>
+            <div class="dashboard-top-tools">
+              <label class="dashboard-search">
+                <span class="sr-only">Search dashboard</span>
+                <input id="dashboardSearchInput" type="search" placeholder="Search student, class, exam...">
+              </label>
+              <button id="dashboardNotificationBtn" class="dashboard-notification" type="button" aria-label="Show recent activities">
+                <span aria-hidden="true">&#128276;</span>
+                <b id="dashboardNotificationBadge">0</b>
+              </button>
+              <div class="dashboard-profile" aria-label="Current user">
+                <div class="dashboard-avatar" aria-hidden="true">PA</div>
+                <div>
+                  <strong id="dashboardUserName">Admin</strong>
+                  <span id="dashboardUserRole">Administrator</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div class="dashboard-stats" aria-label="Dashboard summary">
+            <article class="dashboard-stat-card stat-blue">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#127891;</span>
+              <div><span>Total Students</span><strong id="dashboardTotalStudents">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-green">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#128101;</span>
+              <div><span>Total Teachers</span><strong id="dashboardTotalTeachers">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-purple">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#128214;</span>
+              <div><span>Total Classes</span><strong id="dashboardTotalClasses">0</strong></div>
+            </article>
+            <article class="dashboard-stat-card stat-orange">
+              <span class="dashboard-stat-icon" aria-hidden="true">&#9745;</span>
+              <div><span>Overall Pass Percentage</span><strong id="dashboardOverallPass">0.00%</strong></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="dashboard-card dashboard-result-overview">
+              <div class="dashboard-card-head">
+                <div><h4>Result Classification Overview</h4><span id="dashboardResultMeta">Distribution of students by result category</span></div>
+                <select id="dashboardExamSelect" aria-label="Dashboard exam"></select>
+              </div>
+              <div class="dashboard-result-layout">
+                <div id="dashboardResultDonut" class="dashboard-donut result-radial-card" role="img" aria-label="Result classification chart showing the number of students in Distinction, First Division, Second Division, Third Division, Simple Pass, Fail, and Absent categories."></div>
+                <div id="dashboardResultLegend" class="dashboard-legend"></div>
+              </div>
+              <button id="dashboardFullReportBtn" class="ghost-button dashboard-link-button" type="button">View Full Report</button>
+            </section>
+
+            <section class="dashboard-card dashboard-activity-card">
+              <div class="dashboard-card-head">
+                <div><h4>Recent Activities</h4><span>Latest saved school activity</span></div>
+              </div>
+              <div id="dashboardRecentActivities" class="dashboard-activity-list"></div>
+            </section>
+
+            <section class="dashboard-card dashboard-class-card">
+              <div class="dashboard-card-head">
+                <div><h4>Class-wise Performance</h4><span>Comparison of Pass Percentage and Average Percentage Scored</span></div>
+              </div>
+              <div id="dashboardClassPerformance" class="dashboard-class-list"></div>
+            </section>
+
+            <section class="dashboard-card dashboard-attendance-card">
+              <div class="dashboard-card-head">
+                <div><h4>Attendance Summary</h4><span>Term attendance from current records</span></div>
+                <select id="dashboardMonthSelect" aria-label="Attendance term">
+                  <option value="First Term">First Term</option>
+                  <option value="Second Term">Second Term</option>
+                  <option value="Third Term">Third Term</option>
+                </select>
+              </div>
+              <div class="dashboard-attendance-overview" aria-label="Attendance overview">
+                <article><span>Total Students</span><strong id="dashboardAttendanceStudents">0</strong></article>
+                <article><span>Average Attendance</span><strong id="dashboardAttendanceAverage">0.00%</strong></article>
+                <article><span>Working Days</span><strong id="dashboardAttendanceWorkingDays">0</strong></article>
+                <article><span>Low Attendance</span><strong id="dashboardAttendanceLowCount">0</strong></article>
+              </div>
+              <div id="dashboardAttendanceClassChart" class="dashboard-attendance-class-chart" aria-label="Class-wise attendance"></div>
+              <div class="dashboard-attendance-risk">
+                <div>
+                  <strong>Low Attendance Students</strong>
+                  <span>Below 75%</span>
+                </div>
+                <div id="dashboardAttendanceRiskList" class="dashboard-attendance-risk-list"></div>
+              </div>
+              <p id="dashboardAttendanceMeta" class="dashboard-muted">No attendance data yet.</p>
+              <button id="dashboardAttendanceBtn" class="ghost-button dashboard-link-button" type="button">View Attendance</button>
+            </section>
+
+            <section class="dashboard-card dashboard-actions-card">
+              <div class="dashboard-card-head">
+                <div><h4>Quick Actions</h4><span>Jump to daily work</span></div>
+              </div>
+              <div class="dashboard-actions">
+                <button type="button" data-dashboard-view="entry">&#9998;<span>Enter Marks</span></button>
+                <button type="button" data-dashboard-view="results">&#9636;<span>View Results</span></button>
+                <button type="button" data-dashboard-view="students">&#43;<span>Add Student</span></button>
+                <button type="button" data-dashboard-view="attendance">&#9783;<span>Take Attendance</span></button>
+                <button type="button" data-dashboard-view="analysis">&#9638;<span>Academic Analysis</span></button>
+                <button type="button" data-dashboard-view="entryAccess" data-admin-only="true">&#9881;<span>Settings</span></button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="entryView" class="view" aria-label="Marks entry">
+        <div class="section-head">
+          <div>
+            <h3>Enter Subject Marks</h3>
+            <p id="entrySaveHint">Enter marks, then click Save.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="clearMarksBtn" class="ghost-button danger" type="button">Clear</button>
+            <button id="downloadMarksTemplateBtn" class="ghost-button" type="button">Download Marks Template</button>
+            <button id="importMarksBtn" class="ghost-button" type="button">Import Marks CSV</button>
+            <input id="marksCsvInput" class="hidden" type="file" accept=".csv,text/csv">
+            <button id="saveMarksBtn" class="primary-button" type="button">Save</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr id="marksHead">
+                <th>Roll No.</th>
+                <th>Student Name</th>
+                <th>Marks / Grade</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="marksBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="attendanceView" class="view" aria-label="Attendance and physical measurement">
+        <div id="attendanceAccessNotice" class="entry-access-notice hidden"></div>
+        <div class="attendance-filters">
+          <label>
+            <span class="attendance-control-label">Class</span>
+            <select id="attendanceClassSelect"></select>
+          </label>
+          <label>
+            <span class="attendance-control-label">Term</span>
+            <select id="attendanceTermSelect"></select>
+          </label>
+          <label>
+            <span class="attendance-control-label">No. of Working Days</span>
+            <input id="workingDaysInput" type="number" min="0" max="300" step="1">
+          </label>
+          <button id="clearAttendanceBtn" class="ghost-button danger" type="button">Clear</button>
+          <button id="saveAttendanceBtn" class="primary-button" type="button">Save</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>Student Name</th>
+                <th>Attendance</th>
+                <th>Attendance Marks</th>
+                <th>Height (in cm)</th>
+                <th>Weight (in kg)</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="entryAccessView" class="view" aria-label="Entry access control">
+        <div class="section-head">
+          <div>
+            <h3>Entry Access Control</h3>
+            <p>Activate marks entry and attendance entry separately.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="saveEntryAccessBtn" class="primary-button" type="button">Save Settings</button>
+            <button id="unlockAllEntryAccessBtn" class="ghost-button" type="button">Unlock All</button>
+            <button id="lockAllEntryAccessBtn" class="ghost-button danger" type="button">Lock All</button>
+          </div>
+        </div>
+        <div id="entryAccessStatus" class="entry-access-save-status">Live Firestore access settings.</div>
+        <div id="entryAccessDashboard" class="entry-access-dashboard"></div>
+      </section>
+
+      <section id="teacherAnalyticsView" class="view" aria-label="Teacher performance analytics">
+        <div id="teacherAnalyticsAccessDenied" class="teacher-access-denied hidden">
+          <h3>Access denied</h3>
+          <p>Access denied. Admin privileges required.</p>
+        </div>
+
+        <div id="teacherAnalyticsContent">
+          <div class="section-head teacher-analytics-page-head">
+            <div>
+              <h3>Teacher Performance Analytics</h3>
+              <p>Constructive academic outcomes, improvement signals, and data completion.</p>
+            </div>
+            <div class="inline-actions teacher-analytics-actions">
+              <button id="downloadTeacherAnalysisPdfBtn" class="primary-button" type="button">Download Teacher Analysis PDF</button>
+              <button id="exportTeacherAnalysisExcelBtn" class="ghost-button" type="button">Export Excel</button>
+              <button id="printTeacherAnalysisBtn" class="ghost-button" type="button">Print Report</button>
+            </div>
+          </div>
+
+          <section class="analysis-panel teacher-assignment-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Teacher Assignment Setup</h4><span>Map each teacher to a class and subject.</span></div>
+              <button id="toggleTeacherAssignmentTableBtn" class="analysis-list-toggle" type="button"
+                aria-expanded="true" aria-controls="teacherAssignmentTableWrap">Hide Table</button>
+            </div>
+            <form id="teacherAssignmentForm" class="teacher-assignment-form">
+              <label>Teacher Name<input id="teacherAssignmentNameInput" type="text" required></label>
+              <label>Class<select id="teacherAssignmentClassSelect"></select></label>
+              <label>Subject<select id="teacherAssignmentSubjectSelect"></select></label>
+              <label>Part<select id="teacherAssignmentPartSelect"></select></label>
+              <button id="saveTeacherAssignmentBtn" class="primary-button" type="submit">Add Assignment</button>
+              <button id="cancelTeacherAssignmentEditBtn" class="ghost-button hidden" type="button">Cancel</button>
+            </form>
+            <div id="teacherAssignmentTableWrap" class="analysis-table-wrap teacher-assignment-table-wrap">
+              <table class="analysis-table teacher-assignment-table">
+                <thead><tr><th>Teacher</th><th>Class</th><th>Subject</th><th>Part</th><th>Actions</th></tr></thead>
+                <tbody id="teacherAssignmentBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="teacher-analytics-filters" aria-label="Teacher analytics filters">
+            <label>Academic Session<select id="teacherAnalyticsSessionSelect"></select></label>
+            <label>Examination<select id="teacherAnalyticsExamSelect"></select></label>
+            <label>Teacher<select id="teacherAnalyticsTeacherSelect"></select></label>
+            <label>Class<select id="teacherAnalyticsClassSelect"></select></label>
+            <label>Subject<select id="teacherAnalyticsSubjectSelect"></select></label>
+          </div>
+
+          <div id="teacherAnalyticsReport" class="teacher-analytics-report">
+            <header class="analysis-report-title"><h3>PINEHILL ADVENTIST ACADEMY</h3><p id="teacherAnalyticsSubtitle">Teacher Performance Analytics</p></header>
+            <p id="teacherAnalyticsInsightSummary" class="teacher-insight-summary"></p>
+            <section class="analysis-panel teacher-report-assignment-summary">
+              <div class="analysis-panel-head"><h4>Teacher Details and Assignments</h4></div>
+              <div id="teacherAnalyticsAssignmentSummary"></div>
+            </section>
+            <div id="teacherAnalyticsOverview" class="teacher-analytics-overview"></div>
+            <p class="teacher-rating-method">Performance Rating: 35% overall average, 35% pass rate, 20% marks-entry completion, and 10% student improvement. It follows the selected filters and is intended only as an academic planning indicator.</p>
+            <div class="analysis-grid analysis-grid-two">
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Performance Trend</h4></div><div id="teacherAnalyticsTrendChart"></div></section>
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Pass / Fail Distribution</h4></div><div id="teacherAnalyticsPassChart"></div></section>
+            </div>
+            <div class="analysis-grid analysis-grid-two">
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Class-wise Subject Average</h4></div><div id="teacherAnalyticsClassChart"></div></section>
+              <section class="analysis-panel"><div class="analysis-panel-head"><h4>Teacher vs School Subject Average</h4></div><div id="teacherAnalyticsComparisonChart"></div></section>
+            </div>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Class-wise Performance</h4><span id="teacherAnalyticsClassHighlight"></span></div>
+              <div class="analysis-table-wrap"><table class="analysis-table teacher-class-performance-table">
+                <thead><tr><th>Class</th><th>Subject</th><th>Average</th><th>Pass %</th><th>Highest</th><th>Lowest</th><th>Failed</th></tr></thead>
+                <tbody id="teacherAnalyticsClassBody"></tbody>
+              </table></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Data Entry Completion</h4><span id="teacherAnalyticsLastUpdated"></span></div>
+              <div id="teacherAnalyticsCompletion" class="teacher-completion-grid"></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Students Needing Support</h4></div>
+              <div id="teacherAnalyticsSupportChart" class="teacher-support-chart"></div>
+              <details class="teacher-support-details" open>
+                <summary>Student support list</summary>
+                <div class="analysis-table-wrap"><table class="analysis-table teacher-support-table">
+                  <thead><tr><th>Student Name</th><th>Class</th><th>Subject</th><th>Percentage</th><th>Status</th><th>Reason</th></tr></thead>
+                  <tbody id="teacherAnalyticsSupportBody"></tbody>
+                </table></div>
+              </details>
+            </section>
+            <div class="analysis-grid analysis-grid-three teacher-insights">
+              <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="teacherAnalyticsStrengths"></ul></section>
+              <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="teacherAnalyticsWeaknesses"></ul></section>
+              <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommended Actions</h4></div><ul id="teacherAnalyticsRecommendations"></ul></section>
+            </div>
+            <section class="teacher-fairness-note">
+              <strong>Fairness Note</strong>
+              <p>Teacher performance analytics should be used for academic support and planning. Student results are influenced by several factors including attendance, prior learning level, home support, and examination difficulty. This dashboard should not be used as the sole basis for teacher evaluation.</p>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="teacherAssessmentView" class="view" aria-label="Teacher assessment">
+        <div id="teacherAssessmentAccessDenied" class="teacher-access-denied hidden">
+          <h3>Access Denied</h3>
+          <p>Access Denied. Administrator Permission Required.</p>
+        </div>
+
+        <div id="teacherAssessmentContent">
+          <div class="section-head teacher-assessment-page-head">
+            <div>
+              <h3>Teacher Assessment</h3>
+              <p>Lesson planning, teaching progress, syllabus coverage, attendance, observations, and professional responsibilities.</p>
+            </div>
+            <div class="inline-actions teacher-assessment-actions">
+              <button id="downloadTeacherAssessmentPdfBtn" class="primary-button" type="button">Download Assessment PDF</button>
+              <button id="exportTeacherAssessmentExcelBtn" class="ghost-button" type="button">Export Excel</button>
+              <button id="printTeacherAssessmentBtn" class="ghost-button" type="button">Print Report</button>
+            </div>
+          </div>
+
+          <div class="teacher-assessment-filters" aria-label="Teacher assessment filters">
+            <label>Academic Session<select id="teacherAssessmentSessionSelect"></select></label>
+            <label>Month<select id="teacherAssessmentMonthSelect"></select></label>
+            <label>Teacher<select id="teacherAssessmentTeacherSelect"></select></label>
+            <label>Department<select id="teacherAssessmentDepartmentSelect"></select></label>
+            <label>Subject<select id="teacherAssessmentSubjectSelect"></select></label>
+            <label>Class<select id="teacherAssessmentClassSelect"></select></label>
+            <label>Status<select id="teacherAssessmentStatusSelect"></select></label>
+            <label class="teacher-assessment-search">Search<input id="teacherAssessmentSearchInput" type="search" placeholder="Teacher, subject, or class"></label>
+          </div>
+
+          <section class="teacher-assessment-directory">
+            <div class="analysis-panel-head">
+              <div><h4>Teacher Directory</h4><span>Select a teacher to open the assessment dashboard</span></div>
+              <button id="addTeacherAssessmentProfileBtn" class="analysis-list-toggle" type="button">Add Profile</button>
+            </div>
+            <div id="teacherAssessmentCards" class="teacher-assessment-cards"></div>
+          </section>
+
+          <div id="teacherAssessmentReport" class="teacher-assessment-report hidden">
+            <header class="analysis-report-title">
+              <h3>PINEHILL ADVENTIST ACADEMY</h3>
+              <p id="teacherAssessmentReportSubtitle">Teacher Assessment</p>
+            </header>
+            <div id="teacherAssessmentHero" class="teacher-assessment-hero"></div>
+            <div id="teacherAssessmentTabs" class="teacher-assessment-tabs" role="tablist">
+              <button class="active" type="button" data-assessment-tab="overview">Overview</button>
+              <button type="button" data-assessment-tab="lessonPlans">Lesson Plan</button>
+              <button type="button" data-assessment-tab="lessonTracking">Lesson Tracking</button>
+              <button type="button" data-assessment-tab="syllabus">Syllabus Progress</button>
+              <button type="button" data-assessment-tab="activities">Activity Reports</button>
+              <button type="button" data-assessment-tab="attendance">Attendance</button>
+              <button type="button" data-assessment-tab="observations">Class Observation</button>
+              <button type="button" data-assessment-tab="remarks">Remarks</button>
+              <button type="button" data-assessment-tab="documents">Documents</button>
+              <button type="button" data-assessment-tab="history">History</button>
+            </div>
+            <div id="teacherAssessmentTabContent" class="teacher-assessment-tab-content"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="resultsView" class="view" aria-label="Published results">
+        <div class="print-results-header">
+          <h3>PINEHILL ADVENTIST ACADEMY</h3>
+          <p id="printResultsTitle"></p>
+        </div>
+        <div class="section-head">
+          <div>
+            <h3>Class Result Sheet</h3>
+            <p id="resultNotice">Publish the selected class and exam to show final results.</p>
+          </div>
+          <div class="inline-actions print-controls">
+            <button id="printResultsBtn" class="primary-button" type="button" data-admin-only="true">Print Results</button>
+            <button id="downloadResultsPdfBtn" class="primary-button" type="button">Download PDF</button>
+            <button id="unpublishBtn" class="primary-button" type="button">Publish</button>
+          </div>
+        </div>
+        <div id="resultSummary" class="result-summary"></div>
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead id="resultsHead"></thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="marksheetView" class="view" aria-label="Student marksheets">
+        <div class="section-head print-controls">
+          <label class="marksheet-search">
+            Search Name
+            <input id="marksheetNameSearchInput" type="search" autocomplete="off" placeholder="Enter student name">
+          </label>
+          <div class="marksheet-preview-controls">
+            <div class="marksheet-zoom-control" aria-label="Marksheet preview zoom">
+              <button id="zoomOutMarksheetBtn" class="ghost-button" type="button" title="Zoom out" aria-label="Zoom out">-</button>
+              <input id="marksheetZoomInput" type="range" min="50" max="150" step="10" value="100" aria-label="Marksheet zoom percentage">
+              <output id="marksheetZoomValue" for="marksheetZoomInput">100%</output>
+              <button id="zoomInMarksheetBtn" class="ghost-button" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            </div>
+            <button id="printCurrentMarksheetBtn" class="primary-button" type="button" data-admin-only="true">Print Current Page</button>
+            <button id="printAllMarksheetsBtn" class="ghost-button" type="button" data-admin-only="true">Print All</button>
+            <button id="marksheetPublishBtn" class="primary-button" type="button" data-admin-only="true">Publish</button>
+            <button id="downloadMarksheetPdfBtn" class="primary-button" type="button">Download PDF</button>
+          </div>
+        </div>
+        <div id="marksheet-print-area" class="marksheet-print-area">
+          <div id="marksheetBody" class="marksheet-list"></div>
+        </div>
+      </section>
+
+      <section id="analysisView" class="view" aria-label="Academic analysis">
+        <div class="section-head analysis-page-head">
+          <div>
+            <h3>Academic Analysis</h3>
+            <p>School, class, subject, attendance, and student performance dashboard.</p>
+          </div>
+          <div class="inline-actions analysis-actions">
+            <button id="downloadAnalysisPdfBtn" class="primary-button" type="button">Download Analysis PDF</button>
+            <button id="exportAnalysisExcelBtn" class="ghost-button" type="button" data-admin-only="true">Export Excel</button>
+            <button id="printAnalysisBtn" class="ghost-button" type="button" data-admin-only="true">Print Analysis</button>
+          </div>
+        </div>
+
+        <div class="analysis-filters" aria-label="Academic analysis filters">
+          <label>Academic Session<select id="analysisSessionSelect"></select></label>
+          <label>Stage<select id="analysisSectionSelect"></select></label>
+          <label>Class<select id="analysisClassSelect"></select></label>
+          <label>Examination<select id="analysisExamSelect"></select></label>
+          <label>Subject<select id="analysisSubjectSelect"></select></label>
+          <label>
+            Student Status
+            <select id="analysisStatusSelect">
+              <option value="all">All</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+            </select>
+          </label>
+          <label>Support Below %<input id="analysisSupportThreshold" type="number" min="0" max="100" step="1" value="50"></label>
+        </div>
+
+        <div id="analysisReport" class="analysis-report">
+          <header class="analysis-report-title">
+            <h3>PINEHILL ADVENTIST ACADEMY</h3>
+            <p id="analysisReportSubtitle">Academic Analysis</p>
+          </header>
+          <div id="analysisOverview" class="analysis-overview"></div>
+
+          <div class="analysis-grid analysis-grid-two">
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Class Analysis</h4><span id="analysisClassHighlight"></span></div>
+              <div id="analysisClassChart"></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Result Trend</h4></div>
+              <div id="analysisTrendChart"></div>
+            </section>
+          </div>
+
+          <section class="analysis-panel">
+            <div class="analysis-panel-head"><h4>Subject Analysis</h4><span id="analysisSubjectHighlight"></span></div>
+            <div class="analysis-grid analysis-grid-two">
+              <div id="analysisSubjectChart"></div>
+              <div class="analysis-table-wrap analysis-subject-table-wrap">
+                <table class="analysis-table analysis-subject-table">
+                  <thead><tr><th>Subject</th><th>Highest</th><th>Lowest</th><th>Average</th><th>Pass %</th><th>Passed</th><th>Failed</th></tr></thead>
+                  <tbody id="analysisSubjectBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-three">
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Division Analysis</h4></div><div id="analysisDivisionChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Pass / Fail</h4></div><div id="analysisPassFailChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Exam Attendance Analysis</h4></div><div id="analysisAttendance"></div></section>
+          </div>
+
+          <div class="analysis-grid analysis-grid-two">
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Performance Distribution</h4></div><div id="analysisDistributionChart"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-head"><h4>Top 10 Students</h4></div><div id="analysisTopStudents"></div></section>
+          </div>
+
+          <section class="analysis-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Students Needing Support</h4><span>Students below the selected support percentage</span></div>
+              <button id="toggleAnalysisSupportListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisSupportTableWrap">Show List</button>
+            </div>
+            <div id="analysisSupportTableWrap" class="analysis-table-wrap hidden">
+              <table class="analysis-table support-table">
+                <thead><tr><th>Roll No.</th><th>Student Name</th><th>Class</th><th>Status</th><th>Percentage</th><th>Reason</th></tr></thead>
+                <tbody id="analysisSupportBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-three analysis-insights">
+            <section class="analysis-panel insight-positive"><div class="analysis-panel-head"><h4>Strengths</h4></div><ul id="analysisStrengths"></ul></section>
+            <section class="analysis-panel insight-warning"><div class="analysis-panel-head"><h4>Areas for Improvement</h4></div><ul id="analysisWeaknesses"></ul></section>
+            <section class="analysis-panel insight-action"><div class="analysis-panel-head"><h4>Recommendations</h4></div><ul id="analysisRecommendations"></ul></section>
+          </div>
+
+          <div class="analysis-comparison-controls" aria-label="Growth and early-warning examination comparison">
+            <strong>Growth &amp; Early-Warning Exams</strong>
+            <label>Class<select id="analysisProgressClassSelect"></select></label>
+            <label>First Exam<select id="analysisProgressFromExamSelect"></select></label>
+            <label>Compare With<select id="analysisProgressToExamSelect"></select></label>
+          </div>
+
+          <section class="analysis-panel analysis-growth-panel">
+            <div class="analysis-panel-head">
+              <div><h4>Student Growth Analysis</h4><span>Comparison of the two selected examinations</span></div>
+              <button id="toggleAnalysisGrowthListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisGrowthTableWrap">Show List</button>
+            </div>
+            <div id="analysisGrowthSummary" class="analysis-mini-metrics"></div>
+            <div id="analysisGrowthTableWrap" class="analysis-table-wrap analysis-growth-table-wrap hidden">
+              <table class="analysis-table analysis-growth-table">
+                <thead><tr><th>Student Name</th><th>Class</th><th>First Exam</th><th>Latest Exam</th><th>First %</th><th>Latest %</th><th>Change</th><th title="Percentage change converted to marks using the latest examination full marks">MARK(S)</th><th>SUBJECT(S)</th><th>Trend</th></tr></thead>
+                <tbody id="analysisGrowthBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="analysis-grid analysis-grid-two analysis-risk-change-grid">
+            <section class="analysis-panel analysis-risk-panel">
+              <div class="analysis-panel-head">
+                <div><h4>Early-Warning Students</h4><span>Risk indicators from examination performance</span></div>
+                <button id="toggleAnalysisRiskListBtn" class="analysis-list-toggle" type="button" aria-expanded="false" aria-controls="analysisRiskTableWrap">Show List</button>
+              </div>
+              <div id="analysisEarlyWarningSummary" class="analysis-mini-metrics"></div>
+              <div id="analysisRiskTableWrap" class="analysis-table-wrap analysis-risk-table-wrap hidden">
+                <table class="analysis-table analysis-risk-table">
+                  <thead><tr><th>Student Name</th><th>Class</th><th>Latest %</th><th>Change</th><th>Missed Exams</th><th>Failed Exams</th><th>Weak Subjects</th><th>Risk</th><th>Reasons</th></tr></thead>
+                  <tbody id="analysisEarlyWarningBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="analysis-panel performance-change-panel">
+              <div class="analysis-panel-head">
+                <div><h4>Performance Change Analysis</h4><span>Standardized examination comparison</span></div>
+              </div>
+              <div class="performance-change-filters" aria-label="Performance change filters">
+                <label>Academic Session<select id="performanceChangeSessionSelect"></select></label>
+                <label>Class<select id="performanceChangeClassSelect"></select></label>
+                <label>First Examination<select id="performanceChangeFromExamSelect"></select></label>
+                <label>Comparison Examination<select id="performanceChangeToExamSelect"></select></label>
+                <label>Subject<select id="performanceChangeSubjectSelect"></select></label>
+                <label>Student<select id="performanceChangeStudentSelect"></select></label>
+                <label>Sort By<select id="performanceChangeSortSelect">
+                  <option value="improvement">Highest Improvement</option>
+                  <option value="decline">Highest Decline</option>
+                  <option value="percentage">Percentage Change</option>
+                  <option value="relative">Relative Change</option>
+                  <option value="percentile">Percentile Change</option>
+                  <option value="classification">Classification</option>
+                </select></label>
+              </div>
+              <p id="performanceChangeMessage" class="performance-change-message"></p>
+              <div id="performanceChangeSummary" class="analysis-mini-metrics performance-change-summary"></div>
+              <p id="performanceChangeClassSummary" class="performance-change-class-summary"></p>
+              <div class="analysis-table-wrap performance-change-class-wrap">
+                <table class="analysis-table performance-change-class-table">
+                  <thead><tr><th>Class</th><th>Students</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <tbody id="performanceChangeClassBody"></tbody>
+                </table>
+              </div>
+              <div class="performance-change-charts">
+                <div><h5>Overall Student Change</h5><div id="performanceChangeOverallChart"></div></div>
+                <div><h5>Change Distribution</h5><div id="performanceChangeDistributionChart"></div></div>
+              </div>
+              <div class="performance-change-charts">
+                <div><h5>Examination Comparison</h5><div id="performanceChangeExamChart"></div></div>
+                <div><h5>Subject Comparison</h5><div id="performanceChangeSubjectChart"></div></div>
+              </div>
+              <div class="analysis-table-wrap performance-change-subject-wrap">
+                <table class="analysis-table performance-change-subject-table">
+                  <thead><tr><th>Subject</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <tbody id="performanceChangeSubjectBody"></tbody>
+                </table>
+              </div>
+              <div class="analysis-table-wrap performance-change-table-wrap">
+                <table class="analysis-table performance-change-table">
+                  <thead><tr><th>Student Name</th><th>Roll No.</th><th>First Exam %</th><th>Comparison Exam %</th><th>Percentage Change</th><th>First Relative</th><th>Comparison Relative</th><th>Relative Change</th><th>First Percentile</th><th>Comparison Percentile</th><th>Percentile Change</th><th>Classification</th></tr></thead>
+                  <tbody id="performanceChangeBody"></tbody>
+                </table>
+              </div>
+              <div id="performanceChangeStudentDetail" class="performance-change-detail hidden"></div>
+              <p class="performance-change-disclaimer">Performance comparisons between different examination types should be interpreted carefully. Differences in maximum marks, syllabus coverage, examination difficulty, and question patterns may influence results. Performance Change indicates differences in observed results and does not necessarily represent definitive academic growth.</p>
+            </section>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="studentsView" class="view" aria-label="Student management">
+        <div class="section-head">
+          <div>
+            <h3>Student List</h3>
+            <p>Add students individually or update the selected class from CSV.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="downloadStudentTemplateBtn" class="ghost-button" type="button">Download CSV Template</button>
+            <button id="importStudentsBtn" class="ghost-button" type="button">Import CSV</button>
+            <input id="studentCsvInput" class="hidden" type="file" accept=".csv,text/csv">
+          </div>
+        </div>
+
+        <form id="studentForm" class="student-form">
+          <label class="students-class-filter">
+            Class
+            <select id="studentsClassSelect"></select>
+          </label>
+          <label>
+            Roll No.
+            <input id="rollInput" type="number" min="1" required>
+          </label>
+          <label>
+            ID No.
+            <input id="idNoInput" type="text">
+          </label>
+          <label>
+            Date of Birth
+            <input id="dobInput" type="date">
+          </label>
+          <label>
+            Student Name
+            <input id="nameInput" type="text" required>
+          </label>
+          <label>
+            Father's Name
+            <input id="fatherNameInput" type="text">
+          </label>
+          <label>
+            Mother's Name
+            <input id="motherNameInput" type="text">
+          </label>
+          <label>
+            Address
+            <input id="addressInput" type="text">
+          </label>
+          <label>
+            PEN
+            <input id="penInput" type="text">
+          </label>
+          <label>
+            Aadhaar No.
+            <input id="aadhaarNoInput" type="text">
+          </label>
+          <button id="studentSubmitBtn" class="primary-button" type="submit">Add Student</button>
+          <button id="cancelStudentEditBtn" class="ghost-button hidden" type="button">Cancel Edit</button>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>ID No.</th>
+                <th>Student Name</th>
+                <th>Date of Birth</th>
+                <th>Father's Name</th>
+                <th>Mother's Name</th>
+                <th>Address</th>
+                <th>PEN</th>
+                <th>Aadhaar No.</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="studentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./app.js?v=dashboard-chart-glass-compact-20260713-57"></script>
+  <script src="./teacher-assessment.js?v=teacher-assessment-module-20260706"></script>
+</body>
+</html>
