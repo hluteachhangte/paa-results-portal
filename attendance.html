@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=title-card-teal-20260712-21">
+  <link rel="stylesheet" href="./styles.css?v=dashboard-chart-glass-compact-20260713-57">
 </head>
 <body class="attendance-honor-page">
   <div class="app-shell">
@@ -75,9 +75,26 @@
 
       <section class="attendance-honor-card" aria-label="Students with 100% attendance">
         <div class="section-head">
-          <div>
-            <h3>100% Attendance</h3>
-            <p>Students with perfect attendance throughout the academic year.</p>
+          <div class="attendance-honor-controls">
+            <label class="attendance-honor-filter" for="attendanceHonorClassFilter">
+              <span>Class</span>
+              <select id="attendanceHonorClassFilter">
+                <option value="All Classes">All Classes</option>
+                <option value="LKG">LKG</option>
+                <option value="UKG">UKG</option>
+                <option value="Class I">Class I</option>
+                <option value="Class II">Class II</option>
+                <option value="Class III">Class III</option>
+                <option value="Class IV">Class IV</option>
+                <option value="Class V">Class V</option>
+                <option value="Class VI">Class VI</option>
+                <option value="Class VII">Class VII</option>
+                <option value="Class VIII">Class VIII</option>
+                <option value="Class IX">Class IX</option>
+                <option value="Class X">Class X</option>
+              </select>
+            </label>
+            <p class="attendance-honor-count">No. of Students: <strong id="attendanceHonorCount">0</strong></p>
           </div>
         </div>
 
@@ -98,6 +115,6 @@
     </main>
   </div>
   <script type="module" src="./firebase.js?v=firestore-optimized-20260622"></script>
-  <script src="./attendance.js?v=mobile-nav-20260625"></script>
+  <script src="./attendance.js?v=attendance-honor-filter-20260713-55"></script>
 </body>
 </html>

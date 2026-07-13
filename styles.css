@@ -7210,6 +7210,64 @@ th:first-child {
   min-width: 0;
 }
 
+.attendance-honor-controls {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+
+.attendance-honor-filter {
+  display: grid;
+  gap: 6px;
+  min-width: min(100%, 260px);
+}
+
+.attendance-honor-filter span {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.attendance-honor-filter select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(1, 117, 122, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text-primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 8px 20px rgba(1, 117, 122, 0.08);
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.attendance-honor-count {
+  margin: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-soft);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.attendance-honor-count strong {
+  color: var(--primary);
+  font-size: 1.05rem;
+}
+
 .attendance-honor-table-wrap {
   box-shadow: var(--shadow);
 }
@@ -7234,6 +7292,23 @@ th:first-child {
   color: var(--muted);
   font-weight: 800;
   text-align: center !important;
+}
+
+@media (max-width: 640px) {
+  .attendance-honor-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendance-honor-filter {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .attendance-honor-count {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 980px) {
@@ -11896,6 +11971,7 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   .dashboard-search {
     flex: 1 1 260px;
     min-width: 180px;
+    order: 1;
   }
 
   .dashboard-search input,
@@ -11910,6 +11986,7 @@ body.attendance-active #attendanceView > .table-wrap thead th {
 
   .dashboard-notification {
     position: relative;
+    order: 3;
     width: 46px;
     height: 46px;
     border-radius: 16px;
@@ -11937,6 +12014,7 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   .dashboard-profile {
     display: flex;
     align-items: center;
+    order: 2;
     gap: 10px;
     min-width: 166px;
   }
@@ -12338,6 +12416,9 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   .dashboard-activity-list {
     display: grid;
     gap: 12px;
+    max-height: 620px;
+    overflow: auto;
+    padding-right: 4px;
   }
 
   .dashboard-activity-list article {
@@ -12390,40 +12471,169 @@ body.attendance-active #attendanceView > .table-wrap thead th {
 
   .dashboard-class-list {
     display: grid;
-    gap: 10px;
-    max-height: 430px;
+    gap: 8px;
+    max-height: 520px;
     overflow: auto;
-    padding-right: 4px;
+    padding: 4px 4px 4px 0;
   }
 
   .dashboard-class-row {
     display: grid;
-    grid-template-columns: minmax(90px, 0.9fr) minmax(150px, 1.8fr) 76px;
+    grid-template-columns: 72px minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    padding: 11px 12px;
+    gap: 14px;
+    padding: 11px 14px;
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.58);
-    border: 1px solid rgba(81, 122, 199, 0.11);
+    background: rgba(255, 255, 255, 0.48);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 12px rgba(58, 62, 72, 0.06);
+    outline: none;
   }
 
-  .dashboard-progress {
-    height: 11px;
-    overflow: hidden;
+  .dashboard-class-row:focus,
+  .dashboard-class-row:hover {
+    box-shadow:
+      0 0 0 2px rgba(1, 117, 122, 0.12),
+      0 8px 18px rgba(58, 62, 72, 0.08);
+  }
+
+  .class-performance-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: center;
+    padding: 2px 4px 4px;
+    color: #38548e;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .class-performance-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .legend-swatch {
+    width: 34px;
+    height: 10px;
     border-radius: 999px;
-    background: rgba(79, 124, 255, 0.12);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.42);
   }
 
-  .dashboard-progress i {
-    display: block;
-    height: 100%;
+  .legend-swatch.pass {
+    background: linear-gradient(90deg, #24b7bb, #31d2c4, #6fe3cf);
+  }
+
+  .legend-swatch.average {
+    background: linear-gradient(90deg, #6386ee, #58a7ed, #4bc8e4);
+  }
+
+  .class-badge {
+    min-width: 58px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 4px 10px rgba(54, 62, 72, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: #1f2b40;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  .class-performance-metrics {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .performance-metric-row {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .metric-label {
+    color: #243047;
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .performance-track {
+    position: relative;
+    width: calc(100% - 58px);
+    height: 11px;
+    overflow: visible;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.86),
+      inset 0 -1px 2px rgba(49, 44, 81, 0.07),
+      0 4px 10px rgba(49, 44, 81, 0.07);
+    backdrop-filter: blur(12px) saturate(135%);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
+  }
+
+  .performance-track::before {
+    content: "";
+    position: absolute;
+    inset: 0;
     border-radius: inherit;
-    background: linear-gradient(90deg, #5ebdff, #8268ff);
+    background:
+      repeating-linear-gradient(90deg, transparent 0 9.5%, rgba(255, 255, 255, 0.46) 9.5% 10%);
+    pointer-events: none;
   }
 
-  .dashboard-class-row b {
-    color: #315ce8;
-    text-align: right;
+  .performance-bar-fill {
+    position: relative;
+    height: 100%;
+    min-width: 0;
+    display: block;
+    overflow: hidden;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.48),
+      0 5px 12px rgba(49, 44, 81, 0.12);
+    transition: width 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pass-bar-fill {
+    background: linear-gradient(90deg, #24b7bb 0%, #31d2c4 48%, #6fe3cf 100%);
+  }
+
+  .average-bar-fill {
+    background: linear-gradient(90deg, #7b61ff 0%, #9b6dff 48%, #c084fc 100%);
+  }
+
+  .performance-bar-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    color: #050816;
+    font-size: 0.56rem;
+    font-weight: 850;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.38);
+    pointer-events: none;
+  }
+
+  .performance-bar-value.is-outside {
+    inset: 0 auto 0 auto;
+    width: max-content;
+    padding: 0;
+    color: #050816;
+    text-shadow: none;
+    transform: translateX(0);
   }
 
   .dashboard-attendance-stats {
@@ -12445,6 +12655,155 @@ body.attendance-active #attendanceView > .table-wrap thead th {
 
   .dashboard-attendance-stats b {
     color: #0c2868;
+  }
+
+  .dashboard-attendance-overview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+    margin-bottom: 14px;
+  }
+
+  .dashboard-attendance-overview article {
+    min-width: 0;
+    padding: 11px 10px;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(94, 189, 255, 0.2), transparent 46%),
+      rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84), 0 10px 22px rgba(65, 101, 164, 0.09);
+  }
+
+  .dashboard-attendance-overview span {
+    display: block;
+    color: #38548e;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+
+  .dashboard-attendance-overview strong {
+    display: block;
+    margin-top: 5px;
+    color: #071f58;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .dashboard-attendance-class-chart,
+  .dashboard-attendance-risk-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .dashboard-attendance-class-chart {
+    max-height: 250px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+
+  .dashboard-attendance-class-row {
+    display: grid;
+    grid-template-columns: minmax(82px, 0.9fr) minmax(120px, 1.7fr) 70px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(238, 247, 255, 0.45)),
+      rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.76);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.84),
+      0 8px 18px rgba(49, 44, 81, 0.08);
+    backdrop-filter: blur(12px) saturate(130%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+  }
+
+  .dashboard-attendance-class-row strong,
+  .dashboard-attendance-risk strong {
+    color: #0c2868;
+  }
+
+  .dashboard-attendance-class-row span,
+  .dashboard-attendance-risk span {
+    display: block;
+    color: #7184ad;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .dashboard-attendance-bar {
+    height: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.46);
+    border: 1px solid rgba(255, 255, 255, 0.74);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      inset 0 -1px 2px rgba(1, 117, 122, 0.07),
+      0 5px 12px rgba(1, 117, 122, 0.08);
+    backdrop-filter: blur(10px) saturate(130%);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+  }
+
+  .dashboard-attendance-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background:
+      linear-gradient(90deg, rgba(94, 189, 255, 0.92), rgba(61, 204, 147, 0.9)),
+      rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.42),
+      0 4px 10px rgba(61, 204, 147, 0.15);
+  }
+
+  .dashboard-attendance-class-row b {
+    color: #01757a;
+    text-align: right;
+    font-size: 0.82rem;
+  }
+
+  .dashboard-attendance-risk {
+    margin-top: 13px;
+    padding: 12px;
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(255, 106, 106, 0.16), transparent 46%),
+      rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .dashboard-attendance-risk > div:first-child {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-attendance-risk-list {
+    max-height: 190px;
+    overflow: auto;
+  }
+
+  .dashboard-attendance-risk-list article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 9px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.56);
+    border: 1px solid rgba(220, 98, 104, 0.12);
+  }
+
+  .dashboard-attendance-risk-list b {
+    color: #dc6268;
+    font-size: 0.82rem;
   }
 
   .dashboard-actions {
@@ -12494,6 +12853,26 @@ body.attendance-active #attendanceView > .table-wrap thead th {
     body.dashboard-active .main-content {
       padding-left: 14px;
       padding-right: 14px;
+    }
+
+    body.dashboard-active .dashboard-result-overview {
+      order: 1;
+    }
+
+    body.dashboard-active .dashboard-class-card {
+      order: 2;
+    }
+
+    body.dashboard-active .dashboard-attendance-card {
+      order: 3;
+    }
+
+    body.dashboard-active .dashboard-activity-card {
+      order: 4;
+    }
+
+    body.dashboard-active .dashboard-actions-card {
+      order: 5;
     }
 
     body.dashboard-active .topbar {
@@ -12624,12 +13003,28 @@ body.attendance-active #attendanceView > .table-wrap thead th {
 
     .dashboard-class-row {
       grid-template-columns: 1fr;
-      gap: 7px;
+      gap: 8px;
       padding: 10px;
     }
 
-    .dashboard-class-row b {
-      text-align: left;
+    .class-badge {
+      justify-self: start;
+      min-width: 52px;
+      padding: 7px 11px;
+    }
+
+    .performance-metric-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+
+    .performance-track {
+      width: calc(100% - 50px);
+      height: 11px;
+    }
+
+    .metric-label {
+      font-size: 0.66rem;
     }
 
     .dashboard-card-head {
@@ -12901,7 +13296,7 @@ body.attendance-active #attendanceView > .table-wrap thead th {
 @media screen and (max-width: 760px) {
   body.dashboard-active .dashboard-top-tools {
     display: grid !important;
-    grid-template-columns: 44px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) 42px !important;
     gap: 8px !important;
     align-items: center !important;
   }
@@ -12911,25 +13306,29 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   }
 
   body.dashboard-active .dashboard-notification {
-    grid-column: 1 !important;
+    grid-column: 2 !important;
     grid-row: 2 !important;
     width: 42px !important;
     height: 42px !important;
-    justify-self: start !important;
+    justify-self: end !important;
   }
 
   body.dashboard-active .dashboard-profile {
-    grid-column: 2 !important;
+    grid-column: 1 !important;
     grid-row: 2 !important;
     width: 100% !important;
     min-width: 0 !important;
     justify-self: stretch !important;
     display: flex !important;
     align-items: center !important;
+    gap: 9px !important;
+    padding: 7px 9px !important;
     overflow: hidden !important;
   }
 
   body.dashboard-active .dashboard-profile > div:last-child {
+    display: block !important;
+    flex: 1 1 auto !important;
     min-width: 0 !important;
     overflow: hidden !important;
   }
@@ -14130,6 +14529,15 @@ body.dashboard-active #resetBtn {
   }
 }
 
+@media screen and (max-width: 760px) {
+  .mobile-nav-brand img {
+    filter:
+      drop-shadow(0 3px 4px rgba(12, 40, 104, 0.28))
+      drop-shadow(0 8px 12px rgba(1, 117, 122, 0.18)) !important;
+    transform: translateZ(0);
+  }
+}
+
 @media screen {
   .dashboard-notification b[hidden] {
     display: none !important;
@@ -14239,6 +14647,55 @@ body.dashboard-active #resetBtn {
   .student-search-highlight td {
     background: rgba(164, 195, 184, 0.34) !important;
     box-shadow: inset 0 0 0 2px rgba(1, 117, 122, 0.32);
+  }
+}
+
+@media screen and (max-width: 760px) {
+  body.dashboard-active .dashboard-top-tools {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  body.dashboard-active .dashboard-search {
+    grid-column: 1 / -1 !important;
+  }
+
+  body.dashboard-active .dashboard-profile {
+    grid-column: 1 / 2 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    padding: 7px 10px !important;
+    box-sizing: border-box !important;
+    justify-self: stretch !important;
+  }
+
+  body.dashboard-active .dashboard-notification {
+    grid-column: 2 / 3 !important;
+    grid-row: 2 !important;
+    justify-self: end !important;
+  }
+
+  body.dashboard-active .dashboard-profile > div:last-child {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  body.dashboard-active #dashboardUserName,
+  body.dashboard-active #dashboardUserRole {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 }
 
@@ -14406,5 +14863,64 @@ body.dashboard-active #resetBtn {
     margin-top: 4px !important;
     font-size: clamp(1.05rem, 4.5vw, 1.28rem) !important;
     line-height: 1 !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-overview article {
+    padding: 10px 9px !important;
+    border-radius: 14px !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-class-chart {
+    max-height: 240px !important;
+    overflow: auto !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-class-row {
+    grid-template-columns: minmax(74px, 0.8fr) minmax(90px, 1.35fr) 62px !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-risk {
+    padding: 10px !important;
+    border-radius: 16px !important;
+  }
+
+  body.dashboard-active .dashboard-attendance-risk > div:first-child {
+    align-items: flex-start !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .performance-bar-fill {
+    transition: none !important;
+  }
+}
+
+@media print {
+  .dashboard-class-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .performance-track {
+    background: #f2f5fb !important;
+    border: 1px solid #d8deea !important;
+    box-shadow: none !important;
+  }
+
+  .pass-bar-fill {
+    background: #31d2c4 !important;
+  }
+
+  .average-bar-fill {
+    background: #9b6dff !important;
   }
 }

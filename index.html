@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=dashboard-mobile-icon-center-20260712-43">
+  <link rel="stylesheet" href="./styles.css?v=dashboard-chart-glass-compact-20260713-57">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -306,7 +306,7 @@
 
             <section class="dashboard-card dashboard-class-card">
               <div class="dashboard-card-head">
-                <div><h4>Class Performance Overview</h4><span>Average and pass percentage by class</span></div>
+                <div><h4>Class-wise Performance</h4><span>Comparison of Pass Percentage and Average Percentage Scored</span></div>
               </div>
               <div id="dashboardClassPerformance" class="dashboard-class-list"></div>
             </section>
@@ -320,13 +320,19 @@
                   <option value="Third Term">Third Term</option>
                 </select>
               </div>
-              <div class="dashboard-attendance-layout">
-                <div id="dashboardAttendanceCircle" class="dashboard-attendance-circle" role="img" aria-label="Attendance percentage"><strong id="dashboardAttendancePercent">0.00%</strong></div>
-                <div class="dashboard-attendance-stats">
-                  <span><b id="dashboardAttendancePresent">0</b> Present</span>
-                  <span><b id="dashboardAttendanceAbsent">0</b> Absent</span>
-                  <span><b id="dashboardAttendanceLeave">0</b> Leave/NE</span>
+              <div class="dashboard-attendance-overview" aria-label="Attendance overview">
+                <article><span>Total Students</span><strong id="dashboardAttendanceStudents">0</strong></article>
+                <article><span>Average Attendance</span><strong id="dashboardAttendanceAverage">0.00%</strong></article>
+                <article><span>Working Days</span><strong id="dashboardAttendanceWorkingDays">0</strong></article>
+                <article><span>Low Attendance</span><strong id="dashboardAttendanceLowCount">0</strong></article>
+              </div>
+              <div id="dashboardAttendanceClassChart" class="dashboard-attendance-class-chart" aria-label="Class-wise attendance"></div>
+              <div class="dashboard-attendance-risk">
+                <div>
+                  <strong>Low Attendance Students</strong>
+                  <span>Below 75%</span>
                 </div>
+                <div id="dashboardAttendanceRiskList" class="dashboard-attendance-risk-list"></div>
               </div>
               <p id="dashboardAttendanceMeta" class="dashboard-muted">No attendance data yet.</p>
               <button id="dashboardAttendanceBtn" class="ghost-button dashboard-link-button" type="button">View Attendance</button>
@@ -912,7 +918,7 @@
   <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=dashboard-mobile-icon-center-20260712-43"></script>
+  <script src="./app.js?v=dashboard-chart-glass-compact-20260713-57"></script>
   <script src="./teacher-assessment.js?v=teacher-assessment-module-20260706"></script>
 </body>
 </html>

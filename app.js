@@ -226,7 +226,13 @@ const els = {
   dashboardMonthSelect: document.querySelector("#dashboardMonthSelect"),
   dashboardAttendanceCircle: document.querySelector("#dashboardAttendanceCircle"),
   dashboardAttendancePercent: document.querySelector("#dashboardAttendancePercent"),
+  dashboardAttendanceStudents: document.querySelector("#dashboardAttendanceStudents"),
+  dashboardAttendanceAverage: document.querySelector("#dashboardAttendanceAverage"),
   dashboardAttendancePresent: document.querySelector("#dashboardAttendancePresent"),
+  dashboardAttendanceWorkingDays: document.querySelector("#dashboardAttendanceWorkingDays"),
+  dashboardAttendanceLowCount: document.querySelector("#dashboardAttendanceLowCount"),
+  dashboardAttendanceClassChart: document.querySelector("#dashboardAttendanceClassChart"),
+  dashboardAttendanceRiskList: document.querySelector("#dashboardAttendanceRiskList"),
   dashboardAttendanceAbsent: document.querySelector("#dashboardAttendanceAbsent"),
   dashboardAttendanceLeave: document.querySelector("#dashboardAttendanceLeave"),
   dashboardAttendanceMeta: document.querySelector("#dashboardAttendanceMeta"),
@@ -2848,66 +2854,190 @@ function setupDashboardResultTooltip() {
   });
 }
 
+function dashboardClassBadgeLabel(className) {
+  const labels = {
+    LKG: "LKG",
+    UKG: "UKG",
+    "Class I": "I",
+    "Class II": "II",
+    "Class III": "III",
+    "Class IV": "IV",
+    "Class V": "V",
+    "Class VI": "VI",
+    "Class VII": "VII",
+    "Class VIII": "VIII",
+    "Class IX": "IX",
+    "Class X": "X"
+  };
+  return labels[className] || className;
+}
+
+function dashboardFormatPercent(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "0%";
+  const rounded = Math.round(parsed * 100) / 100;
+  return `${rounded.toFixed(rounded % 1 === 0 ? 0 : 2)}%`;
+}
+
+function dashboardPerformanceBar(className, metricLabel, value, type) {
+  const percentage = clamp(Number(value) || 0, 0, 100);
+  const label = dashboardFormatPercent(percentage);
+  const outsideOffset = `calc(${percentage}% + 8px)`;
+  return `
+    <div class="performance-metric-row">
+      <span class="metric-label">${escapeHtml(metricLabel)}</span>
+      <div class="performance-track" role="img" aria-label="${escapeAttr(`${className} ${metricLabel} ${label}`)}" title="${escapeAttr(`${className}\n${metricLabel}: ${label}`)}">
+        <i class="performance-bar-fill ${type === "pass" ? "pass-bar-fill" : "average-bar-fill"}" style="width:${percentage}%"></i>
+        <span class="performance-bar-value is-outside" style="left:${outsideOffset}">${label}</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboardClassPerformance(records) {
-  const metrics = analysisClassMetrics(records)
-    .sort((a, b) => classNames.indexOf(a.className) - classNames.indexOf(b.className));
-  els.dashboardClassPerformance.innerHTML = metrics.length ? metrics.map((metric) => `
-    <article class="dashboard-class-row">
-      <div>
-        <strong>${escapeHtml(metric.className)}</strong>
-        <span>${metric.average.toFixed(2)}% average</span>
-      </div>
-      <div class="dashboard-progress" aria-label="${escapeAttr(metric.className)} pass percentage">
-        <i style="width:${Math.max(2, Math.min(100, metric.passPercentage))}%"></i>
-      </div>
-      <b>${metric.passPercentage.toFixed(2)}%</b>
-    </article>
-  `).join("") : '<p class="dashboard-muted">No class performance data available yet.</p>';
+  const metrics = analysisClassMetrics(records);
+  const metricsByClass = new Map(metrics.map((metric) => [metric.className, metric]));
+  const rows = classNames.map((className) => {
+    const metric = metricsByClass.get(className) || {
+      className,
+      passPercentage: 0,
+      average: 0
+    };
+    return `
+      <article class="dashboard-class-row" tabindex="0" title="${escapeAttr(`${className}\nPass Percentage: ${dashboardFormatPercent(metric.passPercentage)}\nAverage Percentage: ${dashboardFormatPercent(metric.average)}`)}">
+        <div class="class-badge" aria-label="${escapeAttr(className)}">${escapeHtml(dashboardClassBadgeLabel(className))}</div>
+        <div class="class-performance-metrics">
+          ${dashboardPerformanceBar(className, "Pass %", metric.passPercentage, "pass")}
+          ${dashboardPerformanceBar(className, "Average %", metric.average, "average")}
+        </div>
+      </article>
+    `;
+  });
+  els.dashboardClassPerformance.innerHTML = rows.length ? `
+    <div class="class-performance-legend" aria-label="Class performance legend">
+      <span><i class="legend-swatch pass"></i>Pass Percentage</span>
+      <span><i class="legend-swatch average"></i>Average Percentage Scored</span>
+    </div>
+    ${rows.join("")}
+  ` : '<p class="dashboard-muted">No class performance data is available for the selected filters.</p>';
 }
 
 function renderDashboardAttendance() {
   const term = els.dashboardMonthSelect?.value || "First Term";
+  const termWorkingDays = Number(state.workingDays?.[term]) || 0;
   let possibleDays = 0;
   let attendedDays = 0;
-  let present = 0;
-  let absent = 0;
-  let leave = 0;
+  let enrolledStudents = 0;
+  let notEnrolled = 0;
+  const classRows = [];
+  const riskStudents = [];
+
   classNames.forEach((className) => {
     const students = state.classes?.[className] || [];
-    const workingDays = Number(state.workingDays?.[term]) || 0;
+    const workingDays = termWorkingDays;
+    let classPossibleDays = 0;
+    let classAttendedDays = 0;
+    let classEnrolledStudents = 0;
+
     students.forEach((student) => {
       const value = getStudentAttendance(student, className, term);
       if (isNotEnrolledEntry(value)) {
-        leave += 1;
+        notEnrolled += 1;
         return;
       }
-      if (workingDays > 0) possibleDays += workingDays;
+      classEnrolledStudents += 1;
+      enrolledStudents += 1;
+      if (workingDays > 0) {
+        possibleDays += workingDays;
+        classPossibleDays += workingDays;
+      }
       if (isScoredEntry(value)) {
-        attendedDays += Math.max(0, Number(value) || 0);
-        if (Number(value) > 0) present += 1;
-        else absent += 1;
-      } else {
-        absent += 1;
+        const studentDays = Math.max(0, Number(value) || 0);
+        attendedDays += studentDays;
+        classAttendedDays += studentDays;
+        const studentPercent = workingDays ? (studentDays / workingDays) * 100 : 0;
+        if (workingDays > 0 && studentPercent < 75) {
+          riskStudents.push({
+            className,
+            roll: student.roll,
+            name: student.name,
+            percent: studentPercent,
+            label: `${studentDays}/${workingDays}`
+          });
+        }
+      } else if (isAbsentEntry(value) && workingDays > 0) {
+        riskStudents.push({
+          className,
+          roll: student.roll,
+          name: student.name,
+          percent: 0,
+          label: "AB"
+        });
       }
     });
+
+    if (classEnrolledStudents > 0) {
+      const percent = classPossibleDays ? (classAttendedDays / classPossibleDays) * 100 : 0;
+      classRows.push({
+        className,
+        enrolled: classEnrolledStudents,
+        attendedDays: classAttendedDays,
+        possibleDays: classPossibleDays,
+        percent
+      });
+    }
   });
+
   const percent = possibleDays ? Math.round((attendedDays / possibleDays) * 10000) / 100 : 0;
-  const items = [
-    { label: "Present", value: attendedDays, color: "#22c55e" },
-    { label: "Absent", value: Math.max(0, possibleDays - attendedDays), color: "#ef4444" }
-  ];
-  els.dashboardAttendanceCircle.style.background = dashboardConicGradient(items);
-  els.dashboardAttendancePercent.textContent = `${percent.toFixed(2)}%`;
-  els.dashboardAttendancePresent.textContent = String(present);
-  els.dashboardAttendanceAbsent.textContent = String(absent);
-  els.dashboardAttendanceLeave.textContent = String(leave);
+  if (els.dashboardAttendanceStudents) els.dashboardAttendanceStudents.textContent = String(enrolledStudents);
+  if (els.dashboardAttendanceAverage) els.dashboardAttendanceAverage.textContent = `${percent.toFixed(2)}%`;
+  if (els.dashboardAttendancePresent) els.dashboardAttendancePresent.textContent = `${percent.toFixed(2)}%`;
+  if (els.dashboardAttendanceWorkingDays) els.dashboardAttendanceWorkingDays.textContent = termWorkingDays ? String(termWorkingDays) : "0";
+  if (els.dashboardAttendancePercent) els.dashboardAttendancePercent.textContent = `${percent.toFixed(2)}%`;
+  if (els.dashboardAttendanceCircle) {
+    els.dashboardAttendanceCircle.style.background = dashboardConicGradient([
+      { label: "Present", value: attendedDays, color: "#22c55e" },
+      { label: "Absent", value: Math.max(0, possibleDays - attendedDays), color: "#ef4444" }
+    ]);
+  }
+  if (els.dashboardAttendanceAbsent) els.dashboardAttendanceAbsent.textContent = String(Math.max(0, possibleDays - attendedDays).toFixed(0));
+  if (els.dashboardAttendanceLeave) els.dashboardAttendanceLeave.textContent = String(notEnrolled);
+  if (els.dashboardAttendanceLowCount) els.dashboardAttendanceLowCount.textContent = String(riskStudents.length);
+  if (els.dashboardAttendanceClassChart) {
+    els.dashboardAttendanceClassChart.innerHTML = classRows.length ? classRows.map((row) => `
+      <article class="dashboard-attendance-class-row">
+        <div>
+          <strong>${escapeHtml(row.className)}</strong>
+          <span>${row.enrolled} student${row.enrolled === 1 ? "" : "s"}</span>
+        </div>
+        <div class="dashboard-attendance-bar" aria-label="${escapeAttr(`${row.className} attendance ${row.percent.toFixed(2)} percent`)}">
+          <i style="width:${Math.max(2, Math.min(100, row.percent))}%"></i>
+        </div>
+        <b>${row.percent.toFixed(2)}%</b>
+      </article>
+    `).join("") : '<p class="dashboard-muted">No class attendance data available yet.</p>';
+  }
+  if (els.dashboardAttendanceRiskList) {
+    const sortedRiskStudents = riskStudents
+      .sort((a, b) => a.percent - b.percent || classNames.indexOf(a.className) - classNames.indexOf(b.className) || Number(a.roll) - Number(b.roll))
+      .slice(0, 8);
+    els.dashboardAttendanceRiskList.innerHTML = sortedRiskStudents.length ? sortedRiskStudents.map((student) => `
+      <article>
+        <div>
+          <strong>${escapeHtml(student.name)}</strong>
+          <span>${escapeHtml(student.className)} | Roll ${escapeHtml(String(student.roll))}</span>
+        </div>
+        <b>${student.label === "AB" ? "AB" : `${student.percent.toFixed(2)}%`}</b>
+      </article>
+    `).join("") : '<p class="dashboard-muted">No students below 75% for this term.</p>';
+  }
   els.dashboardAttendanceMeta.textContent = possibleDays
-    ? `${attendedDays.toFixed(0)} of ${possibleDays.toFixed(0)} attendance days recorded for ${term}.`
+    ? `Average attendance is ${percent.toFixed(2)}% for ${term}. ${notEnrolled ? `${notEnrolled} not enrolled excluded.` : ""}`.trim()
     : `Enter working days and attendance for ${term} to show attendance percentage.`;
 }
 
 function renderDashboardActivities(items = dashboardActivityItems()) {
-  els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 6).map((item) => `
+  els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 20).map((item) => `
     <article>
       <span class="${item.typeClass}" aria-hidden="true">${item.icon}</span>
       <div class="dashboard-activity-copy">
