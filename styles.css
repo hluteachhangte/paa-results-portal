@@ -14687,6 +14687,41 @@ body.dashboard-active #resetBtn {
   }
 }
 
+@media screen and (max-width: 760px) {
+  body.dashboard-active .topbar {
+    position: relative !important;
+  }
+
+  body.dashboard-active .topbar .top-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding-right: 0 !important;
+  }
+
+  body.dashboard-active .topbar .top-actions #logoutBtn {
+    position: static !important;
+    z-index: auto !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 0.66rem !important;
+  }
+
+  body.dashboard-active .topbar .top-actions #exportBtn,
+  body.dashboard-active .topbar .top-actions #exportExcelBtn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
 @media screen {
   .student-search-highlight td {
     background: rgba(164, 195, 184, 0.34) !important;
