@@ -4913,7 +4913,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
         <div class="marksheet-summary">
           <span>Percentage: ${percentage}%</span>
           <span>Division: ${outcome.division}</span>
-          <span>Result: ${outcome.result}</span>
+          <span>Result: ${formatMarksheetResultText(outcome.result)}</span>
         </div>
         ${highThirdTermMarksheet ? renderMarksheetGradedSubjects(highThirdTermGrades) : ""}
         ${highClassGrades.length ? renderMarksheetGradedSubjects(highClassGrades) : ""}
@@ -4935,6 +4935,13 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
       </article>
     `;
   }).join("");
+}
+
+function formatMarksheetResultText(result) {
+  const text = String(result || "-");
+  return text === "Fail"
+    ? `<span class="marksheet-fail-text">${escapeHtml(text)}</span>`
+    : escapeHtml(text);
 }
 
 function renderHighThirdTermMarksheetTable(subjects, subjectResults) {
@@ -7795,14 +7802,14 @@ async function downloadResultsPDF() {
     const pdf = new jsPDF({
       orientation: layout.orientation,
       unit: "mm",
-      format: "a3",
+      format: layout.paperSize,
       compress: true,
       precision: 16
     });
 
     for (const [index, page] of pages.entries()) {
       const canvas = await captureResultPdfPage(page, layout);
-      if (index > 0) pdf.addPage("a3", layout.orientation);
+      if (index > 0) pdf.addPage(layout.paperSize, layout.orientation);
       addResultCanvasToPdf(pdf, canvas, layout);
       page.remove();
       canvas.width = 1;
@@ -7844,14 +7851,16 @@ function resultPdfLayout(className, exam = selectedExam()) {
   const pageHeight = landscape ? 297 : 420;
   const margin = 5;
   const classSixTerm = isClassSixTermPdf(className, exam);
+  const classOneTwoEightTerm = ["Class I", "Class II", "Class VIII"].includes(className) && termExams.includes(exam);
   return {
+    paperSize: "a3",
     orientation: landscape ? "landscape" : "portrait",
     pageWidth,
     pageHeight,
     margin,
     contentWidth: pageWidth - (margin * 2),
     contentHeight: pageHeight - (margin * 2),
-    rowsPerPage: classSixTerm ? 23 : (landscape ? 28 : 30),
+    rowsPerPage: classOneTwoEightTerm ? 20 : (classSixTerm ? 23 : (landscape ? 28 : 30)),
     captureScale: 3,
     classSixTerm
   };
@@ -7871,9 +7880,11 @@ function paginateResultRows(rows, host, layout) {
     host.appendChild(page);
     const tableBody = page.querySelector("tbody");
     const pageEnd = Math.min(rowIndex + rowsPerPage, rows.length);
+    const removeAttendanceColumn = page.querySelector(".result-pdf-table")?.classList.contains("result-pdf-class-viii-term");
     while (rowIndex < pageEnd) {
       const row = rows[rowIndex].cloneNode(true);
       abbreviateResultPdfRow(row);
+      if (removeAttendanceColumn) removeResultPdfRowColumnsByRole(row, ["attendance"]);
       tableBody.appendChild(row);
       rowIndex += 1;
     }
@@ -7910,6 +7921,8 @@ function applyResultPdfTableScale(page, scale) {
   const structured = table.classList.contains("structured-results");
   const referenceTwelvePoint = table.classList.contains("result-pdf-reference-twelve-point");
   const classSixTerm = table.classList.contains("result-pdf-class-six-term");
+  const classOneTwoTerm = table.classList.contains("result-pdf-class-i-term");
+  const classEightTerm = table.classList.contains("result-pdf-class-viii-term");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
@@ -7925,16 +7938,39 @@ function applyResultPdfTableScale(page, scale) {
     const baseFont = Number(cell.dataset.resultFontPt) || 10;
     const isHeader = Boolean(cell.closest("thead"));
     const role = cell.dataset.resultRole || "";
+    const referenceFontRoles = ["roll", "name", "subject", "component", "total", "percentage", "division"];
+    if (classOneTwoTerm) referenceFontRoles.push("attendance");
+    const classEightMarkOrGrade = !isHeader
+      && classEightTerm
+      && ["subject", "component", "grade"].includes(role);
+    const classEightTotalOrPercentage = !isHeader
+      && classEightTerm
+      && ["total", "percentage"].includes(role);
+    const classEightCenteredValue = !isHeader
+      && classEightTerm
+      && ["subject", "component", "grade", "total", "percentage"].includes(role);
     const referenceCellTwelvePoint = !isHeader
       && referenceTwelvePoint
-      && ["roll", "name", "subject", "component", "total", "percentage", "division"].includes(role);
-    const pdfBaseFont = referenceCellTwelvePoint || (!isHeader && classSixTerm)
+      && referenceFontRoles.includes(role);
+    const pdfBaseFont = classEightMarkOrGrade
+      ? 9
+      : classEightTotalOrPercentage
+      ? 11
+      : referenceCellTwelvePoint || (!isHeader && classSixTerm)
       ? 12
       : (!isHeader && baseFont === 10 ? 12 : baseFont);
-    const pdfFont = referenceCellTwelvePoint || (!isHeader && classSixTerm)
+    const pdfFont = classEightMarkOrGrade
+      ? 9
+      : classEightTotalOrPercentage
+      ? 11
+      : referenceCellTwelvePoint || (!isHeader && classSixTerm)
       ? 12
       : Math.max(7, pdfBaseFont * scale);
     cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
+    if (classEightCenteredValue) {
+      cell.style.setProperty("text-align", "center", "important");
+      cell.style.setProperty("white-space", "nowrap", "important");
+    }
   });
 }
 
@@ -7950,7 +7986,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
     const heading = document.createElement("div");
     heading.innerHTML = `
       <h3>PINEHILL ADVENTIST ACADEMY</h3>
-      <p>${escapeHtml(`${selectedClass()} ${selectedExam()} Result : Academic Session ${formatAcademicSession(state.academicSession)}`)}</p>
+      <p>${escapeHtml(resultPdfTitleText())}</p>
     `;
     header.appendChild(heading);
     page.appendChild(header);
@@ -7965,9 +8001,12 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   applyResultPdfTableProfile(table, selectedClass(), selectedExam());
   const resultLayoutColumns = els.resultsTable.querySelector('colgroup[data-result-layout="true"]');
   if (resultLayoutColumns) table.appendChild(resultLayoutColumns.cloneNode(true));
-  fitResultPdfNameColumn(table, rows, layout);
   table.appendChild(els.resultsHead.cloneNode(true));
   table.appendChild(document.createElement("tbody"));
+  if (table.classList.contains("result-pdf-class-viii-term")) {
+    removeResultPdfColumnsByRole(table, ["attendance"]);
+  }
+  fitResultPdfNameColumn(table, rows, layout);
   if (table.classList.contains("result-pdf-large-one-line")) {
     table.querySelectorAll("thead th br").forEach((breakElement) => breakElement.replaceWith(" "));
   }
@@ -7982,6 +8021,32 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   pageNumber.className = "result-pdf-page-number";
   page.appendChild(pageNumber);
   return page;
+}
+
+function removeResultPdfColumnsByRole(table, roles) {
+  const roleSet = new Set(roles);
+  table.querySelectorAll('colgroup[data-result-layout="true"] col').forEach((column) => {
+    if (roleSet.has(column.dataset.resultRole || "")) column.remove();
+  });
+  table.querySelectorAll("thead th").forEach((cell) => {
+    if (roleSet.has(cell.dataset.resultRole || "")) cell.remove();
+  });
+}
+
+function removeResultPdfRowColumnsByRole(row, roles) {
+  const roleSet = new Set(roles);
+  [...row.cells].forEach((cell) => {
+    if (roleSet.has(cell.dataset.resultRole || "")) cell.remove();
+  });
+}
+
+function resultPdfTitleText() {
+  const className = selectedClass();
+  const exam = selectedExam();
+  if (["Class I", "Class II", "Class VIII"].includes(className) && termExams.includes(exam)) {
+    return `${className} ${exam} Result : ${state.academicSession}`;
+  }
+  return `${className} ${exam} Result : Academic Session ${formatAcademicSession(state.academicSession)}`;
 }
 
 function fitResultPdfNameColumn(table, rows, layout) {
@@ -8049,7 +8114,8 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
-  table.classList.toggle("result-pdf-class-i-term", className === "Class I" && term);
+  table.classList.toggle("result-pdf-class-i-term", ["Class I", "Class II", "Class VIII"].includes(className) && term);
+  table.classList.toggle("result-pdf-class-viii-term", className === "Class VIII" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
 }
 
@@ -8113,17 +8179,29 @@ function abbreviateResultPdfRow(row) {
 function markClassITermPdfHeaders(table) {
   if (!table.classList.contains("result-pdf-class-i-term")) return;
   const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "ATTND.", "DIV.", "RESULT"]);
+  const svgNamespace = "http://www.w3.org/2000/svg";
   table.querySelectorAll("thead th").forEach((cell) => {
     const label = cell.querySelector("span") || cell;
     const text = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!verticalLabels.has(text)) return;
-    cell.classList.add("vertical-header");
-    if (!cell.querySelector("span")) {
-      const span = document.createElement("span");
-      span.textContent = cell.textContent;
-      cell.textContent = "";
-      cell.appendChild(span);
-    }
+    cell.classList.add("vertical-header", "result-pdf-svg-header");
+    cell.dataset.pdfHeaderLabel = text;
+    cell.textContent = "";
+    const svgHeight = cell.classList.contains("third-term-component-header") ? 184 : 128;
+    const svg = document.createElementNS(svgNamespace, "svg");
+    svg.classList.add("result-pdf-vertical-svg");
+    svg.setAttribute("viewBox", `0 0 18 ${svgHeight}`);
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.setAttribute("aria-hidden", "true");
+    const textNode = document.createElementNS(svgNamespace, "text");
+    textNode.setAttribute("x", "9");
+    textNode.setAttribute("y", String(svgHeight - 12));
+    textNode.setAttribute("text-anchor", "start");
+    textNode.setAttribute("dominant-baseline", "middle");
+    textNode.setAttribute("transform", `rotate(-90 9 ${svgHeight - 12})`);
+    textNode.textContent = text;
+    svg.appendChild(textNode);
+    cell.appendChild(svg);
   });
 }
 

@@ -4171,6 +4171,8 @@ th:first-child {
 .marksheet-title p {
   margin: 0;
   font-size: 11pt;
+  color: #111;
+  text-align: center;
 }
 
 .marksheet-title p {
@@ -4185,6 +4187,11 @@ th:first-child {
 }
 
 .marksheet-title .marksheet-session {
+  font-weight: 800;
+}
+
+.marksheet-fail-text {
+  color: #c1121f !important;
   font-weight: 800;
 }
 
@@ -4994,8 +5001,8 @@ body.print-marksheets .marksheet .failed-mark {
 }
 
 .result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header {
-  height: 134px !important;
-  padding: 8px 2px 10px !important;
+  height: 128px !important;
+  padding: 7px 2px 12px !important;
   box-sizing: border-box !important;
   vertical-align: bottom !important;
   overflow: hidden !important;
@@ -5003,16 +5010,47 @@ body.print-marksheets .marksheet .failed-mark {
 
 .result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header span {
   top: auto !important;
-  bottom: 10px !important;
+  bottom: 52px !important;
   left: 50% !important;
-  max-height: calc(100% - 18px) !important;
-  max-width: calc(100% - 4px) !important;
+  width: 92px !important;
+  height: 12px !important;
   font-size: 8.3pt !important;
   line-height: 1 !important;
-  writing-mode: vertical-rl !important;
+  writing-mode: horizontal-tb !important;
   white-space: nowrap !important;
-  transform: translateX(-50%) rotate(180deg) !important;
-  transform-origin: center !important;
+  text-align: left !important;
+  transform: translateX(-50%) rotate(-90deg) !important;
+  transform-origin: center center !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-svg-header {
+  position: relative !important;
+  color: #1f2937 !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-vertical-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-vertical-svg text {
+  fill: currentColor;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-rendering: geometricPrecision;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-svg-header[data-pdf-header-label="ATTND."] .result-pdf-vertical-svg text,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-svg-header[data-pdf-header-label="DIV."] .result-pdf-vertical-svg text,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-pdf-svg-header[data-pdf-header-label="RESULT"] .result-pdf-vertical-svg text {
+  font-size: 14px;
 }
 
 .result-pdf-page .result-pdf-table.structured-results.result-pdf-class-i-term .third-term-component-header {
@@ -5020,9 +5058,14 @@ body.print-marksheets .marksheet .failed-mark {
 }
 
 .result-pdf-page .result-pdf-table.structured-results.result-pdf-class-i-term .third-term-component-header span {
-  bottom: 10px !important;
-  max-height: calc(100% - 20px) !important;
+  bottom: 76px !important;
+  width: 136px !important;
+  height: 11px !important;
   font-size: 7.8pt !important;
+}
+
+.result-pdf-page .result-pdf-table.structured-results.result-pdf-class-i-term .third-term-component-header .result-pdf-vertical-svg text {
+  font-size: 13px;
 }
 
 .result-pdf-page .result-pdf-table.result-pdf-class-six-term .vertical-header span {
@@ -6427,8 +6470,20 @@ body.print-marksheets .marksheet .failed-mark {
 
   body.marksheet-active .marksheet-title {
     padding-bottom: 2mm;
+    padding-left: 25mm;
+    padding-right: 25mm;
     margin-bottom: 2mm;
     border-bottom-width: 1px;
+    min-height: 22mm;
+    text-align: center;
+    color: #111;
+  }
+
+  body.marksheet-active .marksheet-header-logo {
+    top: 1mm;
+    left: 3mm;
+    width: 2cm;
+    max-height: 2cm;
   }
 
   body.marksheet-active .marksheet-title h3 {
@@ -7578,6 +7633,32 @@ body.print-marksheets .marksheet .failed-mark {
 .result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td.subject-total,
 .result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td[data-result-role="total"] {
   font-weight: 900 !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"],
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="component"],
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="grade"],
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="attendance"],
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="total"],
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="percentage"] {
+  text-align: center !important;
+  white-space: nowrap !important;
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="component"] .failed-mark,
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"] .failed-mark,
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="grade"] .failed-mark {
+  min-width: 14px !important;
+  min-height: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  padding: 0 !important;
+  border-width: 1px !important;
+  font-size: 8pt !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
 }
 
 @media print {
@@ -14506,13 +14587,15 @@ body.dashboard-active #resetBtn {
 
 @media screen {
   body.results-active #resultSummary.result-summary {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     justify-content: center !important;
     align-items: stretch !important;
     gap: 10px !important;
   }
 
   body.results-active #resultSummary.result-summary > div {
-    min-width: 132px !important;
+    min-width: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
