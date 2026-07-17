@@ -7973,6 +7973,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   }
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
+  markClassITermPdfHeaders(table);
   markClassSixTermPdfHeaders(table);
   tableBody.appendChild(table);
   page.appendChild(tableBody);
@@ -8105,6 +8106,23 @@ function abbreviateResultPdfRow(row) {
   row.querySelectorAll(".failed-mark").forEach((mark) => {
     if (String(mark.textContent || "").trim().toUpperCase() === "AB") {
       mark.classList.add("absent-mark");
+    }
+  });
+}
+
+function markClassITermPdfHeaders(table) {
+  if (!table.classList.contains("result-pdf-class-i-term")) return;
+  const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "ATTND.", "DIV.", "RESULT"]);
+  table.querySelectorAll("thead th").forEach((cell) => {
+    const label = cell.querySelector("span") || cell;
+    const text = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (!verticalLabels.has(text)) return;
+    cell.classList.add("vertical-header");
+    if (!cell.querySelector("span")) {
+      const span = document.createElement("span");
+      span.textContent = cell.textContent;
+      cell.textContent = "";
+      cell.appendChild(span);
     }
   });
 }
