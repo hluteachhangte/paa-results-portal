@@ -4994,7 +4994,7 @@ body.print-marksheets .marksheet .failed-mark {
 }
 
 .result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header {
-  height: 92px !important;
+  height: 104px !important;
   padding: 2px 1px 6px !important;
   vertical-align: bottom !important;
   overflow: hidden !important;
@@ -5002,22 +5002,22 @@ body.print-marksheets .marksheet .failed-mark {
 
 .result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header span {
   top: auto !important;
-  bottom: 8px !important;
+  bottom: 7px !important;
   left: 50% !important;
-  max-width: 84px;
   font-size: 8.4pt !important;
   line-height: 1 !important;
-  transform: translateX(-50%) rotate(-90deg) !important;
-  transform-origin: center bottom !important;
+  writing-mode: vertical-rl !important;
+  white-space: nowrap !important;
+  transform: translateX(-50%) rotate(180deg) !important;
+  transform-origin: center !important;
 }
 
-.result-pdf-page .result-pdf-table.result-pdf-class-i-term .third-term-component-header {
-  height: 126px !important;
+.result-pdf-page .result-pdf-table.structured-results.result-pdf-class-i-term .third-term-component-header {
+  height: 136px !important;
 }
 
-.result-pdf-page .result-pdf-table.result-pdf-class-i-term .third-term-component-header span {
+.result-pdf-page .result-pdf-table.structured-results.result-pdf-class-i-term .third-term-component-header span {
   bottom: 9px !important;
-  max-width: 118px;
   font-size: 8pt !important;
 }
 
