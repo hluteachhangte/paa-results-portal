@@ -4149,9 +4149,22 @@ th:first-child {
   border-bottom: 2px solid #111;
   padding-bottom: 14px;
   margin-bottom: 16px;
+  min-height: 2.2cm;
+  box-sizing: border-box;
   text-align: center;
   color: #111;
   font-family: "Times New Roman", Times, serif;
+}
+
+.marksheet-header-logo {
+  position: absolute;
+  top: 1px;
+  left: 3mm;
+  width: 2cm;
+  height: auto;
+  max-height: 2.1cm;
+  object-fit: contain;
+  z-index: 2;
 }
 
 .marksheet-title h3,
@@ -4188,6 +4201,25 @@ th:first-child {
 
 .marksheet th {
   color: #111;
+}
+
+.marksheet td,
+.marksheet td strong,
+.marksheet-summary,
+.marksheet-summary span,
+.marksheet-graded-subjects,
+.marksheet-measurements,
+.marksheet-measurements strong {
+  color: #111;
+}
+
+.marksheet .failed-mark,
+.marksheet strong .failed-mark,
+.marksheet td .failed-mark,
+.pdf-capture-host .marksheet .failed-mark,
+body.print-marksheets .marksheet .failed-mark {
+  color: var(--bad) !important;
+  border-color: var(--bad) !important;
 }
 
 .marksheet th,
@@ -4485,8 +4517,17 @@ th:first-child {
 .pdf-capture-host .marksheet-title {
   padding-bottom: 2mm !important;
   margin-bottom: 2mm !important;
+  min-height: 22mm !important;
   border-bottom-width: 1px;
   font-family: "Times New Roman", Times, serif !important;
+}
+
+.pdf-capture-host .marksheet-header-logo {
+  width: 20mm !important;
+  height: auto !important;
+  max-height: 21mm !important;
+  top: 0 !important;
+  left: 3mm !important;
 }
 
 .pdf-capture-host .marksheet-title h3 {
@@ -4936,6 +4977,48 @@ th:first-child {
 
 .result-pdf-page .result-pdf-table.class-one-two-term-results .vertical-header span {
   font-size: 7pt !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term thead th:not(.vertical-header) {
+  font-size: 10.5pt !important;
+  line-height: 1.04 !important;
+  white-space: nowrap !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .component-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .standalone-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .attendance-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .outcome-column,
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .result-column {
+  overflow: hidden !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header {
+  height: 92px !important;
+  padding: 2px 1px 6px !important;
+  vertical-align: bottom !important;
+  overflow: hidden !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .vertical-header span {
+  top: auto !important;
+  bottom: 8px !important;
+  left: 50% !important;
+  max-width: 84px;
+  font-size: 8.4pt !important;
+  line-height: 1 !important;
+  transform: translateX(-50%) rotate(-90deg) !important;
+  transform-origin: center bottom !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .third-term-component-header {
+  height: 126px !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-i-term .third-term-component-header span {
+  bottom: 9px !important;
+  max-width: 118px;
+  font-size: 8pt !important;
 }
 
 .result-pdf-page .result-pdf-table.result-pdf-class-six-term .vertical-header span {
@@ -7011,8 +7094,17 @@ th:first-child {
   body.print-marksheets .marksheet-title {
     padding-bottom: 2mm !important;
     margin-bottom: 2mm !important;
+    min-height: 22mm !important;
     border-bottom-width: 1px;
     font-family: "Times New Roman", Times, serif !important;
+  }
+
+  body.print-marksheets .marksheet-header-logo {
+    width: 20mm !important;
+    height: auto !important;
+    max-height: 21mm !important;
+    top: 0 !important;
+    left: 3mm !important;
   }
 
   body.print-marksheets .marksheet-title h3 {

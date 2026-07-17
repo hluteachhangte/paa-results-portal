@@ -6,7 +6,8 @@ const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1
 
 const users = {
   admin: { password: "admin_#123", role: "admin", name: "Admin" },
-  teacher: { password: "teacher123", role: "user", name: "Teacher" }
+  teacher: { password: "teacher123", role: "user", name: "Teacher" },
+  principal: { password: "principal#123", role: "user", name: "Principal" }
 };
 
 const classNames = [
@@ -1445,6 +1446,14 @@ function isAdmin() {
   return currentUser?.role === "admin";
 }
 
+function isPrincipalUser() {
+  return currentUser?.username === "principal";
+}
+
+function canPreviewUnpublished() {
+  return isAdmin() || isPrincipalUser();
+}
+
 function getDashboardUserProfile() {
   const baseName = String(currentUser?.name || currentUser?.username || "").trim();
   const profile = (state.teacherAssessment?.profiles || []).find((item) => {
@@ -1458,6 +1467,8 @@ function getDashboardUserProfile() {
     name: String(profile?.name || currentUser?.name || currentUser?.username || "").trim(),
     role: isAdmin()
       ? "Administrator"
+      : isPrincipalUser()
+        ? "Principal"
       : String(profile?.designation || (currentUser?.role === "user" ? "Teacher" : currentUser?.role) || "Teacher").trim(),
     photoUrl: String(
       currentUser?.photoUrl
@@ -1574,7 +1585,7 @@ function renderAuth() {
 
   startFirebaseStateSync();
 
-  const roleLabel = currentUser.role === "admin" ? "Admin" : "Teacher";
+  const roleLabel = currentUser.role === "admin" ? "Admin" : isPrincipalUser() ? "Principal" : "Teacher";
   els.userBadge.textContent = roleLabel;
   els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
@@ -2181,7 +2192,7 @@ function isPublished() {
 }
 
 function canViewResult() {
-  return isPublished() || isAdmin();
+  return isPublished() || canPreviewUnpublished();
 }
 
 function isMarksheetPublished() {
@@ -2189,7 +2200,7 @@ function isMarksheetPublished() {
 }
 
 function canViewMarksheet() {
-  return isMarksheetPublished() || isAdmin();
+  return isMarksheetPublished() || canPreviewUnpublished();
 }
 
 function populateSelect(select, options) {
@@ -3265,11 +3276,12 @@ function renderViewFilters() {
 
 function renderPublishStatus() {
   const status = isPublished();
-  els.publishStatus.textContent = status ? "Published" : isAdmin() ? "Admin preview" : "Not published";
-  els.publishMeta.textContent = isAdmin()
+  const previewLabel = isAdmin() ? "Admin preview" : isPrincipalUser() ? "Principal preview" : "Not published";
+  els.publishStatus.textContent = status ? "Published" : previewLabel;
+  els.publishMeta.textContent = canPreviewUnpublished()
     ? status
       ? `${selectedClass()} - ${selectedExam()}`
-      : `${selectedClass()} - ${selectedExam()} | Visible to admin only`
+      : `${selectedClass()} - ${selectedExam()} | Preview only until published`
     : `${selectedClass()} - ${selectedExam()} | Admin only`;
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
@@ -3940,7 +3952,9 @@ function renderResults() {
     ? `${selectedClass()} ${selectedExam()} is published.`
     : isAdmin()
       ? `${selectedClass()} ${selectedExam()} is in admin preview. Publish when ready for other users.`
-      : `Publish ${selectedClass()} ${selectedExam()} to show final results.`;
+      : isPrincipalUser()
+        ? `${selectedClass()} ${selectedExam()} is in principal preview. It is not published for teachers yet.`
+        : `Publish ${selectedClass()} ${selectedExam()} to show final results.`;
 
   if (isStructuredResultSheet()) {
     renderStructuredTermResults(students, viewable, subjects, subjectsForMarks, maxMarks, passMarks, workingDays);
@@ -4870,9 +4884,10 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
       <article class="marksheet${(["LKG", "UKG"].includes(selectedClass()) || isHighClass()) ? " legacy-marksheet-format" : ""}${isHighClass() ? " high-class-marksheet" : ""}${highThirdTermMarksheet ? " high-third-term-marksheet" : ""}${isClassOneToEight() ? " class-one-eight-marksheet" : ""}${selectedClass() === "Class VI" ? " class-six-marksheet" : ""}${["Class VI", "Class VII", "Class VIII"].includes(selectedClass()) ? " upper-middle-marksheet" : ""}${isLkgToClassSeven() ? " lower-class-marksheet" : ""}"
         data-student-name="${escapeAttr(student.name)}" data-class-name="${escapeAttr(selectedClass())}" data-roll-no="${escapeAttr(student.roll)}">
         <div class="marksheet-title">
+          <img class="marksheet-header-logo" src="./marksheet-header-logo.png" alt="Pinehill Adventist Academy logo">
           <h3>PINEHILL ADVENTIST ACADEMY</h3>
           <p class="marksheet-location">CHAMPHAI : MIZORAM</p>
-          <p class="marksheet-session">${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())} Marksheet : Academic Session ${escapeHtml(state.academicSession)}</p>
+          <p class="marksheet-session">${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())} Marksheet : ${escapeHtml(state.academicSession)}</p>
         </div>
         <div class="student-details">
           ${studentDetail("Name", student.name)}
@@ -8033,6 +8048,7 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
+  table.classList.toggle("result-pdf-class-i-term", className === "Class I" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
 }
 
