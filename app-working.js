@@ -3381,7 +3381,7 @@ function renderEntry() {
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : `<td>
           ${gradeSubject
-            ? `<input class="mark-input" type="text" maxlength="2" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}">`
+            ? `<input class="mark-input grade-input" type="text" inputmode="text" enterkeyhint="next" maxlength="2" placeholder="A-E, -1, -2" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}. Enter -1 for Absent or -2 for Not yet enrolled.">`
             : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
@@ -3522,6 +3522,10 @@ function saveEntryInputInPlace(input, options = {}) {
 
   if (input.dataset.gradeRoll !== undefined) {
     const value = input.value.trim().toUpperCase().slice(0, 2);
+    if (value === "-" && !showWarning) {
+      input.value = value;
+      return;
+    }
     if (value && !["A", "B", "C", "D", "E", "-1", "-2"].includes(value)) {
       if (showWarning) showContextMessage(input, "Enter grade A-E, -1 for Absent, or -2 for Not yet enrolled.", { type: "error" });
       input.value = "";
@@ -5403,6 +5407,13 @@ function analysisSubjectNames(className, exam) {
   return subjects
     .filter((subject) => subject !== "W.E." && !isGradeSubject(subject, className))
     .map((subject) => baseSubjectName(subject));
+}
+
+function teacherAssessmentSubjectNames(className) {
+  if (!classNames.includes(className)) return [];
+  return [...new Set(currentExams(className).flatMap((exam) =>
+    currentSubjects(className, exam).map((subject) =>
+      String(subject).replace(/\s+\((Activities|Exam|Assignment)\)$/, ""))))];
 }
 
 function updateAnalysisSubjectOptions() {
@@ -8010,6 +8021,8 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   if (table.classList.contains("result-pdf-large-one-line")) {
     table.querySelectorAll("thead th br").forEach((breakElement) => breakElement.replaceWith(" "));
   }
+  formatClassVIIIResultPdfHeaders(table);
+  rebalanceClassVIIIResultPdfColumns(table);
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
   markClassITermPdfHeaders(table);
@@ -8163,6 +8176,83 @@ function abbreviateUnitTestResultPdfHeaders(table, exam) {
   });
 }
 
+function formatClassVIIIResultPdfHeaders(table) {
+  if (!table.classList.contains("result-pdf-class-viii-term")) return;
+  const replacements = {
+    "SKILL DEVELOPMENT": "S. Development",
+    "GRAND TOTAL": "G. TOTAL",
+    GRANDTOTAL: "G. TOTAL"
+  };
+  table.querySelectorAll("thead th").forEach((cell) => {
+    const label = cell.querySelector("span") || cell;
+    const key = String(label.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    const replacement = replacements[key];
+    if (replacement) label.textContent = replacement;
+    if (replacement === "S. Development") {
+      cell.classList.add("result-pdf-skill-development-header");
+    }
+  });
+}
+
+function rebalanceClassVIIIResultPdfColumns(table) {
+  if (!table.classList.contains("result-pdf-class-viii-term")) return;
+  const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
+  if (!columns.length) return;
+
+  const columnLabels = Array.from({ length: columns.length }, () => []);
+  getResultHeaderGrid(table, columns.length).forEach(({ cell, start, span }) => {
+    const text = resultCellText(cell).toUpperCase();
+    for (let index = start; index < Math.min(columns.length, start + span); index += 1) {
+      if (text) columnLabels[index].push(text);
+    }
+  });
+
+  const widths = columns.map((column) => Number.parseFloat(column.style.width) || 0);
+  const targetByIndex = new Map();
+  columnLabels.forEach((labels, index) => {
+    const label = labels.join(" ");
+    const role = columns[index].dataset.resultRole || "";
+    if (label.includes("W.E.")) targetByIndex.set(index, Math.min(widths[index], 2.45));
+    if (label.includes("S. DEVELOPMENT")) targetByIndex.set(index, Math.max(widths[index], 3.65));
+    if (role === "total") targetByIndex.set(index, Math.max(widths[index], 5.15));
+    if (role === "percentage") targetByIndex.set(index, Math.max(widths[index], 4.15));
+  });
+
+  let delta = 0;
+  targetByIndex.forEach((target, index) => {
+    delta += target - widths[index];
+    widths[index] = target;
+  });
+
+  if (delta > 0.01) {
+    const shrinkable = columns
+      .map((column, index) => ({ column, index }))
+      .filter(({ column, index }) =>
+        (column.dataset.resultRole || "") === "component"
+        && widths[index] > 1.25
+        && !targetByIndex.has(index));
+    const capacity = shrinkable.reduce((sum, item) => sum + Math.max(0, widths[item.index] - 1.25), 0);
+    shrinkable.forEach((item) => {
+      if (!capacity) return;
+      const reduction = Math.min(widths[item.index] - 1.25, delta * ((widths[item.index] - 1.25) / capacity));
+      widths[item.index] -= reduction;
+    });
+  } else if (delta < -0.01) {
+    const expandable = columns
+      .map((column, index) => ({ column, index }))
+      .filter(({ column }) => (column.dataset.resultRole || "") === "component");
+    const addition = Math.abs(delta) / Math.max(1, expandable.length);
+    expandable.forEach(({ index }) => {
+      widths[index] += addition;
+    });
+  }
+
+  const widthSum = widths.reduce((sum, width) => sum + width, 0) || 100;
+  columns.forEach((column, index) => {
+    column.style.width = `${(widths[index] / widthSum) * 100}%`;
+  });
+}
+
 function abbreviateResultPdfRow(row) {
   row.querySelectorAll(".status-pill").forEach((status) => {
     if (String(status.textContent || "").trim().toLowerCase() === "simple pass") {
@@ -8178,7 +8268,7 @@ function abbreviateResultPdfRow(row) {
 
 function markClassITermPdfHeaders(table) {
   if (!table.classList.contains("result-pdf-class-i-term")) return;
-  const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "ATTND.", "DIV.", "RESULT"]);
+  const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "W.E.", "G. TOTAL", "ATTND.", "DIV.", "RESULT"]);
   const svgNamespace = "http://www.w3.org/2000/svg";
   table.querySelectorAll("thead th").forEach((cell) => {
     const label = cell.querySelector("span") || cell;
@@ -9529,7 +9619,7 @@ function mergeMarksFromCsv(rows) {
 
     if (gradeSubject) {
       const grade = rawValue.toUpperCase();
-      if (!["A", "B", "C", "D", "E"].includes(grade)) {
+      if (!["A", "B", "C", "D", "E", "-1", "-2"].includes(grade)) {
         skipped += 1;
         return;
       }
@@ -9998,6 +10088,7 @@ window.TeacherAssessmentApp = {
   formatAcademicSession,
   currentSessionKey,
   classNames,
+  teacherAssessmentSubjectNames,
   getActiveView: () => activeView,
   getCurrentUser: () => currentUser
 };

@@ -7647,16 +7647,31 @@ body.print-marksheets .marksheet .failed-mark {
   padding-right: 1px !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term .result-pdf-skill-development-header span {
+  width: 116px !important;
+  bottom: 60px !important;
+  font-size: 10.5pt !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-rendering: geometricPrecision;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term .result-pdf-svg-header[data-pdf-header-label="W.E."] .result-pdf-vertical-svg text,
+.result-pdf-page .result-pdf-table.result-pdf-class-viii-term .result-pdf-svg-header[data-pdf-header-label="G. TOTAL"] .result-pdf-vertical-svg text {
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="component"] .failed-mark,
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"] .failed-mark,
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="grade"] .failed-mark {
-  min-width: 14px !important;
-  min-height: 14px !important;
-  width: 14px !important;
-  height: 14px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
   padding: 0 !important;
   border-width: 1px !important;
-  font-size: 8pt !important;
+  font-size: 7.5pt !important;
   line-height: 1 !important;
   vertical-align: middle !important;
 }
