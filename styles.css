@@ -3684,6 +3684,18 @@ th:first-child {
   color: #c45a00;
 }
 
+.results-table.early-years-results tbody td.result-subject-mark,
+.results-table.early-years-results tbody td.result-attendance-value,
+.results-table.early-years-results tbody td.result-height-value,
+.results-table.early-years-results tbody td.result-weight-value {
+  font-size: 9pt !important;
+}
+
+.results-table.early-years-results tbody td.result-total-value,
+.results-table.early-years-results tbody td.result-percentage-value {
+  font-weight: 800;
+}
+
 .results-table th:nth-child(2),
 .results-table td:nth-child(2) {
   width: var(--student-name-width, auto);
@@ -7633,6 +7645,12 @@ body.print-marksheets .marksheet .failed-mark {
 .result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td.subject-total,
 .result-pdf-page .result-pdf-table.result-pdf-lkg-class-viii td[data-result-role="total"] {
   font-weight: 900 !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-early-years tbody td[data-result-role="subject"],
+.result-pdf-page .result-pdf-table.result-pdf-early-years tbody td[data-result-role="attendance"],
+.result-pdf-page .result-pdf-table.result-pdf-early-years tbody td[data-result-role="measurement"] {
+  font-size: 10pt !important;
 }
 
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"],

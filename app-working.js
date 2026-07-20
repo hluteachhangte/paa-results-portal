@@ -3946,6 +3946,7 @@ function renderResults() {
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
   els.resultsTable.classList.toggle("class-one-two-term-results", isClassOneTwoTermResult());
+  els.resultsTable.classList.toggle("early-years-results", ["LKG", "UKG"].includes(selectedClass()));
   els.resultsTable.style.width = "";
   els.resultsTable.style.removeProperty("--student-name-width");
   els.resultsTable.style.setProperty("--student-name-width", `${getStudentNameColumnWidth(students)}px`);
@@ -4030,17 +4031,17 @@ function renderResults() {
         <td>${escapeHtml(record.student.name)}</td>
         ${record.subjectValues.map((value, index) => formatResultMark(subjects[index], value, passMarks)).join("")}
         ${term
-          ? `<td>${formatResultAuxiliaryEntry(
+          ? `<td class="result-attendance-value">${formatResultAuxiliaryEntry(
             record.attendance,
             isScoredEntry(record.attendance) ? `${record.attendance}/${workingDays}` : "-"
           )}</td>`
           : ""}
         ${showMeasurements
-          ? `<td>${formatResultAuxiliaryEntry(record.measurement.height)}</td>
-            <td>${formatResultAuxiliaryEntry(record.measurement.weight)}</td>`
+          ? `<td class="result-height-value">${formatResultAuxiliaryEntry(record.measurement.height)}</td>
+            <td class="result-weight-value">${formatResultAuxiliaryEntry(record.measurement.weight)}</td>`
           : ""}
-        <td>${record.notEnrolled ? "NE" : `${record.total}/${record.maximumTotal}`}</td>
-        <td>${record.notEnrolled ? "-" : `${record.percent}%`}</td>
+        <td class="result-total-value">${record.notEnrolled ? "NE" : `${record.total}/${record.maximumTotal}`}</td>
+        <td class="result-percentage-value">${record.notEnrolled ? "-" : `${record.percent}%`}</td>
         <td>${formatDivisionLabel(record.outcome.division)}</td>
         <td>${formatResultStatus(record.outcome.result)}</td>
       </tr>
@@ -5196,7 +5197,7 @@ function formatResultMark(subject, value, passMarks) {
     ? getGradeStatus(value).className !== "pass"
     : !isNoPassMarkSubject(selectedClass(), selectedExam(), subject)
       && getStatus(value, subjectPassMarks).className !== "pass");
-  return `<td>${failed
+  return `<td class="result-subject-mark">${failed
     ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>`
     : escapeHtml(displayValue)}</td>`;
 }
@@ -7862,7 +7863,6 @@ function resultPdfLayout(className, exam = selectedExam()) {
   const pageHeight = landscape ? 297 : 420;
   const margin = 5;
   const classSixTerm = isClassSixTermPdf(className, exam);
-  const classOneTwoEightTerm = ["Class I", "Class II", "Class VIII"].includes(className) && termExams.includes(exam);
   return {
     paperSize: "a3",
     orientation: landscape ? "landscape" : "portrait",
@@ -7871,7 +7871,6 @@ function resultPdfLayout(className, exam = selectedExam()) {
     margin,
     contentWidth: pageWidth - (margin * 2),
     contentHeight: pageHeight - (margin * 2),
-    rowsPerPage: classOneTwoEightTerm ? 20 : (classSixTerm ? 23 : (landscape ? 28 : 30)),
     captureScale: 3,
     classSixTerm
   };
@@ -7880,7 +7879,6 @@ function resultPdfLayout(className, exam = selectedExam()) {
 function paginateResultRows(rows, host, layout) {
   const pages = [];
   let rowIndex = 0;
-  const rowsPerPage = layout.rowsPerPage || (layout.orientation === "portrait" ? 30 : 28);
 
   while (rowIndex < rows.length) {
     const page = createResultPdfPage({
@@ -7890,20 +7888,41 @@ function paginateResultRows(rows, host, layout) {
     });
     host.appendChild(page);
     const tableBody = page.querySelector("tbody");
-    const pageEnd = Math.min(rowIndex + rowsPerPage, rows.length);
     const removeAttendanceColumn = page.querySelector(".result-pdf-table")?.classList.contains("result-pdf-class-viii-term");
-    while (rowIndex < pageEnd) {
-      const row = rows[rowIndex].cloneNode(true);
-      abbreviateResultPdfRow(row);
-      if (removeAttendanceColumn) removeResultPdfRowColumnsByRole(row, ["attendance"]);
+
+    applyResultPdfTableScale(page, 1);
+    while (rowIndex < rows.length) {
+      const row = createResultPdfBodyRow(rows[rowIndex], removeAttendanceColumn);
       tableBody.appendChild(row);
+      applyResultPdfTableScale(page, 1);
+
+      if (tableBody.rows.length > 1 && !resultPdfPageHeightFits(page)) {
+        row.remove();
+        break;
+      }
+
       rowIndex += 1;
     }
+
     pages.push(page);
   }
 
   fitResultPdfPages(pages);
   return pages;
+}
+
+function createResultPdfBodyRow(sourceRow, removeAttendanceColumn) {
+  const row = sourceRow.cloneNode(true);
+  abbreviateResultPdfRow(row);
+  if (removeAttendanceColumn) removeResultPdfRowColumnsByRole(row, ["attendance"]);
+  return row;
+}
+
+function resultPdfPageHeightFits(page) {
+  const body = page.querySelector(".result-pdf-table-body");
+  const table = page.querySelector(".result-pdf-table");
+  if (!body || !table) return true;
+  return table.scrollHeight <= body.clientHeight + 1;
 }
 
 function fitResultPdfPages(pages) {
@@ -7934,6 +7953,7 @@ function applyResultPdfTableScale(page, scale) {
   const classSixTerm = table.classList.contains("result-pdf-class-six-term");
   const classOneTwoTerm = table.classList.contains("result-pdf-class-i-term");
   const classEightTerm = table.classList.contains("result-pdf-class-viii-term");
+  const earlyYearsPdf = table.classList.contains("result-pdf-early-years");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
   const headFont = structured ? (largeOneLine ? 12 : 10.24) : (largeOneLine ? 16 : 12.48);
@@ -7960,17 +7980,24 @@ function applyResultPdfTableScale(page, scale) {
     const classEightCenteredValue = !isHeader
       && classEightTerm
       && ["subject", "component", "grade", "total", "percentage"].includes(role);
+    const earlyYearsCompactValue = !isHeader
+      && earlyYearsPdf
+      && ["subject", "attendance", "measurement"].includes(role);
     const referenceCellTwelvePoint = !isHeader
       && referenceTwelvePoint
       && referenceFontRoles.includes(role);
-    const pdfBaseFont = classEightMarkOrGrade
+    const pdfBaseFont = earlyYearsCompactValue
+      ? 10
+      : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
       ? 11
       : referenceCellTwelvePoint || (!isHeader && classSixTerm)
       ? 12
       : (!isHeader && baseFont === 10 ? 12 : baseFont);
-    const pdfFont = classEightMarkOrGrade
+    const pdfFont = earlyYearsCompactValue
+      ? 10
+      : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
       ? 11
@@ -8124,6 +8151,7 @@ function applyResultPdfTableProfile(table, className, exam) {
     ].includes(className)
   );
   table.classList.toggle("result-pdf-lkg-class-viii", lowerClassPdf);
+  table.classList.toggle("result-pdf-early-years", ["LKG", "UKG"].includes(className));
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
