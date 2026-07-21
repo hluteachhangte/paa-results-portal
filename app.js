@@ -880,10 +880,36 @@ function invalidStudentRollMessage(className) {
   return `Cannot save ${className}: blank Roll No. found for ${names}. Fix Roll No. in Students page.`;
 }
 
-function invalidFirestoreValueMessage(fieldUpdates) {
-  const badUpdate = fieldUpdates.find(({ value }) =>
-    typeof value === "number" && !Number.isFinite(value));
+function findInvalidFirestoreValue(value, path = []) {
+  if (value === undefined) return { path, reason: "blank/undefined value" };
+  if (typeof value === "number" && !Number.isFinite(value)) return { path, reason: "invalid number" };
+  if (typeof value === "function" || typeof value === "symbol") return { path, reason: "unsupported value" };
+  if (value === null || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const invalid = findInvalidFirestoreValue(value[index], [...path, String(index)]);
+      if (invalid) return invalid;
+    }
+    return null;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const invalid = findInvalidFirestoreValue(nestedValue, [...path, key]);
+    if (invalid) return invalid;
+  }
+  return null;
+}
+
+function invalidFirestoreUpdateMessage(fieldUpdates) {
+  const badPathUpdate = fieldUpdates.find(({ path }) =>
+    !Array.isArray(path) || path.some((segment) => String(segment ?? "").trim() === ""));
+  if (badPathUpdate) {
+    const path = (badPathUpdate.path || []).map((segment) => String(segment ?? ""));
+    if (path.includes("workingDays")) return "Select a Term before saving attendance.";
+    return "Cannot save because one Firestore field path is blank. Check Class, Term and Roll No.";
+  }
+  const badUpdate = fieldUpdates.find(({ value }) => findInvalidFirestoreValue(value));
   if (!badUpdate) return "";
+  const invalidValue = findInvalidFirestoreValue(badUpdate.value);
   const path = (badUpdate.path || []).map(String);
   const attendanceIndex = path.indexOf("attendance");
   const measurementsIndex = path.indexOf("measurements");
@@ -898,7 +924,7 @@ function invalidFirestoreValueMessage(fieldUpdates) {
       ? path[measurementsIndex + 2]
       : "";
   const rollText = roll ? ` for Roll No. ${roll}` : "";
-  return `${section}${rollText} has an invalid number. Clear and re-enter it before saving.`;
+  return `${section}${rollText} has ${invalidValue.reason}. Clear and re-enter it before saving.`;
 }
 
 function attendanceSectionLabel(section) {
@@ -994,7 +1020,7 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    const invalidValueMessage = invalidFirestoreValueMessage(fieldUpdates);
+    const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
     if (invalidValueMessage) {
       showToast(invalidValueMessage);
       return;

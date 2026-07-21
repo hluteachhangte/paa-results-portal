@@ -880,10 +880,36 @@ function invalidStudentRollMessage(className) {
   return `Cannot save ${className}: blank Roll No. found for ${names}. Fix Roll No. in Students page.`;
 }
 
-function invalidFirestoreValueMessage(fieldUpdates) {
-  const badUpdate = fieldUpdates.find(({ value }) =>
-    typeof value === "number" && !Number.isFinite(value));
+function findInvalidFirestoreValue(value, path = []) {
+  if (value === undefined) return { path, reason: "blank/undefined value" };
+  if (typeof value === "number" && !Number.isFinite(value)) return { path, reason: "invalid number" };
+  if (typeof value === "function" || typeof value === "symbol") return { path, reason: "unsupported value" };
+  if (value === null || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const invalid = findInvalidFirestoreValue(value[index], [...path, String(index)]);
+      if (invalid) return invalid;
+    }
+    return null;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const invalid = findInvalidFirestoreValue(nestedValue, [...path, key]);
+    if (invalid) return invalid;
+  }
+  return null;
+}
+
+function invalidFirestoreUpdateMessage(fieldUpdates) {
+  const badPathUpdate = fieldUpdates.find(({ path }) =>
+    !Array.isArray(path) || path.some((segment) => String(segment ?? "").trim() === ""));
+  if (badPathUpdate) {
+    const path = (badPathUpdate.path || []).map((segment) => String(segment ?? ""));
+    if (path.includes("workingDays")) return "Select a Term before saving attendance.";
+    return "Cannot save because one Firestore field path is blank. Check Class, Term and Roll No.";
+  }
+  const badUpdate = fieldUpdates.find(({ value }) => findInvalidFirestoreValue(value));
   if (!badUpdate) return "";
+  const invalidValue = findInvalidFirestoreValue(badUpdate.value);
   const path = (badUpdate.path || []).map(String);
   const attendanceIndex = path.indexOf("attendance");
   const measurementsIndex = path.indexOf("measurements");
@@ -898,7 +924,7 @@ function invalidFirestoreValueMessage(fieldUpdates) {
       ? path[measurementsIndex + 2]
       : "";
   const rollText = roll ? ` for Roll No. ${roll}` : "";
-  return `${section}${rollText} has an invalid number. Clear and re-enter it before saving.`;
+  return `${section}${rollText} has ${invalidValue.reason}. Clear and re-enter it before saving.`;
 }
 
 function attendanceSectionLabel(section) {
@@ -909,6 +935,9 @@ function firestoreSaveErrorMessage(action, error) {
   const code = String(error?.code || "").replace(/^firestore\//, "");
   if (String(error?.message || "").includes("Firebase is not ready")) {
     return `Could not ${action}: Firebase is not ready. Refresh the page and try again.`;
+  }
+  if (String(error?.message || "").includes("Firebase field updates are not ready")) {
+    return `Could not ${action}: save marks first, then try attendance again.`;
   }
   if (code === "permission-denied") {
     return `Could not ${action}: Firestore write permission was denied.`;
@@ -929,10 +958,6 @@ async function saveAttendanceData() {
   if (attendanceSaveInProgress) return;
   if (selectedAttendanceEntryLocked()) {
     showToast("This attendance entry is locked by Administrator.");
-    return;
-  }
-  if (hasUnsavedMarkChanges()) {
-    showToast("Save marks before saving attendance.");
     return;
   }
   const changedSections = [...unsavedAttendanceSections];
@@ -995,15 +1020,21 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    const invalidValueMessage = invalidFirestoreValueMessage(fieldUpdates);
+    const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
     if (invalidValueMessage) {
       showToast(invalidValueMessage);
       return;
     }
+    const hasPendingMarks = hasUnsavedMarkChanges();
     if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
-    } else if (window.MarkHubFirebase?.saveAppState) {
+      await window.MarkHubFirebase.updateAppStateFields(
+        fieldUpdates,
+        hasPendingMarks ? null : structuredClone(state)
+      );
+    } else if (window.MarkHubFirebase?.saveAppState && !hasPendingMarks) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
+    } else if (window.MarkHubFirebase?.saveAppState) {
+      throw new Error("Firebase field updates are not ready.");
     } else {
       throw new Error("Firebase is not ready.");
     }

@@ -48,6 +48,8 @@ function isFirestoreFieldValue(value) {
 
 function sanitizeFirestoreValue(value) {
   if (value === undefined) return null;
+  if (typeof value === "number" && !Number.isFinite(value)) return null;
+  if (typeof value === "function" || typeof value === "symbol") return null;
   if (value === null || typeof value !== "object" || isFirestoreFieldValue(value)) return value;
   if (Array.isArray(value)) return value.map((item) => sanitizeFirestoreValue(item));
 
