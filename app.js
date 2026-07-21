@@ -5508,10 +5508,10 @@ function marksheetRemarkDetail(value) {
 function getMarksheetRemark(outcome) {
   if (outcome.result === "Fail") return "Turn setbacks into strength.";
   if (outcome.result === "Simple Pass") return "Success is still within reach.";
-  if (outcome.division === "Dist.") return "A remarkable academic achievement.";
-  if (outcome.division === "I") return "An excellent performance indeed.";
-  if (outcome.division === "II") return "A good effort displayed.";
-  if (outcome.division === "III") return "A satisfactory outcome achieved.";
+  if (outcome.division === "Dist.") return "An outstanding academic performance.";
+  if (outcome.division === "I") return "An excellent academic performance.";
+  if (outcome.division === "II") return "A commendable academic performance.";
+  if (outcome.division === "III") return "A satisfactory academic performance.";
   return "-";
 }
 
