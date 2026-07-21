@@ -2779,10 +2779,19 @@ function init() {
     flushFirebaseStateSave(true);
     return undefined;
   });
+  initializeMarksheetZoomDefault();
   updateMarksheetZoom();
   renderAuth();
 
   render();
+}
+
+function initializeMarksheetZoomDefault() {
+  if (!els.marksheetZoomInput || !els.marksheetZoomValue) return;
+  if (isMobileView() && Number(els.marksheetZoomInput.value) === 100) {
+    els.marksheetZoomInput.value = 50;
+    els.marksheetZoomValue.value = "50%";
+  }
 }
 
 function updateMarksheetZoom() {
