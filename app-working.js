@@ -166,6 +166,9 @@ let firebaseStateSyncStarted = false;
 let firebaseStateSaveTimer = null;
 let firebaseStateSaveRetryTimer = null;
 let firebaseStateUnsubscribe = null;
+let firebaseSplitSessionUnsubscribe = null;
+let firebaseSplitSessionKey = "";
+const firebaseSplitSessionPatchCache = new Map();
 let firebaseStateWriteInFlight = false;
 let pendingFirebaseStateJson = "";
 let lastSyncedFirebaseStateJson = "";
@@ -1034,7 +1037,44 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+    const splitSaves = [];
+    const session = currentSessionKey(state.academicSession);
+    const attendanceKeyValue = attendanceKey(className, term);
+    const updatedBy = currentUser?.name || currentUser?.username || "Unknown";
+    if (window.MarkHubFirebase?.saveSplitAttendance && changedSections.includes("attendance")) {
+      const updateKey = dataEntryUpdateKey("attendance", className, term);
+      splitSaves.push(window.MarkHubFirebase.saveSplitAttendance({
+        session,
+        className,
+        term,
+        attendanceKey: attendanceKeyValue,
+        workingDays: state.workingDays[term],
+        attendance: state.attendance[attendanceKeyValue] || {},
+        dataEntryKey: updateKey,
+        dataEntryUpdate: state.dataEntryUpdates[updateKey],
+        updatedAt,
+        updatedBy
+      }));
+    }
+    if (window.MarkHubFirebase?.saveSplitMeasurements
+      && (changedSections.includes("height") || changedSections.includes("weight"))) {
+      const updateKey = dataEntryUpdateKey("measurement", className, term);
+      splitSaves.push(window.MarkHubFirebase.saveSplitMeasurements({
+        session,
+        className,
+        term,
+        attendanceKey: attendanceKeyValue,
+        measurements: state.measurements[attendanceKeyValue] || {},
+        dataEntryKey: updateKey,
+        dataEntryUpdate: state.dataEntryUpdates[updateKey],
+        updatedAt,
+        updatedBy
+      }));
+    }
+
+    if (splitSaves.length > 0) {
+      await Promise.all(splitSaves);
+    } else if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
       await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
     } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
@@ -1193,7 +1233,28 @@ async function saveAllMarks() {
     ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
-    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+    let savedWithSplitMarks = false;
+    if (window.MarkHubFirebase?.saveSplitMarks && changedContexts.length === 1) {
+      const change = changedContexts[0];
+      const updateKey = dataEntryUpdateKey("marks", change.className, change.exam, change.subject);
+      const marksForSubject = Object.fromEntries(
+        Object.entries(state.marks?.[change.markKey] || {})
+          .map(([roll, record]) => [roll, cleanEntryRecordForFirestore(record, change)])
+      );
+      await window.MarkHubFirebase.saveSplitMarks({
+        session: change.session,
+        className: change.className,
+        exam: change.exam,
+        subject: change.subject,
+        markKey: change.markKey,
+        marks: marksForSubject,
+        dataEntryKey: updateKey,
+        dataEntryUpdate: state.dataEntryUpdates[updateKey],
+        updatedAt,
+        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      });
+      savedWithSplitMarks = true;
+    } else if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
       await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
     } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
@@ -1202,7 +1263,7 @@ async function saveAllMarks() {
     }
 
     localStorage.setItem(storageKey, stateJson);
-    if (hadPendingFullStateSave && pendingFirebaseStateJson !== stateJson) {
+    if (!savedWithSplitMarks && hadPendingFullStateSave && pendingFirebaseStateJson !== stateJson) {
       deferredFullStateSaveAfterMarks = false;
       queueFirebaseStateSave();
     } else {
@@ -1356,8 +1417,84 @@ function flushFirebaseStateSave(force = false) {
 
 function stopFirebaseStateSync() {
   if (typeof firebaseStateUnsubscribe === "function") firebaseStateUnsubscribe();
+  if (typeof firebaseSplitSessionUnsubscribe === "function") firebaseSplitSessionUnsubscribe();
   firebaseStateUnsubscribe = null;
+  firebaseSplitSessionUnsubscribe = null;
+  firebaseSplitSessionKey = "";
   firebaseStateSyncStarted = false;
+}
+
+function ensureSplitSessionListener(session = state.academicSession) {
+  const sessionKey = currentSessionKey(session);
+  if (!window.MarkHubFirebase?.listenSplitSession || firebaseSplitSessionKey === sessionKey) return;
+  if (typeof firebaseSplitSessionUnsubscribe === "function") firebaseSplitSessionUnsubscribe();
+  firebaseSplitSessionKey = sessionKey;
+  firebaseSplitSessionUnsubscribe = window.MarkHubFirebase.listenSplitSession(
+    sessionKey,
+    applySplitSessionPatch,
+    (error) => {
+      console.error("[Firestore] Split session listener failed", error);
+      showToast("Split session live updates are not available.");
+    }
+  );
+}
+
+function mergeSplitPatchIntoSession(existingSession, patch = {}) {
+  return normalizeSessionData({
+    ...existingSession,
+    classes: patch.classes ? normalizeClasses(patch.classes) : existingSession.classes,
+    workingDays: patch.workingDays ? { ...existingSession.workingDays, ...patch.workingDays } : existingSession.workingDays,
+    attendance: patch.attendance ? { ...existingSession.attendance, ...patch.attendance } : existingSession.attendance,
+    measurements: patch.measurements ? { ...existingSession.measurements, ...patch.measurements } : existingSession.measurements,
+    marks: patch.marks ? { ...existingSession.marks, ...patch.marks } : existingSession.marks,
+    published: patch.published ? { ...existingSession.published, ...patch.published } : existingSession.published,
+    publishedMarksheets: patch.publishedMarksheets ? { ...existingSession.publishedMarksheets, ...patch.publishedMarksheets } : existingSession.publishedMarksheets,
+    dataEntryUpdates: patch.dataEntryUpdates ? { ...existingSession.dataEntryUpdates, ...patch.dataEntryUpdates } : existingSession.dataEntryUpdates
+  });
+}
+
+function cacheSplitSessionPatch(sessionKey, patch = {}) {
+  const previous = firebaseSplitSessionPatchCache.get(sessionKey) || { session: sessionKey };
+  const cached = {
+    session: sessionKey,
+    classes: patch.classes ? normalizeClasses(patch.classes) : previous.classes,
+    workingDays: patch.workingDays ? { ...(previous.workingDays || {}), ...patch.workingDays } : previous.workingDays,
+    attendance: patch.attendance ? { ...(previous.attendance || {}), ...patch.attendance } : previous.attendance,
+    measurements: patch.measurements ? { ...(previous.measurements || {}), ...patch.measurements } : previous.measurements,
+    marks: patch.marks ? { ...(previous.marks || {}), ...patch.marks } : previous.marks,
+    published: patch.published ? { ...(previous.published || {}), ...patch.published } : previous.published,
+    publishedMarksheets: patch.publishedMarksheets ? { ...(previous.publishedMarksheets || {}), ...patch.publishedMarksheets } : previous.publishedMarksheets,
+    dataEntryUpdates: patch.dataEntryUpdates ? { ...(previous.dataEntryUpdates || {}), ...patch.dataEntryUpdates } : previous.dataEntryUpdates
+  };
+  firebaseSplitSessionPatchCache.set(sessionKey, cached);
+  return cached;
+}
+
+function applyCachedSplitSessionPatch(sessionKey) {
+  const cachedPatch = firebaseSplitSessionPatchCache.get(sessionKey);
+  if (!cachedPatch) return false;
+  state.sessions = state.sessions || {};
+  const existingSession = normalizeSessionData(state.sessions[sessionKey] || createEmptySessionData());
+  const mergedSession = mergeSplitPatchIntoSession(existingSession, cachedPatch);
+  state.sessions[sessionKey] = mergedSession;
+  if (currentSessionKey(state.academicSession) === sessionKey) {
+    setActiveSessionData(state, mergedSession);
+  }
+  return true;
+}
+
+function applySplitSessionPatch(patch = {}) {
+  const sessionKey = currentSessionKey(patch.session || state.academicSession);
+  if (!sessionKey) return;
+  cacheSplitSessionPatch(sessionKey, patch);
+  if (hasUnsavedLocalChanges()) {
+    console.log("[Firestore] Split session update held because the page has unsaved local changes.");
+    return;
+  }
+  applyCachedSplitSessionPatch(sessionKey);
+  const stateJson = JSON.stringify(state);
+  localStorage.setItem(storageKey, stateJson);
+  if (!applyingRemoteState) renderActiveViewOnly();
 }
 
 function startFirebaseStateSync(attempt = 0) {
@@ -1371,6 +1508,7 @@ function startFirebaseStateSync(attempt = 0) {
   }
 
   firebaseStateSyncStarted = true;
+  ensureSplitSessionListener(state.academicSession);
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
     if (publicationSaveInProgress) {
@@ -1405,6 +1543,8 @@ function startFirebaseStateSync(attempt = 0) {
     const uiState = captureUiState();
     applyingRemoteState = true;
     state = normalizeState(remoteState);
+    ensureSplitSessionListener(state.academicSession);
+    applyCachedSplitSessionPatch(currentSessionKey(state.academicSession));
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
     attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
     entryAccessDirty = false;
@@ -9281,7 +9421,20 @@ async function persistResultPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveSplitPublication) {
+      await window.MarkHubFirebase.saveSplitPublication({
+        session,
+        type: "result",
+        className,
+        exam,
+        key,
+        value: shouldPublish ? publicationValue : null,
+        updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
+        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      });
+      lastSyncedFirebaseStateJson = JSON.stringify(state);
+      if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
+    } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
       lastSyncedFirebaseStateJson = JSON.stringify(state);
     } else {
@@ -9343,7 +9496,20 @@ async function persistMarksheetPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveSplitPublication) {
+      await window.MarkHubFirebase.saveSplitPublication({
+        session,
+        type: "marksheet",
+        className,
+        exam,
+        key,
+        value: shouldPublish ? publicationValue : null,
+        updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
+        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      });
+      lastSyncedFirebaseStateJson = JSON.stringify(state);
+      if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
+    } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
       lastSyncedFirebaseStateJson = JSON.stringify(state);
     } else {

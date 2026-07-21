@@ -24,6 +24,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const appStateRef = doc(db, "appState", "markhub");
+const splitRootCollection = "sessionData";
 const duplicatedActiveSessionFields = [
   "classes",
   "workingDays",
@@ -119,6 +120,71 @@ function fieldPathLabel(path = []) {
   return path.map((segment) => String(segment ?? "")).join(" > ");
 }
 
+function splitDocId(value) {
+  return encodeURIComponent(String(value || "blank").trim() || "blank")
+    .replace(/\./g, "%2E")
+    .replace(/%/g, "_");
+}
+
+function splitDocRef(session, collectionName, id) {
+  return doc(db, splitRootCollection, splitDocId(session), collectionName, splitDocId(id));
+}
+
+function markDocPayload(data = {}) {
+  return {
+    className: data.className || "",
+    exam: data.exam || "",
+    subject: data.subject || "",
+    markKey: data.markKey || "",
+    marks: sanitizeFirestoreValue(data.marks || {}, ["marks"]),
+    dataEntryUpdate: sanitizeFirestoreValue(data.dataEntryUpdate
+      ? { ...data.dataEntryUpdate, key: data.dataEntryKey || "" }
+      : null, ["dataEntryUpdate"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
+function attendanceDocPayload(data = {}) {
+  return {
+    className: data.className || "",
+    term: data.term || "",
+    attendanceKey: data.attendanceKey || "",
+    workingDays: sanitizeFirestoreValue(data.workingDays ?? 0, ["workingDays"]),
+    attendance: sanitizeFirestoreValue(data.attendance || {}, ["attendance"]),
+    dataEntryUpdate: sanitizeFirestoreValue(data.dataEntryUpdate
+      ? { ...data.dataEntryUpdate, key: data.dataEntryKey || "" }
+      : null, ["dataEntryUpdate"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
+function measurementsDocPayload(data = {}) {
+  return {
+    className: data.className || "",
+    term: data.term || "",
+    attendanceKey: data.attendanceKey || "",
+    measurements: sanitizeFirestoreValue(data.measurements || {}, ["measurements"]),
+    dataEntryUpdate: sanitizeFirestoreValue(data.dataEntryUpdate
+      ? { ...data.dataEntryUpdate, key: data.dataEntryKey || "" }
+      : null, ["dataEntryUpdate"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
+function publicationDocPayload(data = {}) {
+  return {
+    className: data.className || "",
+    exam: data.exam || "",
+    key: data.key || "",
+    value: sanitizeFirestoreValue(data.value || null, ["publication"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
 window.MarkHubFirebase = {
   app,
   db,
@@ -183,6 +249,112 @@ window.MarkHubFirebase = {
     console.log("[Firestore] Write success to appState/markhub", {
       updatedAt: payload.updatedAt
     });
+  },
+  async saveSplitMarks(data) {
+    const payload = markDocPayload(data);
+    await setDoc(splitDocRef(data.session, "marks", payload.markKey), payload, { merge: true });
+    console.log("[Firestore] Split marks write success", {
+      session: data.session,
+      markKey: payload.markKey,
+      count: Object.keys(payload.marks || {}).length
+    });
+  },
+  async saveSplitAttendance(data) {
+    const payload = attendanceDocPayload(data);
+    await setDoc(splitDocRef(data.session, "attendance", payload.attendanceKey), payload, { merge: true });
+    console.log("[Firestore] Split attendance write success", {
+      session: data.session,
+      attendanceKey: payload.attendanceKey,
+      count: Object.keys(payload.attendance || {}).length
+    });
+  },
+  async saveSplitMeasurements(data) {
+    const payload = measurementsDocPayload(data);
+    await setDoc(splitDocRef(data.session, "measurements", payload.attendanceKey), payload, { merge: true });
+    console.log("[Firestore] Split measurements write success", {
+      session: data.session,
+      attendanceKey: payload.attendanceKey,
+      count: Object.keys(payload.measurements || {}).length
+    });
+  },
+  async saveSplitPublication(data) {
+    const collectionName = data.type === "marksheet" ? "publishedMarksheets" : "published";
+    const payload = publicationDocPayload(data);
+    await setDoc(splitDocRef(data.session, collectionName, payload.key), payload, { merge: true });
+    console.log("[Firestore] Split publication write success", {
+      session: data.session,
+      type: data.type || "result",
+      key: payload.key,
+      published: Boolean(payload.value)
+    });
+  },
+  listenSplitSession(session, onPatch, onError) {
+    const sessionId = splitDocId(session);
+    const unsubs = [];
+    const listenCollection = (collectionName, mapDoc) => {
+      console.log(`[Firestore] Listening to ${splitRootCollection}/${sessionId}/${collectionName}`);
+      const unsubscribe = onSnapshot(
+        collection(db, splitRootCollection, sessionId, collectionName),
+        (snapshot) => {
+          const patch = { session, [collectionName]: {} };
+          snapshot.docs.forEach((docSnapshot) => {
+            const mapped = mapDoc(docSnapshot.data(), docSnapshot.id);
+            if (!mapped?.key) return;
+            patch[collectionName][mapped.key] = mapped.value;
+            if (collectionName === "attendance" && mapped.term && mapped.workingDays !== undefined) {
+              patch.workingDays = patch.workingDays || {};
+              patch.workingDays[mapped.term] = mapped.workingDays;
+            }
+            if (mapped.dataEntryKey) {
+              patch.dataEntryUpdates = patch.dataEntryUpdates || {};
+              patch.dataEntryUpdates[mapped.dataEntryKey] = mapped.dataEntryUpdate || null;
+            }
+          });
+          console.log(`[Firestore] Split listener received ${collectionName} update`, {
+            session,
+            count: Object.keys(patch[collectionName]).length,
+            fromCache: snapshot.metadata.fromCache,
+            hasPendingWrites: snapshot.metadata.hasPendingWrites
+          });
+          onPatch(patch);
+        },
+        onError
+      );
+      unsubs.push(unsubscribe);
+    };
+
+    listenCollection("marks", (data, id) => ({
+      key: data.markKey || id,
+      value: data.marks || {},
+      dataEntryKey: data.dataEntryUpdate?.key || "",
+      dataEntryUpdate: data.dataEntryUpdate
+    }));
+    listenCollection("attendance", (data, id) => ({
+      key: data.attendanceKey || id,
+      value: data.attendance || {},
+      term: data.term || "",
+      workingDays: data.workingDays,
+      dataEntryKey: data.dataEntryUpdate?.key || "",
+      dataEntryUpdate: data.dataEntryUpdate
+    }));
+    listenCollection("measurements", (data, id) => ({
+      key: data.attendanceKey || id,
+      value: data.measurements || {},
+      dataEntryKey: data.dataEntryUpdate?.key || "",
+      dataEntryUpdate: data.dataEntryUpdate
+    }));
+    listenCollection("published", (data, id) => ({
+      key: data.key || id,
+      value: data.value || null
+    }));
+    listenCollection("publishedMarksheets", (data, id) => ({
+      key: data.key || id,
+      value: data.value || null
+    }));
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe());
+    };
   },
   deleteFieldValue() {
     return deleteField();
