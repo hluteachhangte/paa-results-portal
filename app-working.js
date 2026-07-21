@@ -2839,11 +2839,11 @@ function handleEnterAsTab(event) {
   event.preventDefault();
   const verticalField = getVerticalEnterTarget(target, direction);
   const nextField = verticalField || fields[clamp(currentIndex + direction, 0, fields.length - 1)];
-  if (isEntryMarkInput(target)) {
+  if (isEntryMarkInput(target) || isAttendanceEntryInput(target)) {
     target.dispatchEvent(new Event("input", { bubbles: true }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
     if (nextField instanceof HTMLInputElement) {
-      nextField.focus({ preventScroll: true });
-      nextField.select?.();
+      focusInputKeepingKeyboard(nextField);
     }
     return;
   }
@@ -2853,10 +2853,16 @@ function handleEnterAsTab(event) {
   setTimeout(() => {
     const field = restoreSelector ? document.querySelector(restoreSelector) : nextField;
     if (field instanceof HTMLInputElement) {
-      field.focus({ preventScroll: true });
-      field.select?.();
+      focusInputKeepingKeyboard(field);
     }
   }, 0);
+}
+
+function focusInputKeepingKeyboard(input) {
+  if (!(input instanceof HTMLInputElement)) return;
+  input.focus({ preventScroll: true });
+  if (isMobileView()) return;
+  input.select?.();
 }
 
 function getVerticalEnterTarget(input, direction = 1) {
@@ -3715,6 +3721,14 @@ function isEntryMarkInput(input) {
       || input.dataset.gradeRoll !== undefined);
 }
 
+function isAttendanceEntryInput(input) {
+  return input instanceof HTMLInputElement
+    && Boolean(input.closest("#attendanceView.active"))
+    && (input.dataset.attendanceRoll !== undefined
+      || input.dataset.heightRoll !== undefined
+      || input.dataset.weightRoll !== undefined);
+}
+
 function isFocusedEntryMarkInput() {
   return isEntryMarkInput(document.activeElement);
 }
@@ -3952,7 +3966,7 @@ function renderAttendance() {
         <td>${escapeHtml(student.name)}</td>
         <td><input class="mark-input" type="number" inputmode="numeric" enterkeyhint="next" min="-2" max="${workingDays}" step="1" tabindex="${index + 1}" ${locked ? "disabled" : ""}
           value="${attendance}" data-attendance-roll="${student.roll}" aria-label="Attendance for ${escapeAttr(student.name)}"></td>
-        <td><strong>${attendanceMarks}</strong></td>
+        <td><strong class="attendance-mark-output">${attendanceMarks}</strong></td>
         <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" step="0.1" tabindex="${students.length + index + 1}" ${locked ? "disabled" : ""}
           value="${measurement.height}" data-height-roll="${student.roll}" aria-label="Height for ${escapeAttr(student.name)}"></td>
         <td><input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" step="0.1" tabindex="${(students.length * 2) + index + 1}" ${locked ? "disabled" : ""}
@@ -3962,58 +3976,95 @@ function renderAttendance() {
   }).join("");
 
   document.querySelectorAll("[data-attendance-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const number = Number(input.value);
-      const value = input.value === ""
-        ? ""
-        : number === -1 || number === -2
-          ? number
-          : clamp(number, 0, getWorkingDays(term));
-      input.value = value;
-      setStudentAttendance(input.dataset.attendanceRoll, value, className, term, { save: false });
-      renderAttendance();
-    });
+    input.addEventListener("input", () => saveAttendanceInputInPlace(input, { className, term }));
+    input.addEventListener("change", () => saveAttendanceInputInPlace(input, { className, term, showWarning: true }));
   });
 
   document.querySelectorAll("[data-height-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const previousTerm = getPreviousTerm(term);
-      const previousHeight = previousTerm
-        ? getStudentMeasurement({ roll: input.dataset.heightRoll }, className, previousTerm).height
-        : "";
-      const height = Number(input.value);
-      if (input.value !== "" && height < 0 && height !== -1 && height !== -2) {
-        showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
-        input.value = "";
-        return;
-      }
-      if (isScoredEntry(input.value) && isScoredEntry(previousHeight) && height < Number(previousHeight)) {
-        showContextMessage(input, `Height cannot be less than the ${previousTerm} height (${previousHeight} cm).`, {
-          type: "error",
-          duration: 4500
-        });
-        input.value = getStudentMeasurement({ roll: input.dataset.heightRoll }, className, term).height;
-        return;
-      }
-      clearContextMessage(input);
-      setStudentMeasurement(input.dataset.heightRoll, { height: input.value }, className, term, { save: false });
-    });
+    input.addEventListener("input", () => saveMeasurementInputInPlace(input, { className, term, section: "height" }));
+    input.addEventListener("change", () => saveMeasurementInputInPlace(input, { className, term, section: "height", showWarning: true }));
   });
 
   document.querySelectorAll("[data-weight-roll]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const weight = Number(input.value);
-      if (input.value !== "" && weight < 0 && weight !== -1 && weight !== -2) {
-        showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
-        input.value = "";
-        return;
-      }
-      setStudentMeasurement(input.dataset.weightRoll, { weight: input.value }, className, term, { save: false });
-    });
+    input.addEventListener("input", () => saveMeasurementInputInPlace(input, { className, term, section: "weight" }));
+    input.addEventListener("change", () => saveMeasurementInputInPlace(input, { className, term, section: "weight", showWarning: true }));
   });
 
   refreshAttendanceSaveControls();
   applyAttendanceEntryAccessState();
+}
+
+function saveAttendanceInputInPlace(input, options = {}) {
+  const { className = selectedAttendanceClass(), term = selectedAttendanceTerm(), showWarning = false } = options;
+  const rawValue = input.value.trim();
+  const number = Number(rawValue);
+  let value = rawValue;
+
+  if (rawValue === "") {
+    clearContextMessage(input);
+    value = "";
+  } else if (!Number.isFinite(number)) {
+    if (showWarning) showContextMessage(input, "Enter a valid attendance value.", { type: "error", duration: 4500 });
+    return;
+  } else if (number === -1 || number === -2) {
+    clearContextMessage(input);
+    value = number;
+  } else if (number < 0) {
+    if (showWarning) showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
+    input.value = "";
+    value = "";
+  } else {
+    clearContextMessage(input);
+    value = clamp(number, 0, getWorkingDays(term));
+    if (showWarning) input.value = value;
+  }
+
+  setStudentAttendance(input.dataset.attendanceRoll, value, className, term, { save: false });
+  const row = input.closest("tr");
+  const attendanceMarkOutput = row?.querySelector(".attendance-mark-output");
+  if (attendanceMarkOutput) {
+    attendanceMarkOutput.textContent = getAttendanceMarks(value, getWorkingDays(term), className);
+  }
+}
+
+function saveMeasurementInputInPlace(input, options = {}) {
+  const {
+    className = selectedAttendanceClass(),
+    term = selectedAttendanceTerm(),
+    section = input.dataset.heightRoll !== undefined ? "height" : "weight",
+    showWarning = false
+  } = options;
+  const roll = section === "height" ? input.dataset.heightRoll : input.dataset.weightRoll;
+  const rawValue = input.value.trim();
+  const number = Number(rawValue);
+
+  if (rawValue !== "" && !Number.isFinite(number)) {
+    if (showWarning) showContextMessage(input, `Enter a valid ${section} value.`, { type: "error", duration: 4500 });
+    return;
+  }
+  if (rawValue !== "" && number < 0 && number !== -1 && number !== -2) {
+    if (showWarning) showContextMessage(input, "Use -1 for Absent or -2 for Not yet enrolled.", { type: "error", duration: 4500 });
+    input.value = "";
+    setStudentMeasurement(roll, { [section]: "" }, className, term, { save: false });
+    return;
+  }
+  if (section === "height" && showWarning) {
+    const previousTerm = getPreviousTerm(term);
+    const previousHeight = previousTerm
+      ? getStudentMeasurement({ roll }, className, previousTerm).height
+      : "";
+    if (isScoredEntry(rawValue) && isScoredEntry(previousHeight) && number < Number(previousHeight)) {
+      showContextMessage(input, `Height cannot be less than the ${previousTerm} height (${previousHeight} cm).`, {
+        type: "error",
+        duration: 4500
+      });
+      input.value = getStudentMeasurement({ roll }, className, term).height;
+      return;
+    }
+  }
+
+  clearContextMessage(input);
+  setStudentMeasurement(roll, { [section]: rawValue }, className, term, { save: false });
 }
 
 function applyAttendanceEntryAccessState() {
