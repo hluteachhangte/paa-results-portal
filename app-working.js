@@ -1070,6 +1070,20 @@ function buildUnsavedMarkFieldUpdates() {
   const addUpdate = (path, value) => {
     updates.set(JSON.stringify(path), { path, value });
   };
+  const cleanMarkRecord = (record = {}, change = {}) => {
+    const cleaned = {};
+    ["value", "project", "partA", "partB"].forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(record, field)) cleaned[field] = record[field] ?? "";
+    });
+    if (!Object.keys(cleaned).length) cleaned.value = "";
+    if (isActivitiesSubject(change.subject, change.className, change.exam)) {
+      delete cleaned.attendanceMarks;
+      if (!Object.prototype.hasOwnProperty.call(cleaned, "project")) {
+        cleaned.project = cleaned.value ?? "";
+      }
+    }
+    return cleaned;
+  };
 
   unsavedMarkChanges.forEach((change) => {
     if (change.type === "deleteSubject") {
@@ -1082,7 +1096,7 @@ function buildUnsavedMarkFieldUpdates() {
     }
 
     if (deletes.has(`${change.session}::${change.markKey}`)) return;
-    const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
+    const value = cleanMarkRecord(state.marks?.[change.markKey]?.[change.roll] || { value: "" }, change);
     const basePath = ["state", "sessions", change.session, "marks", change.markKey, change.roll];
     if (change.fieldKey === "partA" || change.fieldKey === "partB") {
       addUpdate([...basePath, change.fieldKey], value[change.fieldKey] ?? "");
@@ -1178,7 +1192,7 @@ async function saveAllMarks() {
     }
 
     if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
     } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
@@ -1186,14 +1200,9 @@ async function saveAllMarks() {
     }
 
     localStorage.setItem(storageKey, stateJson);
-    if (hadPendingFullStateSave && pendingFirebaseStateJson !== stateJson) {
-      deferredFullStateSaveAfterMarks = false;
-      queueFirebaseStateSave();
-    } else {
-      deferredFullStateSaveAfterMarks = false;
-      lastSyncedFirebaseStateJson = stateJson;
-      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
-    }
+    deferredFullStateSaveAfterMarks = false;
+    lastSyncedFirebaseStateJson = stateJson;
+    if (pendingFirebaseStateJson === stateJson || hadPendingFullStateSave) pendingFirebaseStateJson = "";
     unsavedMarkChanges.clear();
     showToast("Marks saved successfully.");
   } catch (error) {
@@ -2176,7 +2185,10 @@ function getActivityProjectMark(mark, attendanceMarks) {
   if (mark.project !== undefined && mark.project !== null && mark.project !== "") return mark.project;
   if (mark.value === "" || mark.value === undefined || mark.value === null) return "";
   if (isEntryStatusValue(mark.value)) return mark.value;
-  return clamp(Number(mark.value) - attendanceMarks, 0, 15);
+  const storedValue = Number(mark.value);
+  const attendanceValue = Number(attendanceMarks);
+  if (!Number.isFinite(storedValue)) return "";
+  return clamp(storedValue - (Number.isFinite(attendanceValue) ? attendanceValue : 0), 0, 15);
 }
 
 function getStoredStudentMark(student, className, exam, subject) {
@@ -9262,9 +9274,12 @@ async function persistResultPublication(shouldPublish) {
         ? publicationValue
         : window.MarkHubFirebase.deleteFieldValue?.();
       if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
-      await window.MarkHubFirebase.updateAppStateFields([
+      const fieldUpdates = [
         { path: ["state", "sessions", session, "published", key], value }
-      ], structuredClone(state));
+      ];
+      const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
+      if (invalidValueMessage) throw new Error(invalidValueMessage);
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
       const stateJson = JSON.stringify(state);
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
@@ -9281,7 +9296,7 @@ async function persistResultPublication(shouldPublish) {
     else delete state.published[key];
     syncActiveSessionData();
     localStorage.setItem(storageKey, JSON.stringify(state));
-    showToast(`Could not ${shouldPublish ? "publish" : "unpublish"} the result. Please try again.`);
+    showToast(firestoreSaveErrorMessage(`${shouldPublish ? "publish" : "unpublish"} the result`, error));
   } finally {
     publicationSaveInProgress = false;
     render();
@@ -9335,9 +9350,12 @@ async function persistMarksheetPublication(shouldPublish) {
         ? publicationValue
         : window.MarkHubFirebase.deleteFieldValue?.();
       if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
-      await window.MarkHubFirebase.updateAppStateFields([
+      const fieldUpdates = [
         { path: ["state", "sessions", session, "publishedMarksheets", key], value }
-      ], structuredClone(state));
+      ];
+      const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
+      if (invalidValueMessage) throw new Error(invalidValueMessage);
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
       const stateJson = JSON.stringify(state);
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
@@ -9354,7 +9372,7 @@ async function persistMarksheetPublication(shouldPublish) {
     else delete state.publishedMarksheets[key];
     syncActiveSessionData();
     localStorage.setItem(storageKey, JSON.stringify(state));
-    showToast(`Could not ${shouldPublish ? "publish" : "unpublish"} the marksheets. Please try again.`);
+    showToast(firestoreSaveErrorMessage(`${shouldPublish ? "publish" : "unpublish"} the marksheets`, error));
   } finally {
     publicationSaveInProgress = false;
     render();
