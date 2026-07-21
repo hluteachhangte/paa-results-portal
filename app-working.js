@@ -955,7 +955,8 @@ function firestoreSaveErrorMessage(action, error) {
     return `Could not ${action}: internet or Firestore connection is unavailable.`;
   }
   if (code === "invalid-argument") {
-    return `Could not ${action}: Firestore rejected one value as invalid.`;
+    const pathMatch = String(error?.message || "").match(/Path:\s*(.+)$/);
+    return `Could not ${action}: Firestore rejected one value as invalid${pathMatch ? ` (${pathMatch[1]})` : ""}.`;
   }
   return `Could not ${action}${code ? ` (${code})` : ""}. Please try again.`;
 }
@@ -964,6 +965,10 @@ async function saveAttendanceData() {
   if (attendanceSaveInProgress) return;
   if (selectedAttendanceEntryLocked()) {
     showToast("This attendance entry is locked by Administrator.");
+    return;
+  }
+  if (hasUnsavedMarkChanges()) {
+    showToast("Save marks before saving attendance.");
     return;
   }
   const changedSections = [...unsavedAttendanceSections];
@@ -1026,21 +1031,10 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
-    if (invalidValueMessage) {
-      showToast(invalidValueMessage);
-      return;
-    }
-    const hasPendingMarks = hasUnsavedMarkChanges();
     if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(
-        fieldUpdates,
-        hasPendingMarks ? null : structuredClone(state)
-      );
-    } else if (window.MarkHubFirebase?.saveAppState && !hasPendingMarks) {
-      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
     } else if (window.MarkHubFirebase?.saveAppState) {
-      throw new Error("Firebase field updates are not ready.");
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
       throw new Error("Firebase is not ready.");
     }
@@ -1070,20 +1064,6 @@ function buildUnsavedMarkFieldUpdates() {
   const addUpdate = (path, value) => {
     updates.set(JSON.stringify(path), { path, value });
   };
-  const cleanMarkRecord = (record = {}, change = {}) => {
-    const cleaned = {};
-    ["value", "project", "partA", "partB"].forEach((field) => {
-      if (Object.prototype.hasOwnProperty.call(record, field)) cleaned[field] = record[field] ?? "";
-    });
-    if (!Object.keys(cleaned).length) cleaned.value = "";
-    if (isActivitiesSubject(change.subject, change.className, change.exam)) {
-      delete cleaned.attendanceMarks;
-      if (!Object.prototype.hasOwnProperty.call(cleaned, "project")) {
-        cleaned.project = cleaned.value ?? "";
-      }
-    }
-    return cleaned;
-  };
 
   unsavedMarkChanges.forEach((change) => {
     if (change.type === "deleteSubject") {
@@ -1096,7 +1076,7 @@ function buildUnsavedMarkFieldUpdates() {
     }
 
     if (deletes.has(`${change.session}::${change.markKey}`)) return;
-    const value = cleanMarkRecord(state.marks?.[change.markKey]?.[change.roll] || { value: "" }, change);
+    const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
     const basePath = ["state", "sessions", change.session, "marks", change.markKey, change.roll];
     if (change.fieldKey === "partA" || change.fieldKey === "partB") {
       addUpdate([...basePath, change.fieldKey], value[change.fieldKey] ?? "");
@@ -1185,14 +1165,8 @@ async function saveAllMarks() {
     ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
-    const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
-    if (invalidValueMessage) {
-      showToast(invalidValueMessage);
-      return;
-    }
-
     if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
     } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
@@ -1200,9 +1174,14 @@ async function saveAllMarks() {
     }
 
     localStorage.setItem(storageKey, stateJson);
-    deferredFullStateSaveAfterMarks = false;
-    lastSyncedFirebaseStateJson = stateJson;
-    if (pendingFirebaseStateJson === stateJson || hadPendingFullStateSave) pendingFirebaseStateJson = "";
+    if (hadPendingFullStateSave && pendingFirebaseStateJson !== stateJson) {
+      deferredFullStateSaveAfterMarks = false;
+      queueFirebaseStateSave();
+    } else {
+      deferredFullStateSaveAfterMarks = false;
+      lastSyncedFirebaseStateJson = stateJson;
+      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
+    }
     unsavedMarkChanges.clear();
     showToast("Marks saved successfully.");
   } catch (error) {
@@ -9277,9 +9256,7 @@ async function persistResultPublication(shouldPublish) {
       const fieldUpdates = [
         { path: ["state", "sessions", session, "published", key], value }
       ];
-      const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
-      if (invalidValueMessage) throw new Error(invalidValueMessage);
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
       const stateJson = JSON.stringify(state);
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
@@ -9353,9 +9330,7 @@ async function persistMarksheetPublication(shouldPublish) {
       const fieldUpdates = [
         { path: ["state", "sessions", session, "publishedMarksheets", key], value }
       ];
-      const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
-      if (invalidValueMessage) throw new Error(invalidValueMessage);
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
       const stateJson = JSON.stringify(state);
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";

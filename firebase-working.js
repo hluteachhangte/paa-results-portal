@@ -74,6 +74,10 @@ function shouldRewriteCompactState(error, fallbackState) {
     || message.includes("invalid data");
 }
 
+function fieldPathLabel(path = []) {
+  return path.map((segment) => String(segment ?? "")).join(" > ");
+}
+
 window.MarkHubFirebase = {
   app,
   db,
@@ -146,17 +150,18 @@ window.MarkHubFirebase = {
     if (!Array.isArray(fieldUpdates) || fieldUpdates.length === 0) return;
 
     const updatedAt = new Date().toISOString();
+    const validUpdates = fieldUpdates.filter(({ path }) =>
+      Array.isArray(path) && path.length > 0 && path.every((segment) => String(segment ?? "").trim() !== ""));
     const updateArgs = [];
-    fieldUpdates.forEach(({ path, value }) => {
-      if (!Array.isArray(path) || path.length === 0) return;
-      updateArgs.push(new FieldPath(...path), sanitizeFirestoreValue(value));
+    validUpdates.forEach(({ path, value }) => {
+      updateArgs.push(new FieldPath(...path.map((segment) => String(segment))), value);
     });
     updateArgs.push(new FieldPath("updatedAt"), updatedAt);
 
     try {
       await updateDoc(appStateRef, ...updateArgs);
       console.log("[Firestore] Batched mark field update success to appState/markhub", {
-        fields: fieldUpdates.length,
+        fields: validUpdates.length,
         updatedAt
       });
     } catch (error) {
