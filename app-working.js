@@ -885,6 +885,7 @@ function findInvalidFirestoreValue(value, path = []) {
   if (typeof value === "number" && !Number.isFinite(value)) return { path, reason: "invalid number" };
   if (typeof value === "function" || typeof value === "symbol") return { path, reason: "unsupported value" };
   if (value === null || typeof value !== "object") return null;
+  if (typeof value._methodName === "string") return null;
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index += 1) {
       const invalid = findInvalidFirestoreValue(value[index], [...path, String(index)]);
@@ -913,16 +914,21 @@ function invalidFirestoreUpdateMessage(fieldUpdates) {
   const path = (badUpdate.path || []).map(String);
   const attendanceIndex = path.indexOf("attendance");
   const measurementsIndex = path.indexOf("measurements");
+  const marksIndex = path.indexOf("marks");
   const section = attendanceIndex !== -1
     ? "Attendance"
     : measurementsIndex !== -1
       ? attendanceSectionLabel(path[measurementsIndex + 3])
-      : "Value";
+      : marksIndex !== -1
+        ? `Marks${path[marksIndex + 1] ? ` for ${path[marksIndex + 1].split("::")[2] || "subject"}` : ""}`
+        : "Value";
   const roll = attendanceIndex !== -1
     ? path[attendanceIndex + 2]
     : measurementsIndex !== -1
       ? path[measurementsIndex + 2]
-      : "";
+      : marksIndex !== -1
+        ? path[marksIndex + 2]
+        : "";
   const rollText = roll ? ` for Roll No. ${roll}` : "";
   return `${section}${rollText} has ${invalidValue.reason}. Clear and re-enter it before saving.`;
 }
@@ -1165,6 +1171,11 @@ async function saveAllMarks() {
     ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
+    const invalidValueMessage = invalidFirestoreUpdateMessage(fieldUpdates);
+    if (invalidValueMessage) {
+      showToast(invalidValueMessage);
+      return;
+    }
 
     if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
       await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
@@ -1187,13 +1198,7 @@ async function saveAllMarks() {
     showToast("Marks saved successfully.");
   } catch (error) {
     console.error("[Firestore] Save marks failed", error);
-    const code = String(error?.code || "").replace(/^firestore\//, "");
-    const message = code === "permission-denied"
-      ? "Could not save marks: Firestore write permission was denied."
-      : code === "resource-exhausted"
-        ? "Could not save marks: Firestore storage limit was reached."
-        : `Could not save marks${code ? ` (${code})` : ""}. Please try again.`;
-    showToast(message);
+    showToast(firestoreSaveErrorMessage("save marks", error));
   } finally {
     marksSaveInProgress = false;
     refreshMarksSaveControls();
