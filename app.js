@@ -956,7 +956,10 @@ function firestoreSaveErrorMessage(action, error) {
   }
   if (code === "invalid-argument") {
     const pathMatch = String(error?.message || "").match(/Path:\s*(.+)$/);
-    return `Could not ${action}: Firestore rejected one value as invalid${pathMatch ? ` (${pathMatch[1]})` : ""}.`;
+    const detail = pathMatch
+      ? pathMatch[1]
+      : String(error?.message || "").replace(/\s+/g, " ").slice(0, 180);
+    return `Could not ${action}: Firestore rejected one value as invalid${detail ? ` (${detail})` : ""}.`;
   }
   return `Could not ${action}${code ? ` (${code})` : ""}. Please try again.`;
 }
@@ -1053,9 +1056,26 @@ async function saveAttendanceData() {
   }
 }
 
-function buildUnsavedMarkFieldUpdates() {
+function cleanEntryRecordForFirestore(record = {}, change = {}) {
+  const cleaned = {};
+  ["value", "project", "partA", "partB"].forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(record, field)) return;
+    const value = record[field];
+    cleaned[field] = value === undefined || value === null ? "" : value;
+  });
+  if (!Object.keys(cleaned).length) cleaned.value = "";
+  if (isActivitiesSubject(change.subject, change.className, change.exam)) {
+    delete cleaned.attendanceMarks;
+    if (!Object.prototype.hasOwnProperty.call(cleaned, "project")) {
+      cleaned.project = cleaned.value;
+    }
+  }
+  return cleaned;
+}
+
+function buildUnsavedMarkFieldUpdates(changes = [...unsavedMarkChanges.values()]) {
   const deletes = new Set(
-    [...unsavedMarkChanges.values()]
+    changes
       .filter((change) => change.type === "deleteSubject")
       .map((change) => `${change.session}::${change.markKey}`)
   );
@@ -1065,7 +1085,7 @@ function buildUnsavedMarkFieldUpdates() {
     updates.set(JSON.stringify(path), { path, value });
   };
 
-  unsavedMarkChanges.forEach((change) => {
+  changes.forEach((change) => {
     if (change.type === "deleteSubject") {
       if (!deleteValue) return;
       addUpdate(
@@ -1076,7 +1096,7 @@ function buildUnsavedMarkFieldUpdates() {
     }
 
     if (deletes.has(`${change.session}::${change.markKey}`)) return;
-    const value = state.marks?.[change.markKey]?.[change.roll] || { value: "" };
+    const value = cleanEntryRecordForFirestore(state.marks?.[change.markKey]?.[change.roll] || { value: "" }, change);
     const basePath = ["state", "sessions", change.session, "marks", change.markKey, change.roll];
     if (change.fieldKey === "partA" || change.fieldKey === "partB") {
       addUpdate([...basePath, change.fieldKey], value[change.fieldKey] ?? "");
@@ -1137,8 +1157,16 @@ async function saveAllMarks() {
   refreshMarksSaveControls();
 
   try {
+    const currentContextChanges = [...unsavedMarkChanges.values()].filter((change) =>
+      change.className === selectedClass()
+      && change.exam === selectedExam()
+      && change.subject === selectedSubject());
+    if (currentContextChanges.length === 0) {
+      showToast("No mark changes to save.");
+      return;
+    }
     const changedContexts = [...new Map(
-      [...unsavedMarkChanges.values()].map((change) => [
+      currentContextChanges.map((change) => [
         `${change.className}\u0000${change.exam}\u0000${change.subject}`,
         change
       ])
@@ -1154,7 +1182,7 @@ async function saveAllMarks() {
     syncActiveSessionData();
     const stateJson = JSON.stringify(state);
     const fieldUpdates = [
-      ...buildUnsavedMarkFieldUpdates(),
+      ...buildUnsavedMarkFieldUpdates(currentContextChanges),
       ...changedContexts.flatMap((change) => {
         const key = dataEntryUpdateKey("marks", change.className, change.exam, change.subject);
         const value = state.dataEntryUpdates[key];
@@ -1182,7 +1210,12 @@ async function saveAllMarks() {
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
     }
-    unsavedMarkChanges.clear();
+    const savedContextKeys = new Set(currentContextChanges.map((change) => `${change.className}\u0000${change.exam}\u0000${change.subject}`));
+    [...unsavedMarkChanges.entries()].forEach(([key, change]) => {
+      if (savedContextKeys.has(`${change.className}\u0000${change.exam}\u0000${change.subject}`)) {
+        unsavedMarkChanges.delete(key);
+      }
+    });
     showToast("Marks saved successfully.");
   } catch (error) {
     console.error("[Firestore] Save marks failed", error);
