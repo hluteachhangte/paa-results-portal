@@ -844,15 +844,19 @@ function buildAttendanceSectionFieldUpdates(section, className, term) {
       value: state.workingDays[term]
     });
     students.forEach((student) => {
+      const rollKey = studentRollFieldKey(student);
+      if (!rollKey) return;
       updates.push({
-        path: ["state", "sessions", session, "attendance", key, String(student.roll)],
+        path: ["state", "sessions", session, "attendance", key, rollKey],
         value: getStudentAttendance(student, className, term)
       });
     });
   } else {
     students.forEach((student) => {
+      const rollKey = studentRollFieldKey(student);
+      if (!rollKey) return;
       updates.push({
-        path: ["state", "sessions", session, "measurements", key, String(student.roll), section],
+        path: ["state", "sessions", session, "measurements", key, rollKey, section],
         value: getStudentMeasurement(student, className, term)[section]
       });
     });
@@ -860,8 +864,68 @@ function buildAttendanceSectionFieldUpdates(section, className, term) {
   return updates;
 }
 
+function studentRollFieldKey(student) {
+  return String(student?.roll ?? "").trim();
+}
+
+function invalidStudentRollMessage(className) {
+  const invalidStudents = (state.classes[className] || [])
+    .map((student, index) => ({ student, index }))
+    .filter(({ student }) => !studentRollFieldKey(student));
+  if (invalidStudents.length === 0) return "";
+  const names = invalidStudents
+    .slice(0, 3)
+    .map(({ student, index }) => student?.name || `row ${index + 1}`)
+    .join(", ");
+  return `Cannot save ${className}: blank Roll No. found for ${names}. Fix Roll No. in Students page.`;
+}
+
+function invalidFirestoreValueMessage(fieldUpdates) {
+  const badUpdate = fieldUpdates.find(({ value }) =>
+    typeof value === "number" && !Number.isFinite(value));
+  if (!badUpdate) return "";
+  const path = (badUpdate.path || []).map(String);
+  const attendanceIndex = path.indexOf("attendance");
+  const measurementsIndex = path.indexOf("measurements");
+  const section = attendanceIndex !== -1
+    ? "Attendance"
+    : measurementsIndex !== -1
+      ? attendanceSectionLabel(path[measurementsIndex + 3])
+      : "Value";
+  const roll = attendanceIndex !== -1
+    ? path[attendanceIndex + 2]
+    : measurementsIndex !== -1
+      ? path[measurementsIndex + 2]
+      : "";
+  const rollText = roll ? ` for Roll No. ${roll}` : "";
+  return `${section}${rollText} has an invalid number. Clear and re-enter it before saving.`;
+}
+
 function attendanceSectionLabel(section) {
   return section === "attendance" ? "Attendance" : section === "height" ? "Height" : "Weight";
+}
+
+function firestoreSaveErrorMessage(action, error) {
+  const code = String(error?.code || "").replace(/^firestore\//, "");
+  if (String(error?.message || "").includes("Firebase is not ready")) {
+    return `Could not ${action}: Firebase is not ready. Refresh the page and try again.`;
+  }
+  if (String(error?.message || "").includes("Firebase field updates are not ready")) {
+    return `Could not ${action}: save marks first, then try attendance again.`;
+  }
+  if (code === "permission-denied") {
+    return `Could not ${action}: Firestore write permission was denied.`;
+  }
+  if (code === "resource-exhausted") {
+    return `Could not ${action}: Firestore storage limit was reached.`;
+  }
+  if (code === "unavailable") {
+    return `Could not ${action}: internet or Firestore connection is unavailable.`;
+  }
+  if (code === "invalid-argument") {
+    return `Could not ${action}: Firestore rejected one value as invalid.`;
+  }
+  return `Could not ${action}${code ? ` (${code})` : ""}. Please try again.`;
 }
 
 async function saveAttendanceData() {
@@ -870,13 +934,15 @@ async function saveAttendanceData() {
     showToast("This attendance entry is locked by Administrator.");
     return;
   }
-  if (hasUnsavedMarkChanges()) {
-    showToast("Save marks before saving attendance.");
-    return;
-  }
   const changedSections = [...unsavedAttendanceSections];
   if (changedSections.length === 0) {
     showToast("No attendance or measurement changes to save.");
+    return;
+  }
+  const className = selectedAttendanceClass();
+  const rollMessage = invalidStudentRollMessage(className);
+  if (rollMessage) {
+    showToast(rollMessage);
     return;
   }
   if (changedSections.includes("attendance")
@@ -906,7 +972,6 @@ async function saveAttendanceData() {
   refreshAttendanceSaveControls();
 
   try {
-    const className = selectedAttendanceClass();
     const term = selectedAttendanceTerm();
     const updatedAt = new Date().toISOString();
     state.dataEntryUpdates = state.dataEntryUpdates || {};
@@ -929,10 +994,24 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    if (!window.MarkHubFirebase?.updateAppStateFields) {
+    const invalidValueMessage = invalidFirestoreValueMessage(fieldUpdates);
+    if (invalidValueMessage) {
+      showToast(invalidValueMessage);
+      return;
+    }
+    const hasPendingMarks = hasUnsavedMarkChanges();
+    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+      await window.MarkHubFirebase.updateAppStateFields(
+        fieldUpdates,
+        hasPendingMarks ? null : structuredClone(state)
+      );
+    } else if (window.MarkHubFirebase?.saveAppState && !hasPendingMarks) {
+      await window.MarkHubFirebase.saveAppState(structuredClone(state));
+    } else if (window.MarkHubFirebase?.saveAppState) {
+      throw new Error("Firebase field updates are not ready.");
+    } else {
       throw new Error("Firebase is not ready.");
     }
-    await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
     changedSections.forEach((section) => unsavedAttendanceSections.delete(section));
     unsavedAttendanceChanges = unsavedAttendanceSections.size > 0;
     localStorage.setItem(storageKey, JSON.stringify(state));
@@ -941,7 +1020,7 @@ async function saveAttendanceData() {
     unsavedAttendanceChanges = true;
     changedSections.forEach((section) => unsavedAttendanceSections.add(section));
     console.error("[Firestore] Save attendance data failed", error);
-    showToast("Could not save attendance data. Please try again.");
+    showToast(firestoreSaveErrorMessage("save attendance data", error));
   } finally {
     attendanceSaveInProgress = "";
     refreshAttendanceSaveControls();
