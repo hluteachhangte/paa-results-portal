@@ -35,9 +35,15 @@ const duplicatedActiveSessionFields = [
 ];
 
 function compactStateForFirestore(state = {}) {
-  const compactState = sanitizeFirestoreValue({ ...state });
+  const compactState = sanitizeFirestoreValue({ ...state }, ["state"]);
   duplicatedActiveSessionFields.forEach((field) => delete compactState[field]);
   return compactState;
+}
+
+function isPlainObject(value) {
+  if (!value || Object.prototype.toString.call(value) !== "[object Object]") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function isFirestoreFieldValue(value) {
@@ -46,17 +52,51 @@ function isFirestoreFieldValue(value) {
     && typeof value._methodName === "string";
 }
 
-function sanitizeFirestoreValue(value) {
-  if (value === undefined) return null;
-  if (typeof value === "number" && !Number.isFinite(value)) return null;
-  if (typeof value === "function" || typeof value === "symbol") return null;
-  if (value === null || typeof value !== "object" || isFirestoreFieldValue(value)) return value;
-  if (Array.isArray(value)) return value.map((item) => sanitizeFirestoreValue(item));
+function sanitizeFirestoreValue(value, path = []) {
+  if (value === undefined) {
+    console.warn("[Firestore] Converted undefined value to null before saving.", { path: fieldPathLabel(path) });
+    return null;
+  }
+  if (typeof value === "number" && !Number.isFinite(value)) {
+    console.warn("[Firestore] Converted invalid number to null before saving.", { path: fieldPathLabel(path), value });
+    return null;
+  }
+  if (typeof value === "function" || typeof value === "symbol") {
+    console.warn("[Firestore] Removed unsupported value before saving.", { path: fieldPathLabel(path), type: typeof value });
+    return null;
+  }
+  if (isFirestoreFieldValue(value)) {
+    console.warn("[Firestore] Removed Firestore field sentinel from full-state save.", { path: fieldPathLabel(path) });
+    return null;
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  if (Array.isArray(value)) return value.map((item, index) => sanitizeFirestoreValue(item, [...path, String(index)]));
+  if (!isPlainObject(value)) {
+    console.warn("[Firestore] Converted custom object before saving.", {
+      path: fieldPathLabel(path),
+      type: Object.prototype.toString.call(value)
+    });
+    try {
+      return sanitizeFirestoreValue(JSON.parse(JSON.stringify(value)), path);
+    } catch {
+      return null;
+    }
+  }
 
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([, entryValue]) => entryValue !== undefined)
-      .map(([key, entryValue]) => [key, sanitizeFirestoreValue(entryValue)])
+      .filter(([key]) => {
+        const validKey = String(key).trim() !== "" && !/^__.*__$/.test(String(key));
+        if (!validKey) {
+          console.warn("[Firestore] Removed invalid field name before saving.", {
+            path: fieldPathLabel([...path, String(key)]),
+            key
+          });
+        }
+        return validKey;
+      })
+      .map(([key, entryValue]) => [key, sanitizeFirestoreValue(entryValue, [...path, key])])
   );
 }
 
