@@ -7653,6 +7653,10 @@ body.print-marksheets .marksheet .failed-mark {
   font-size: 10pt !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-class-one tbody td[data-result-role="result"] {
+  font-size: 12pt !important;
+}
+
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"],
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="component"],
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="grade"],
@@ -8574,6 +8578,42 @@ body.print-marksheets .marksheet .failed-mark {
   min-width: 1180px;
 }
 
+.performance-change-table th,
+.performance-change-table td {
+  padding: 5px 7px;
+  font-size: 0.72rem;
+  line-height: 1.18;
+  vertical-align: middle;
+}
+
+.performance-change-table th {
+  white-space: nowrap;
+}
+
+.performance-change-table td {
+  white-space: nowrap;
+}
+
+.performance-change-table td:first-child {
+  min-width: 150px;
+  max-width: 190px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.performance-change-table td:nth-child(12) {
+  min-width: 240px;
+  max-width: 320px;
+  white-space: normal;
+  line-height: 1.22;
+}
+
+.performance-change-table .analysis-status-badge {
+  padding: 3px 7px;
+  font-size: 0.66rem;
+  line-height: 1.1;
+}
+
 .performance-change-table tbody tr {
   cursor: pointer;
 }
@@ -8595,6 +8635,16 @@ body.print-marksheets .marksheet .failed-mark {
   border: 1px solid #b8d6ce;
   border-radius: 6px;
   background: #f8fbfa;
+}
+
+.performance-change-detail .analysis-table th:nth-child(n + 2),
+.performance-change-detail .analysis-table td:nth-child(n + 2) {
+  text-align: center;
+}
+
+.performance-change-detail .analysis-table th:first-child,
+.performance-change-detail .analysis-table td:first-child {
+  text-align: left;
 }
 
 .performance-detail-metrics {

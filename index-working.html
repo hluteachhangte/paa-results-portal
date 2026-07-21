@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=early-years-pdf-values-20260720-109">
+  <link rel="stylesheet" href="./styles.css?v=performance-detail-table-align-20260720-117">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -790,9 +790,8 @@
                   <option value="improvement">Highest Improvement</option>
                   <option value="decline">Highest Decline</option>
                   <option value="percentage">Percentage Change</option>
-                  <option value="relative">Relative Change</option>
-                  <option value="percentile">Percentile Change</option>
-                  <option value="classification">Classification</option>
+                  <option value="relative">Class Average Context</option>
+                  <option value="classification">Status</option>
                 </select></label>
               </div>
               <p id="performanceChangeMessage" class="performance-change-message"></p>
@@ -800,7 +799,7 @@
               <p id="performanceChangeClassSummary" class="performance-change-class-summary"></p>
               <div class="analysis-table-wrap performance-change-class-wrap">
                 <table class="analysis-table performance-change-class-table">
-                  <thead><tr><th>Class</th><th>Students</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <thead><tr><th>Class</th><th>Students</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Average Change</th><th>Progressing Well</th><th>Stable</th><th>Monitor</th><th>Support</th></tr></thead>
                   <tbody id="performanceChangeClassBody"></tbody>
                 </table>
               </div>
@@ -814,18 +813,18 @@
               </div>
               <div class="analysis-table-wrap performance-change-subject-wrap">
                 <table class="analysis-table performance-change-subject-table">
-                  <thead><tr><th>Subject</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Avg. Change</th><th>First Pass %</th><th>Comparison Pass %</th><th>Pass % Change</th><th>Improved</th><th>Stable</th><th>Declined</th></tr></thead>
+                  <thead><tr><th>Subject</th><th>First Avg. %</th><th>Comparison Avg. %</th><th>Average Change</th><th>Highest Improvement</th><th>Needs Attention</th></tr></thead>
                   <tbody id="performanceChangeSubjectBody"></tbody>
                 </table>
               </div>
               <div class="analysis-table-wrap performance-change-table-wrap">
                 <table class="analysis-table performance-change-table">
-                  <thead><tr><th>Student Name</th><th>Roll No.</th><th>First Exam %</th><th>Comparison Exam %</th><th>Percentage Change</th><th>First Relative</th><th>Comparison Relative</th><th>Relative Change</th><th>First Percentile</th><th>Comparison Percentile</th><th>Percentile Change</th><th>Classification</th></tr></thead>
+                  <thead><tr><th>Student Name</th><th>Roll No.</th><th>First Exam %</th><th>Comparison Exam %</th><th>Percentage Change</th><th>First Exam Class Average</th><th>Comparison Exam Class Average</th><th>First Difference from Class Average</th><th>Comparison Difference from Class Average</th><th>Change in Difference from Class Average</th><th>Status</th><th>Interpretation</th></tr></thead>
                   <tbody id="performanceChangeBody"></tbody>
                 </table>
               </div>
               <div id="performanceChangeStudentDetail" class="performance-change-detail hidden"></div>
-              <p class="performance-change-disclaimer">Performance comparisons between different examination types should be interpreted carefully. Differences in maximum marks, syllabus coverage, examination difficulty, and question patterns may influence results. Performance Change indicates differences in observed results and does not necessarily represent definitive academic growth.</p>
+              <p class="performance-change-disclaimer">Performance Change compares standardized percentages and class-average context. Different examinations may vary in syllabus coverage, difficulty, and question pattern. This analysis should be used for support and planning, not for ranking students.</p>
             </section>
           </div>
 
@@ -915,10 +914,10 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=compact-firestore-save-20260703"></script>
+  <script type="module" src="./firebase.js?v=firestore-invalid-argument-fallback-20260721"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=auto-result-pdf-pagination-20260720-110"></script>
+  <script src="./app.js?v=performance-detail-table-align-20260720-117"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
 </body>
 </html>

@@ -6054,28 +6054,15 @@ function performanceChangeDirection(value, threshold = performanceChangeToleranc
 }
 
 function performanceChangeClassification(percentageChange, relativeChange) {
+  if (!Number.isFinite(Number(percentageChange)) || !Number.isFinite(Number(relativeChange))) {
+    return "Additional Support Recommended";
+  }
   const percentageDirection = performanceChangeDirection(percentageChange);
   const relativeDirection = performanceChangeDirection(relativeChange);
-  const classifications = {
-    "Improved|Improved": "Strong Improvement",
-    "Improved|Stable": "Improvement",
-    "Improved|Declined": "Mixed Progress",
-    "Stable|Improved": "Relative Improvement",
-    "Stable|Stable": "Stable",
-    "Stable|Declined": "Needs Monitoring",
-    "Declined|Improved": "Mixed Progress",
-    "Declined|Stable": "Decline",
-    "Declined|Declined": "Significant Decline"
-  };
-  return classifications[`${percentageDirection}|${relativeDirection}`] || "Stable";
-}
-
-function performancePercentile(value, classValues) {
-  const values = classValues.map(Number).filter(Number.isFinite);
-  if (values.length < 2) return null;
-  const below = values.filter((item) => item < value).length;
-  const tied = values.filter((item) => Math.abs(item - value) < 0.0001).length;
-  return ((below + ((tied - 1) / 2)) / (values.length - 1)) * 100;
+  if (percentageDirection === "Improved" && relativeDirection !== "Declined") return "Progressing Well";
+  if (percentageDirection === "Declined" && relativeDirection === "Declined") return "Additional Support Recommended";
+  if (percentageDirection === "Declined" || relativeDirection === "Declined") return "Monitor Progress";
+  return "Stable Performance";
 }
 
 function performanceSubjectComparisons(firstRecord, comparisonRecord) {
@@ -6092,9 +6079,18 @@ function performanceSubjectComparisons(firstRecord, comparisonRecord) {
       comparisonPercentage,
       change: comparisonPercentage - firstPercentage,
       firstPassed: firstSubject.passed,
-      comparisonPassed: comparisonSubject.passed
+      comparisonPassed: comparisonSubject.passed,
+      status: performanceSubjectChangeStatus(comparisonPercentage - firstPercentage, firstSubject.passed, comparisonSubject.passed)
     }];
   });
+}
+
+function performanceSubjectChangeStatus(change, firstPassed, comparisonPassed) {
+  if (!firstPassed || !comparisonPassed) return "Additional Support Recommended";
+  const direction = performanceChangeDirection(change);
+  if (direction === "Improved") return "Progressing Well";
+  if (direction === "Declined") return "Monitor Progress";
+  return "Stable Performance";
 }
 
 function performanceChangeSubjectMetrics(records) {
@@ -6110,8 +6106,8 @@ function performanceChangeSubjectMetrics(records) {
     const comparisonPassed = entries.filter((entry) => entry.comparisonPassed).length;
     const firstAverage = average(entries.map((entry) => entry.firstPercentage));
     const comparisonAverage = average(entries.map((entry) => entry.comparisonPercentage));
-    const directionCount = (direction) => entries.filter((entry) =>
-      performanceChangeDirection(entry.change) === direction).length;
+    const statusCount = (status) => entries.filter((entry) => entry.status === status).length;
+    const highestImprovement = [...entries].sort((a, b) => b.change - a.change)[0];
     return {
       subject,
       firstAverage,
@@ -6122,9 +6118,12 @@ function performanceChangeSubjectMetrics(records) {
       passPercentageChange: entries.length
         ? ((comparisonPassed - firstPassed) / entries.length) * 100
         : 0,
-      improved: directionCount("Improved"),
-      stable: directionCount("Stable"),
-      declined: directionCount("Declined")
+      progressing: statusCount("Progressing Well"),
+      stable: statusCount("Stable Performance"),
+      monitor: statusCount("Monitor Progress"),
+      support: statusCount("Additional Support Recommended"),
+      highestImprovement: highestImprovement ? highestImprovement.change : 0,
+      attention: statusCount("Monitor Progress") + statusCount("Additional Support Recommended")
     };
   }).sort((a, b) => b.averageChange - a.averageChange);
 }
@@ -6136,8 +6135,7 @@ function performanceChangeClassMetrics(records) {
     const comparisonAverage = average(classRecords.map((record) => record.comparison.percentage));
     const firstPassed = classRecords.filter((record) => record.first.result !== "Fail").length;
     const comparisonPassed = classRecords.filter((record) => record.comparison.result !== "Fail").length;
-    const countDirection = (direction) => classRecords.filter((record) =>
-      performanceChangeDirection(record.percentageChange) === direction).length;
+    const countStatus = (status) => classRecords.filter((record) => record.classification === status).length;
     return {
       className,
       students: classRecords.length,
@@ -6149,9 +6147,10 @@ function performanceChangeClassMetrics(records) {
       passPercentageChange: classRecords.length
         ? ((comparisonPassed - firstPassed) / classRecords.length) * 100
         : 0,
-      improved: countDirection("Improved"),
-      stable: countDirection("Stable"),
-      declined: countDirection("Declined")
+      progressing: countStatus("Progressing Well"),
+      stable: countStatus("Stable Performance"),
+      monitor: countStatus("Monitor Progress"),
+      support: countStatus("Additional Support Recommended")
     };
   });
 }
@@ -6220,14 +6219,14 @@ function buildPerformanceChangeData(session, classes, fromExam, toExam, subjectF
     const comparisonRelative = comparison.percentage - comparisonClassAverage;
     const percentageChange = comparison.percentage - first.percentage;
     const relativeChange = comparisonRelative - firstRelative;
-    const firstPercentile = performancePercentile(first.percentage, firstValues);
-    const comparisonPercentile = performancePercentile(comparison.percentage, comparisonValues);
-    const percentileChange = firstPercentile === null || comparisonPercentile === null
-      ? null
-      : comparisonPercentile - firstPercentile;
     const subjectChanges = performanceSubjectComparisons(first, comparison);
     const strongest = [...subjectChanges].sort((a, b) => b.change - a.change)[0] || null;
     const largestDecline = [...subjectChanges].sort((a, b) => a.change - b.change)[0] || null;
+    const failedOrAbsent = first.result === "Fail" || comparison.result === "Fail"
+      || !first.appeared || !comparison.appeared;
+    const classification = failedOrAbsent
+      ? "Additional Support Recommended"
+      : performanceChangeClassification(percentageChange, relativeChange);
     return [{
       key,
       roll: first.roll,
@@ -6241,10 +6240,7 @@ function buildPerformanceChangeData(session, classes, fromExam, toExam, subjectF
       comparisonRelative,
       percentageChange,
       relativeChange,
-      firstPercentile,
-      comparisonPercentile,
-      percentileChange,
-      classification: performanceChangeClassification(percentageChange, relativeChange),
+      classification,
       subjectChanges,
       strongest,
       largestDecline
@@ -6307,9 +6303,9 @@ function buildRepeatedPerformanceDeclineWarnings(session, classes, subjectFilter
 }
 
 function performanceChangeClassName(classification) {
-  if (["Strong Improvement", "Improvement", "Relative Improvement"].includes(classification)) return "is-improving";
-  if (classification === "Stable") return "is-stable";
-  if (classification === "Mixed Progress" || classification === "Needs Monitoring") return "is-medium";
+  if (classification === "Progressing Well") return "is-improving";
+  if (classification === "Stable Performance") return "is-stable";
+  if (classification === "Monitor Progress") return "is-medium";
   return "is-declining";
 }
 
@@ -6358,30 +6354,55 @@ function performanceCountBarChart(items) {
 
 function performanceChangeInterpretation(record) {
   if (!record) return "";
-  if (record.classification === "Strong Improvement") {
-    return "Performance improved in both absolute percentage and relative class position.";
+  const first = record.first.percentage.toFixed(2);
+  const comparison = record.comparison.percentage.toFixed(2);
+  const firstAverage = record.firstClassAverage.toFixed(2);
+  const comparisonAverage = record.comparisonClassAverage.toFixed(2);
+  const firstRelative = signedAnalysisValue(record.firstRelative);
+  const comparisonRelative = signedAnalysisValue(record.comparisonRelative);
+  if (record.classification === "Progressing Well") {
+    return `The student's percentage increased from ${first}% to ${comparison}%. Compared with the class average, the position changed from ${firstRelative} to ${comparisonRelative}, showing healthy progress.`;
   }
-  if (record.classification === "Mixed Progress") {
-    return "Percentage and class-relative movement differ, so the change should be interpreted cautiously.";
+  if (record.classification === "Stable Performance") {
+    return `The student's percentage changed from ${first}% to ${comparison}%, while the class average changed from ${firstAverage}% to ${comparisonAverage}%. Performance is broadly stable.`;
   }
-  if (record.classification === "Stable") {
-    return "Performance remained generally stable between the two examinations.";
+  if (record.classification === "Monitor Progress") {
+    return `The student's percentage changed from ${first}% to ${comparison}%. The difference from class average changed from ${firstRelative} to ${comparisonRelative}, so progress should be monitored.`;
   }
-  if (["Decline", "Significant Decline", "Needs Monitoring"].includes(record.classification)) {
-    return "Percentage or relative class performance declined. Additional academic support may be helpful.";
-  }
-  return "Observed performance changed between the two examinations.";
+  return `The student's percentage changed from ${first}% to ${comparison}%. The result, absence, or class-average context indicates that additional academic support is recommended.`;
+}
+
+function performanceChangeStrengths(record) {
+  const strengths = [];
+  if (record.percentageChange > performanceChangeTolerance) strengths.push(`Overall percentage improved by ${record.percentageChange.toFixed(2)} percentage points.`);
+  if (record.relativeChange > -performanceChangeTolerance) strengths.push("Performance stayed close to, or improved against, the class-average context.");
+  if (record.strongest?.change > 0) strengths.push(`${record.strongest.subject} improved by ${record.strongest.change.toFixed(2)} percentage points.`);
+  return strengths.length ? strengths : ["No clear strength is identified from this comparison yet."];
+}
+
+function performanceChangeSupportAreas(record) {
+  const areas = [];
+  if (record.percentageChange < -performanceChangeTolerance) areas.push(`Overall percentage declined by ${Math.abs(record.percentageChange).toFixed(2)} percentage points.`);
+  if (record.relativeChange < -performanceChangeTolerance) areas.push(`Difference from class average declined by ${Math.abs(record.relativeChange).toFixed(2)} percentage points.`);
+  if (record.comparison.result === "Fail") areas.push(`Result is Fail in ${record.comparison.exam}.`);
+  if (record.largestDecline?.change < 0) areas.push(`${record.largestDecline.subject} declined by ${Math.abs(record.largestDecline.change).toFixed(2)} percentage points.`);
+  return areas.length ? areas : ["No major support area is flagged by this comparison."];
+}
+
+function performanceChangeRecommendation(record) {
+  if (record.classification === "Progressing Well") return "Continue the present learning support and provide enrichment where the student is improving strongly.";
+  if (record.classification === "Stable Performance") return "Maintain regular practice and monitor the next examination for sustained progress.";
+  if (record.classification === "Monitor Progress") return "Review the subject changes and give short, focused practice in areas where class-average context declined.";
+  return "Provide targeted support, check attendance and subject gaps, and review progress again after the next assessment.";
 }
 
 function sortPerformanceChangeRecords(records, sortBy) {
   const sorted = [...records];
   const classificationOrder = [
-    "Strong Improvement", "Improvement", "Relative Improvement", "Stable",
-    "Mixed Progress", "Needs Monitoring", "Decline", "Significant Decline"
+    "Progressing Well", "Stable Performance", "Monitor Progress", "Additional Support Recommended"
   ];
   if (sortBy === "decline") return sorted.sort((a, b) => a.percentageChange - b.percentageChange);
   if (sortBy === "relative") return sorted.sort((a, b) => b.relativeChange - a.relativeChange);
-  if (sortBy === "percentile") return sorted.sort((a, b) => (b.percentileChange ?? -Infinity) - (a.percentileChange ?? -Infinity));
   if (sortBy === "classification") return sorted.sort((a, b) =>
     classificationOrder.indexOf(a.classification) - classificationOrder.indexOf(b.classification));
   return sorted.sort((a, b) => b.percentageChange - a.percentageChange);
@@ -6394,8 +6415,9 @@ function renderPerformanceChangeStudentDetail(record, fromExam, toExam) {
     <div class="analysis-panel-head"><div><h4>${escapeHtml(record.name)}</h4><span>${escapeHtml(record.className)} | ${escapeHtml(fromExam)} to ${escapeHtml(toExam)}</span></div><button class="analysis-list-toggle" type="button" data-close-performance-detail>Close</button></div>
     <div class="performance-detail-metrics">
       <span>Percentage Change<strong>${signedAnalysisValue(record.percentageChange)}</strong></span>
-      <span>Class-Relative Change<strong>${signedAnalysisValue(record.relativeChange)}</strong></span>
-      <span>Percentile Change<strong>${signedAnalysisValue(record.percentileChange, " percentile points")}</strong></span>
+      <span>Class Average Difference Change<strong>${signedAnalysisValue(record.relativeChange)}</strong></span>
+      <span>${escapeHtml(fromExam)} Class Average<strong>${record.firstClassAverage.toFixed(2)}%</strong></span>
+      <span>${escapeHtml(toExam)} Class Average<strong>${record.comparisonClassAverage.toFixed(2)}%</strong></span>
       <span>Status<strong>${escapeHtml(record.classification)}</strong></span>
     </div>
     <div class="performance-student-slope" aria-label="Individual student performance trend">
@@ -6408,6 +6430,9 @@ function renderPerformanceChangeStudentDetail(record, fromExam, toExam) {
     </table></div>
     <p><strong>Strongest improvement:</strong> ${record.strongest && record.strongest.change > 0 ? `${escapeHtml(record.strongest.subject)} (${signedAnalysisValue(record.strongest.change)})` : "None identified"}</p>
     <p><strong>Largest decline:</strong> ${record.largestDecline && record.largestDecline.change < 0 ? `${escapeHtml(record.largestDecline.subject)} (${signedAnalysisValue(record.largestDecline.change)})` : "None identified"}</p>
+    <p><strong>Strengths:</strong> ${performanceChangeStrengths(record).map(escapeHtml).join(" ")}</p>
+    <p><strong>Areas for support:</strong> ${performanceChangeSupportAreas(record).map(escapeHtml).join(" ")}</p>
+    <p><strong>Recommendation:</strong> ${escapeHtml(performanceChangeRecommendation(record))}</p>
     <p>${escapeHtml(performanceChangeInterpretation(record))}</p>`;
 }
 
@@ -6427,25 +6452,22 @@ function renderPerformanceChangeAnalysis(data, fromExam, toExam, sortBy) {
     : "No sufficient data is available for this comparison.";
   els.performanceChangeSummary.innerHTML = [
     ["Students Compared", records.length, "is-neutral"],
-    ["Strong Improvement", count("Strong Improvement"), "is-positive"],
-    ["Improvement", count("Improvement"), "is-positive"],
-    ["Relative Improvement", count("Relative Improvement"), "is-positive"],
-    ["Stable", count("Stable"), "is-steady"],
-    ["Mixed Progress", count("Mixed Progress"), "is-warning"],
-    ["Needs Monitoring", count("Needs Monitoring"), "is-watch"],
-    ["Decline", count("Decline"), "is-negative"],
-    ["Significant Decline", count("Significant Decline"), "is-negative"]
+    ["Progressing Well", count("Progressing Well"), "is-positive"],
+    ["Stable Performance", count("Stable Performance"), "is-steady"],
+    ["Monitor Progress", count("Monitor Progress"), "is-watch"],
+    ["Additional Support", count("Additional Support Recommended"), "is-negative"]
   ].map(([label, value, className]) => `<article class="${className}"><span>${label}</span><strong>${value}</strong></article>`).join("");
   els.performanceChangeClassSummary.textContent = records.length
-    ? `${classes.length === 1 ? classes[0].className : "Selected classes"} average performance changed from ${firstAverage.toFixed(2)}% in ${fromExam} to ${comparisonAverage.toFixed(2)}% in ${toExam}, ${signedAnalysisValue(comparisonAverage - firstAverage)}. Of ${records.length} comparable students, ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Improved").length} improved, ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Stable").length} remained stable, and ${records.filter((record) => performanceChangeDirection(record.percentageChange) === "Declined").length} declined.`
+    ? `${classes.length === 1 ? classes[0].className : "Selected classes"} average performance changed from ${firstAverage.toFixed(2)}% in ${fromExam} to ${comparisonAverage.toFixed(2)}% in ${toExam}, ${signedAnalysisValue(comparisonAverage - firstAverage)}. Of ${records.length} comparable students, ${count("Progressing Well")} are progressing well, ${count("Stable Performance")} are stable, ${count("Monitor Progress")} need monitoring, and ${count("Additional Support Recommended")} need additional support.`
     : "";
   els.performanceChangeClassBody.innerHTML = classes.length
-    ? classes.map((item) => `<tr><td>${escapeHtml(item.className)}</td><td>${item.students}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${item.firstPassPercentage.toFixed(2)}%</td><td>${item.comparisonPassPercentage.toFixed(2)}%</td><td>${signedAnalysisValue(item.passPercentageChange)}</td><td>${item.improved}</td><td>${item.stable}</td><td>${item.declined}</td></tr>`).join("")
-    : '<tr><td colspan="11">No comparable class data.</td></tr>';
+    ? classes.map((item) => `<tr><td>${escapeHtml(item.className)}</td><td>${item.students}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${item.progressing}</td><td>${item.stable}</td><td>${item.monitor}</td><td>${item.support}</td></tr>`).join("")
+    : '<tr><td colspan="9">No comparable class data.</td></tr>';
   els.performanceChangeOverallChart.innerHTML = performanceCountBarChart([
-    { label: "Improved", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Improved").length },
-    { label: "Stable", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Stable").length },
-    { label: "Declined", value: records.filter((record) => performanceChangeDirection(record.percentageChange) === "Declined").length }
+    { label: "Progressing Well", value: count("Progressing Well") },
+    { label: "Stable Performance", value: count("Stable Performance") },
+    { label: "Monitor Progress", value: count("Monitor Progress") },
+    { label: "Additional Support", value: count("Additional Support Recommended") }
   ]);
   els.performanceChangeDistributionChart.innerHTML = performanceChangeHistogram(records);
   els.performanceChangeExamChart.innerHTML = performanceGroupedBarChart([
@@ -6461,19 +6483,18 @@ function renderPerformanceChangeAnalysis(data, fromExam, toExam, sortBy) {
     toExam
   );
   els.performanceChangeSubjectBody.innerHTML = data.subjectMetrics.length
-    ? data.subjectMetrics.map((item) => `<tr><td>${escapeHtml(item.subject)}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${item.firstPassPercentage.toFixed(2)}%</td><td>${item.comparisonPassPercentage.toFixed(2)}%</td><td>${signedAnalysisValue(item.passPercentageChange)}</td><td>${item.improved}</td><td>${item.stable}</td><td>${item.declined}</td></tr>`).join("")
-    : '<tr><td colspan="10">No comparable subject data.</td></tr>';
+    ? data.subjectMetrics.map((item) => `<tr><td>${escapeHtml(item.subject)}</td><td>${item.firstAverage.toFixed(2)}%</td><td>${item.comparisonAverage.toFixed(2)}%</td><td>${signedAnalysisValue(item.averageChange)}</td><td>${signedAnalysisValue(item.highestImprovement)}</td><td>${item.attention}</td></tr>`).join("")
+    : '<tr><td colspan="6">No comparable subject data.</td></tr>';
   els.performanceChangeBody.innerHTML = records.length
     ? records.map((record) => `<tr data-performance-student="${escapeAttr(encodeURIComponent(record.key))}" tabindex="0">
       <td>${escapeHtml(record.name)}</td><td>${record.roll}</td>
       <td>${record.first.percentage.toFixed(2)}%</td><td>${record.comparison.percentage.toFixed(2)}%</td>
       <td class="${record.percentageChange > 0 ? "analysis-positive-value" : record.percentageChange < 0 ? "analysis-negative-value" : ""}">${signedAnalysisValue(record.percentageChange)}</td>
+      <td>${record.firstClassAverage.toFixed(2)}%</td><td>${record.comparisonClassAverage.toFixed(2)}%</td>
       <td>${signedAnalysisValue(record.firstRelative)}</td><td>${signedAnalysisValue(record.comparisonRelative)}</td>
       <td>${signedAnalysisValue(record.relativeChange)}</td>
-      <td>${record.firstPercentile === null ? "-" : `${record.firstPercentile.toFixed(1)}th`}</td>
-      <td>${record.comparisonPercentile === null ? "-" : `${record.comparisonPercentile.toFixed(1)}th`}</td>
-      <td>${signedAnalysisValue(record.percentileChange, " percentile points")}</td>
       <td><span class="analysis-status-badge ${performanceChangeClassName(record.classification)}">${escapeHtml(record.classification)}</span></td>
+      <td>${escapeHtml(performanceChangeInterpretation(record))}</td>
     </tr>`).join("")
     : '<tr><td colspan="12">No sufficient data is available for this comparison.</td></tr>';
   return { ...data, records, firstAverage, comparisonAverage, firstPassPercentage, comparisonPassPercentage };
@@ -6576,17 +6597,20 @@ function renderAcademicAnalysis() {
   );
   const performanceWarnings = warningPerformanceChange.records
     .filter((record) =>
-      ["Significant Decline", "Needs Monitoring"].includes(record.classification)
+      ["Additional Support Recommended", "Monitor Progress"].includes(record.classification)
+      || record.first.result === "Fail"
       || record.comparison.result === "Fail")
     .map((record) => {
       const reasons = [];
-      if (record.classification === "Significant Decline") {
+      if (record.percentageChange < -performanceChangeTolerance) {
         reasons.push(`Performance declined by ${Math.abs(record.percentageChange).toFixed(2)} percentage points from ${progressFromExam} to ${progressToExam}`);
       }
       if (record.relativeChange < -performanceChangeTolerance) {
-        reasons.push(`relative class performance declined by ${Math.abs(record.relativeChange).toFixed(2)} percentage points`);
+        reasons.push(`Difference from class average declined by ${Math.abs(record.relativeChange).toFixed(2)} percentage points`);
       }
-      if (record.classification === "Needs Monitoring") reasons.push("Relative performance needs monitoring");
+      if (record.classification === "Monitor Progress") reasons.push("Progress should be monitored against class-average context");
+      if (record.classification === "Additional Support Recommended") reasons.push("Additional support recommended by performance comparison");
+      if (record.first.result === "Fail") reasons.push(`Failed in ${progressFromExam}`);
       if (record.comparison.result === "Fail") reasons.push(`Failed in ${progressToExam}`);
       return {
         roll: record.roll,
@@ -6596,10 +6620,10 @@ function renderAcademicAnalysis() {
         delta: record.percentageChange,
         appearedCount: 2,
         missedExams: 0,
-        failedExams: record.comparison.result === "Fail" ? 1 : 0,
+        failedExams: Number(record.first.result === "Fail") + Number(record.comparison.result === "Fail"),
         weakSubjects: record.comparison.failedSubjects || [],
-        riskScore: record.classification === "Significant Decline" ? 3 : 2,
-        riskLevel: record.classification === "Significant Decline" ? "High" : "Medium",
+        riskScore: record.classification === "Additional Support Recommended" ? 3 : 2,
+        riskLevel: record.classification === "Additional Support Recommended" ? "High" : "Medium",
         riskReasons: reasons
       };
     });
@@ -7698,13 +7722,12 @@ function exportAnalysisExcel() {
     "First Exam Percentage": Number(record.first.percentage.toFixed(2)),
     "Comparison Exam Percentage": Number(record.comparison.percentage.toFixed(2)),
     "Percentage Change": Number(record.percentageChange.toFixed(2)),
-    "First Relative Performance": Number(record.firstRelative.toFixed(2)),
-    "Comparison Relative Performance": Number(record.comparisonRelative.toFixed(2)),
-    "Relative Change": Number(record.relativeChange.toFixed(2)),
-    "First Percentile": record.firstPercentile === null ? "" : Number(record.firstPercentile.toFixed(2)),
-    "Comparison Percentile": record.comparisonPercentile === null ? "" : Number(record.comparisonPercentile.toFixed(2)),
-    "Percentile Change": record.percentileChange === null ? "" : Number(record.percentileChange.toFixed(2)),
-    Classification: record.classification,
+    "First Exam Class Average": Number(record.firstClassAverage.toFixed(2)),
+    "Comparison Exam Class Average": Number(record.comparisonClassAverage.toFixed(2)),
+    "First Difference from Class Average": Number(record.firstRelative.toFixed(2)),
+    "Comparison Difference from Class Average": Number(record.comparisonRelative.toFixed(2)),
+    "Change in Difference from Class Average": Number(record.relativeChange.toFixed(2)),
+    Status: record.classification,
     Interpretation: performanceChangeInterpretation(record)
   }));
   const performanceSubjectRows = data.performanceChange.subjectMetrics.map((item) => ({
@@ -7712,12 +7735,8 @@ function exportAnalysisExcel() {
     "First Exam Average Percentage": Number(item.firstAverage.toFixed(2)),
     "Comparison Exam Average Percentage": Number(item.comparisonAverage.toFixed(2)),
     "Average Change": Number(item.averageChange.toFixed(2)),
-    "First Exam Pass Percentage": Number(item.firstPassPercentage.toFixed(2)),
-    "Comparison Exam Pass Percentage": Number(item.comparisonPassPercentage.toFixed(2)),
-    "Pass Percentage Change": Number(item.passPercentageChange.toFixed(2)),
-    Improved: item.improved,
-    Stable: item.stable,
-    Declined: item.declined
+    "Highest Improvement": Number(item.highestImprovement.toFixed(2)),
+    "Students Needing Attention": item.attention
   }));
   const performanceClassRows = data.performanceChange.classMetrics.map((item) => ({
     Class: item.className,
@@ -7725,15 +7744,13 @@ function exportAnalysisExcel() {
     "First Exam Average Percentage": Number(item.firstAverage.toFixed(2)),
     "Comparison Exam Average Percentage": Number(item.comparisonAverage.toFixed(2)),
     "Average Change": Number(item.averageChange.toFixed(2)),
-    "First Exam Pass Percentage": Number(item.firstPassPercentage.toFixed(2)),
-    "Comparison Exam Pass Percentage": Number(item.comparisonPassPercentage.toFixed(2)),
-    "Pass Percentage Change": Number(item.passPercentageChange.toFixed(2)),
-    Improved: item.improved,
-    Stable: item.stable,
-    Declined: item.declined
+    "Progressing Well": item.progressing,
+    "Stable Performance": item.stable,
+    "Monitor Progress": item.monitor,
+    "Additional Support Recommended": item.support
   }));
   const disclaimerRows = [{
-    Note: "Performance comparisons between different examination types should be interpreted carefully. Differences in maximum marks, syllabus coverage, examination difficulty, and question patterns may influence results. Performance Change indicates differences in observed results and does not necessarily represent definitive academic growth."
+    Note: "Performance Change compares standardized percentages and class-average context. Different examinations may vary in syllabus coverage, difficulty, and question pattern. This analysis should be used for support and planning, not for ranking students."
   }];
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(overviewRows), "Overview");
   window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(classRows), "Class Analysis");
@@ -7952,6 +7969,7 @@ function applyResultPdfTableScale(page, scale) {
   const referenceTwelvePoint = table.classList.contains("result-pdf-reference-twelve-point");
   const classSixTerm = table.classList.contains("result-pdf-class-six-term");
   const classOneTwoTerm = table.classList.contains("result-pdf-class-i-term");
+  const classOnePdf = table.classList.contains("result-pdf-class-one");
   const classEightTerm = table.classList.contains("result-pdf-class-viii-term");
   const earlyYearsPdf = table.classList.contains("result-pdf-early-years");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
@@ -7983,11 +8001,16 @@ function applyResultPdfTableScale(page, scale) {
     const earlyYearsCompactValue = !isHeader
       && earlyYearsPdf
       && ["subject", "attendance", "measurement"].includes(role);
+    const classOneResultValue = !isHeader
+      && classOnePdf
+      && role === "result";
     const referenceCellTwelvePoint = !isHeader
       && referenceTwelvePoint
       && referenceFontRoles.includes(role);
     const pdfBaseFont = earlyYearsCompactValue
       ? 10
+      : classOneResultValue
+      ? 12
       : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
@@ -7997,6 +8020,8 @@ function applyResultPdfTableScale(page, scale) {
       : (!isHeader && baseFont === 10 ? 12 : baseFont);
     const pdfFont = earlyYearsCompactValue
       ? 10
+      : classOneResultValue
+      ? 12
       : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
@@ -8126,9 +8151,11 @@ function fitResultPdfNameColumn(table, rows, layout) {
 function applyResultPdfTableProfile(table, className, exam) {
   const term = termExams.includes(exam);
   const lowerClassPdf = classNames.slice(0, classNames.indexOf("Class IX")).includes(className);
+  const classOneToFive = ["Class I", "Class II", "Class III", "Class IV", "Class V"].includes(className);
+  const classOneStyleTerm = classOneToFive && term;
   const largeOneLine = (
     ["LKG", "UKG"].includes(className)
-    || ["Class I", "Class II", "Class III", "Class IV", "Class VII", "Class VIII"].includes(className)
+    || ["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VII", "Class VIII"].includes(className)
   ) && term;
   const subjectHeadOneLine = [
     "Class I", "Class II", "Class III", "Class IV", "Class V", "Class VI"
@@ -8144,6 +8171,7 @@ function applyResultPdfTableProfile(table, className, exam) {
       "Class II",
       "Class III",
       "Class IV",
+      "Class V",
       "Class VII",
       "Class VIII",
       "Class IX",
@@ -8152,10 +8180,11 @@ function applyResultPdfTableProfile(table, className, exam) {
   );
   table.classList.toggle("result-pdf-lkg-class-viii", lowerClassPdf);
   table.classList.toggle("result-pdf-early-years", ["LKG", "UKG"].includes(className));
+  table.classList.toggle("result-pdf-class-one", ["Class I", "Class II", "Class V"].includes(className));
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
-  table.classList.toggle("result-pdf-class-i-term", ["Class I", "Class II", "Class VIII"].includes(className) && term);
+  table.classList.toggle("result-pdf-class-i-term", classOneStyleTerm || (className === "Class VIII" && term));
   table.classList.toggle("result-pdf-class-viii-term", className === "Class VIII" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
 }
