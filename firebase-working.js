@@ -49,7 +49,8 @@ function isPlainObject(value) {
 function isFirestoreFieldValue(value) {
   return value
     && typeof value === "object"
-    && typeof value._methodName === "string";
+    && (typeof value._methodName === "string"
+      || String(value.constructor?.name || "").includes("FieldValue"));
 }
 
 function sanitizeFirestoreValue(value, path = []) {
@@ -194,7 +195,10 @@ window.MarkHubFirebase = {
       Array.isArray(path) && path.length > 0 && path.every((segment) => String(segment ?? "").trim() !== ""));
     const updateArgs = [];
     validUpdates.forEach(({ path, value }) => {
-      updateArgs.push(new FieldPath(...path.map((segment) => String(segment))), value);
+      updateArgs.push(
+        new FieldPath(...path.map((segment) => String(segment))),
+        isFirestoreFieldValue(value) ? value : sanitizeFirestoreValue(value, path)
+      );
     });
     updateArgs.push(new FieldPath("updatedAt"), updatedAt);
 
@@ -205,6 +209,34 @@ window.MarkHubFirebase = {
         updatedAt
       });
     } catch (error) {
+      const code = String(error?.code || "").replace(/^firestore\//, "");
+      if (code === "invalid-argument" && !fallbackState) {
+        console.warn("[Firestore] Batched field update rejected. Retrying one field at a time.", {
+          fields: validUpdates.length,
+          message: error?.message || ""
+        });
+        for (const { path, value } of validUpdates) {
+          const safeValue = isFirestoreFieldValue(value) ? value : sanitizeFirestoreValue(value, path);
+          try {
+            await updateDoc(appStateRef, new FieldPath(...path.map((segment) => String(segment))), safeValue);
+          } catch (fieldError) {
+            console.error("[Firestore] Single field update failed", {
+              path: fieldPathLabel(path),
+              value: safeValue,
+              code: fieldError?.code || "unknown",
+              message: fieldError?.message || ""
+            });
+            fieldError.message = `${fieldError.message || "Firestore field update failed"} Path: ${fieldPathLabel(path)}`;
+            throw fieldError;
+          }
+        }
+        await updateDoc(appStateRef, new FieldPath("updatedAt"), updatedAt);
+        console.log("[Firestore] Field-by-field update success to appState/markhub", {
+          fields: validUpdates.length,
+          updatedAt
+        });
+        return;
+      }
       if (shouldRewriteCompactState(error, fallbackState)) {
         console.warn("[Firestore] Rewriting appState/markhub in compact session format", {
           code: error?.code || "unknown"

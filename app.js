@@ -1031,7 +1031,9 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
+    } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
       throw new Error("Firebase is not ready.");
@@ -1163,7 +1165,9 @@ async function saveAllMarks() {
     ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
-    if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
+      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
+    } else if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
       throw new Error("Firebase is not ready.");
