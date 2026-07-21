@@ -1031,9 +1031,7 @@ async function saveAttendanceData() {
         value: state.dataEntryUpdates[updateKey]
       }))
     ];
-    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
-    } else if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
       throw new Error("Firebase is not ready.");
@@ -1165,9 +1163,7 @@ async function saveAllMarks() {
     ];
     const hadPendingFullStateSave = (pendingFirebaseStateJson && pendingFirebaseStateJson !== lastSyncedFirebaseStateJson)
       || deferredFullStateSaveAfterMarks;
-    if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
-    } else if (window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
       throw new Error("Firebase is not ready.");
@@ -9248,19 +9244,7 @@ async function persistResultPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.updateAppStateFields) {
-      const value = shouldPublish
-        ? publicationValue
-        : window.MarkHubFirebase.deleteFieldValue?.();
-      if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
-      const fieldUpdates = [
-        { path: ["state", "sessions", session, "published", key], value }
-      ];
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
-      const stateJson = JSON.stringify(state);
-      lastSyncedFirebaseStateJson = stateJson;
-      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
-    } else if (!hasUnsavedLocalChanges() && window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
       lastSyncedFirebaseStateJson = JSON.stringify(state);
     } else {
@@ -9322,19 +9306,7 @@ async function persistMarksheetPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.updateAppStateFields) {
-      const value = shouldPublish
-        ? publicationValue
-        : window.MarkHubFirebase.deleteFieldValue?.();
-      if (!shouldPublish && value === undefined) throw new Error("Firestore delete is not ready.");
-      const fieldUpdates = [
-        { path: ["state", "sessions", session, "publishedMarksheets", key], value }
-      ];
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, structuredClone(state));
-      const stateJson = JSON.stringify(state);
-      lastSyncedFirebaseStateJson = stateJson;
-      if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
-    } else if (!hasUnsavedLocalChanges() && window.MarkHubFirebase?.saveAppState) {
+    if (window.MarkHubFirebase?.saveAppState) {
       await window.MarkHubFirebase.saveAppState(structuredClone(state));
       lastSyncedFirebaseStateJson = JSON.stringify(state);
     } else {
