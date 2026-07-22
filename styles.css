@@ -4972,6 +4972,39 @@ body.print-marksheets .marksheet .failed-mark {
   font-size: 9pt !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="subject"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="component"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="grade"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="attendance"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="total"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="percentage"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="division"],
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="result"] {
+  text-align: center !important;
+  white-space: nowrap !important;
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+}
+
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="component"] .failed-mark,
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="subject"] .failed-mark,
+.result-pdf-page .result-pdf-table.result-pdf-upper-middle-term tbody td[data-result-role="grade"] .failed-mark {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  border-width: 1px !important;
+  border-radius: 999px !important;
+  font-size: 7.8pt !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+}
+
 .result-pdf-page .result-pdf-table.structured-results .vertical-header {
   position: relative !important;
   top: auto !important;
@@ -7687,13 +7720,13 @@ body.print-marksheets .marksheet .failed-mark {
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="component"] .failed-mark,
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="subject"] .failed-mark,
 .result-pdf-page .result-pdf-table.result-pdf-class-viii-term tbody td[data-result-role="grade"] .failed-mark {
-  min-width: 16px !important;
-  min-height: 16px !important;
-  width: 16px !important;
-  height: 16px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
   padding: 0 !important;
   border-width: 1px !important;
-  font-size: 7.5pt !important;
+  font-size: 7.8pt !important;
   line-height: 1 !important;
   vertical-align: middle !important;
 }

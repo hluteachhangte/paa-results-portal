@@ -8305,6 +8305,7 @@ function applyResultPdfTableScale(page, scale) {
   const classOneTwoTerm = table.classList.contains("result-pdf-class-i-term");
   const classOnePdf = table.classList.contains("result-pdf-class-one");
   const classEightTerm = table.classList.contains("result-pdf-class-viii-term");
+  const upperMiddleTerm = table.classList.contains("result-pdf-upper-middle-term");
   const earlyYearsPdf = table.classList.contains("result-pdf-early-years");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
@@ -8329,9 +8330,18 @@ function applyResultPdfTableScale(page, scale) {
     const classEightTotalOrPercentage = !isHeader
       && classEightTerm
       && ["total", "percentage"].includes(role);
-    const classEightCenteredValue = !isHeader
-      && classEightTerm
-      && ["subject", "component", "grade", "total", "percentage"].includes(role);
+    const upperMiddleMarkOrGrade = !isHeader
+      && upperMiddleTerm
+      && ["subject", "component", "grade"].includes(role);
+    const upperMiddleTotalOrPercentage = !isHeader
+      && upperMiddleTerm
+      && ["total", "percentage"].includes(role);
+    const upperMiddleCompactValue = !isHeader
+      && upperMiddleTerm
+      && ["attendance", "division", "result"].includes(role);
+    const upperMiddleCenteredValue = !isHeader
+      && upperMiddleTerm
+      && ["subject", "component", "grade", "attendance", "total", "percentage", "division", "result"].includes(role);
     const earlyYearsCompactValue = !isHeader
       && earlyYearsPdf
       && ["subject", "attendance", "measurement"].includes(role);
@@ -8345,6 +8355,12 @@ function applyResultPdfTableScale(page, scale) {
       ? 10
       : classOneResultValue
       ? 12
+      : upperMiddleMarkOrGrade
+      ? 9
+      : upperMiddleTotalOrPercentage
+      ? 10.5
+      : upperMiddleCompactValue
+      ? 9
       : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
@@ -8356,6 +8372,12 @@ function applyResultPdfTableScale(page, scale) {
       ? 10
       : classOneResultValue
       ? 12
+      : upperMiddleMarkOrGrade
+      ? 9
+      : upperMiddleTotalOrPercentage
+      ? 10.5
+      : upperMiddleCompactValue
+      ? 9
       : classEightMarkOrGrade
       ? 9
       : classEightTotalOrPercentage
@@ -8364,7 +8386,7 @@ function applyResultPdfTableScale(page, scale) {
       ? 12
       : Math.max(7, pdfBaseFont * scale);
     cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
-    if (classEightCenteredValue) {
+    if (upperMiddleCenteredValue) {
       cell.style.setProperty("text-align", "center", "important");
       cell.style.setProperty("white-space", "nowrap", "important");
     }
@@ -8408,6 +8430,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
     table.querySelectorAll("thead th br").forEach((breakElement) => breakElement.replaceWith(" "));
   }
   formatClassVIIIResultPdfHeaders(table);
+  rebalanceUpperMiddleResultPdfColumns(table);
   rebalanceClassVIIIResultPdfColumns(table);
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
@@ -8442,7 +8465,7 @@ function removeResultPdfRowColumnsByRole(row, roles) {
 function resultPdfTitleText() {
   const className = selectedClass();
   const exam = selectedExam();
-  if (["Class I", "Class II", "Class VIII"].includes(className) && termExams.includes(exam)) {
+  if (["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VIII"].includes(className) && termExams.includes(exam)) {
     return `${className} ${exam} Result : ${state.academicSession}`;
   }
   return `${className} ${exam} Result : Academic Session ${formatAcademicSession(state.academicSession)}`;
@@ -8465,8 +8488,12 @@ function fitResultPdfNameColumn(table, rows, layout) {
     context.measureText("STUDENT NAME").width
   );
   const tableWidthPx = layout.contentWidth * (96 / 25.4);
-  const desiredNameWidth = Math.min(280, Math.max(108, Math.ceil(longestNameWidth + 20)));
-  const desiredPercent = Math.min(24, Math.max(8, (desiredNameWidth / tableWidthPx) * 100));
+  const compactMarksLayout = table.classList.contains("result-pdf-upper-middle-term");
+  const maxNameWidth = compactMarksLayout ? 220 : 280;
+  const minNameWidth = compactMarksLayout ? 96 : 108;
+  const maxNamePercent = compactMarksLayout ? 18 : 24;
+  const desiredNameWidth = Math.min(maxNameWidth, Math.max(minNameWidth, Math.ceil(longestNameWidth + 20)));
+  const desiredPercent = Math.min(maxNamePercent, Math.max(8, (desiredNameWidth / tableWidthPx) * 100));
   const otherColumns = columns.filter((column) => column !== nameColumn);
   const otherWidthTotal = otherColumns.reduce(
     (sum, column) => sum + (Number.parseFloat(column.style.width) || 0),
@@ -8487,6 +8514,7 @@ function applyResultPdfTableProfile(table, className, exam) {
   const lowerClassPdf = classNames.slice(0, classNames.indexOf("Class IX")).includes(className);
   const classOneToFive = ["Class I", "Class II", "Class III", "Class IV", "Class V"].includes(className);
   const classOneStyleTerm = classOneToFive && term;
+  const upperMiddleTerm = ["Class VI", "Class VII", "Class VIII"].includes(className) && term;
   const largeOneLine = (
     ["LKG", "UKG"].includes(className)
     || ["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VII", "Class VIII"].includes(className)
@@ -8514,13 +8542,14 @@ function applyResultPdfTableProfile(table, className, exam) {
   );
   table.classList.toggle("result-pdf-lkg-class-viii", lowerClassPdf);
   table.classList.toggle("result-pdf-early-years", ["LKG", "UKG"].includes(className));
-  table.classList.toggle("result-pdf-class-one", ["Class I", "Class II", "Class V"].includes(className));
+  table.classList.toggle("result-pdf-class-one", ["Class I", "Class II", "Class III", "Class IV", "Class V"].includes(className));
   table.classList.toggle("result-pdf-large-one-line", largeOneLine);
   table.classList.toggle("result-pdf-subject-head-one-line", subjectHeadOneLine);
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
   table.classList.toggle("result-pdf-class-i-term", classOneStyleTerm || (className === "Class VIII" && term));
   table.classList.toggle("result-pdf-class-viii-term", className === "Class VIII" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
+  table.classList.toggle("result-pdf-upper-middle-term", upperMiddleTerm);
 }
 
 function isClassSixTermPdf(className, exam) {
@@ -8582,6 +8611,70 @@ function formatClassVIIIResultPdfHeaders(table) {
     if (replacement === "S. Development") {
       cell.classList.add("result-pdf-skill-development-header");
     }
+  });
+}
+
+function rebalanceUpperMiddleResultPdfColumns(table) {
+  if (!table.classList.contains("result-pdf-upper-middle-term")) return;
+  const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
+  if (!columns.length) return;
+
+  const columnLabels = Array.from({ length: columns.length }, () => []);
+  getResultHeaderGrid(table, columns.length).forEach(({ cell, start, span }) => {
+    const text = resultCellText(cell).toUpperCase();
+    for (let index = start; index < Math.min(columns.length, start + span); index += 1) {
+      if (text) columnLabels[index].push(text);
+    }
+  });
+
+  const widths = columns.map((column) => Number.parseFloat(column.style.width) || 0);
+  const targetByIndex = new Map();
+  columnLabels.forEach((labels, index) => {
+    const label = labels.join(" ");
+    const role = columns[index].dataset.resultRole || "";
+    if (label.includes("W.E.")) targetByIndex.set(index, Math.min(widths[index], 2.25));
+    if (label.includes("S. DEVELOPMENT") || label.includes("SKILL DEVELOPMENT")) {
+      targetByIndex.set(index, Math.max(widths[index], 3.4));
+    }
+    if (role === "attendance") targetByIndex.set(index, Math.min(widths[index], 2.5));
+    if (role === "total") targetByIndex.set(index, Math.max(widths[index], 5.6));
+    if (role === "percentage") targetByIndex.set(index, Math.max(widths[index], 4.8));
+    if (role === "division") targetByIndex.set(index, Math.max(widths[index], 2.7));
+    if (role === "result") targetByIndex.set(index, Math.max(widths[index], 3.7));
+  });
+
+  let delta = 0;
+  targetByIndex.forEach((target, index) => {
+    delta += target - widths[index];
+    widths[index] = target;
+  });
+
+  if (delta > 0.01) {
+    const shrinkable = columns
+      .map((column, index) => ({ column, index }))
+      .filter(({ column, index }) =>
+        (column.dataset.resultRole || "") === "component"
+        && widths[index] > 1.15
+        && !targetByIndex.has(index));
+    const capacity = shrinkable.reduce((sum, item) => sum + Math.max(0, widths[item.index] - 1.15), 0);
+    shrinkable.forEach((item) => {
+      if (!capacity) return;
+      const reduction = Math.min(widths[item.index] - 1.15, delta * ((widths[item.index] - 1.15) / capacity));
+      widths[item.index] -= reduction;
+    });
+  } else if (delta < -0.01) {
+    const expandable = columns
+      .map((column, index) => ({ column, index }))
+      .filter(({ column }) => (column.dataset.resultRole || "") === "component");
+    const addition = Math.abs(delta) / Math.max(1, expandable.length);
+    expandable.forEach(({ index }) => {
+      widths[index] += addition;
+    });
+  }
+
+  const widthSum = widths.reduce((sum, width) => sum + width, 0) || 100;
+  columns.forEach((column, index) => {
+    column.style.width = `${(widths[index] / widthSum) * 100}%`;
   });
 }
 
