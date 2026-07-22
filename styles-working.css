@@ -7422,9 +7422,10 @@ body.print-marksheets .marksheet .failed-mark {
 
 .attendance-honor-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: end;
-  justify-content: space-between;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
 }
 
@@ -7457,25 +7458,27 @@ body.print-marksheets .marksheet .failed-mark {
 }
 
 .attendance-honor-count {
+  flex: 0 1 142px;
   margin: 0;
-  min-height: 40px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 16px;
-  border-radius: 14px;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.78);
   color: var(--text-secondary);
   box-shadow: var(--shadow-soft);
+  font-size: 0.78rem;
   font-weight: 900;
   white-space: nowrap;
 }
 
 .attendance-honor-count strong {
   color: var(--primary);
-  font-size: 1.05rem;
+  font-size: 0.92rem;
 }
 
 .attendance-honor-table-wrap {
@@ -7507,17 +7510,30 @@ body.print-marksheets .marksheet .failed-mark {
 @media (max-width: 640px) {
   .attendance-honor-controls {
     align-items: stretch;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .attendance-honor-filter {
+    grid-column: 1 / -1;
     min-width: 0;
     width: 100%;
   }
 
   .attendance-honor-count {
     width: 100%;
-    justify-content: space-between;
+    min-width: 0;
+    flex: none;
+    padding-inline: 9px;
+    font-size: 0.72rem;
+  }
+
+  .attendance-honor-count:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .attendance-honor-count strong {
+    font-size: 0.86rem;
   }
 }
 

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=teacher-assessment-lesson-plan-date-range-20260718-104">
+  <link rel="stylesheet" href="./styles.css?v=attendance-summary-compact-20260722">
 </head>
 <body class="attendance-honor-page">
   <div class="app-shell">
@@ -95,7 +95,9 @@
                 <option value="Class X">Class X</option>
               </select>
             </label>
-            <p class="attendance-honor-count">No. of Students: <strong id="attendanceHonorCount">0</strong></p>
+            <p class="attendance-honor-count">Students: <strong id="attendanceHonorCount">0</strong></p>
+            <p class="attendance-honor-count">Enrolment: <strong id="attendanceHonorTotal">0</strong></p>
+            <p class="attendance-honor-count">Percent: <strong id="attendanceHonorPercent">0.00%</strong></p>
           </div>
         </div>
 
@@ -115,7 +117,7 @@
       </section>
     </main>
   </div>
-  <script type="module" src="./firebase.js?v=firestore-optimized-20260622"></script>
-  <script src="./attendance.js?v=attendance-menu-dashboard-20260713-58"></script>
+  <script type="module" src="./firebase.js?v=split-key-decode-20260722"></script>
+  <script src="./attendance.js?v=attendance-percent-summary-20260722"></script>
 </body>
 </html>

@@ -6834,6 +6834,32 @@ function renderPerformanceChangeAnalysis(data, fromExam, toExam, sortBy) {
   return { ...data, records, firstAverage, comparisonAverage, firstPassPercentage, comparisonPassPercentage };
 }
 
+function listSentence(items = []) {
+  const cleanItems = items.filter(Boolean);
+  if (cleanItems.length <= 2) return cleanItems.join(cleanItems.length === 2 ? " and " : "");
+  return `${cleanItems.slice(0, -1).join(", ")}, and ${cleanItems.at(-1)}`;
+}
+
+function tiedAnalysisMetrics(metrics = [], valueKey = "passPercentage", direction = "max") {
+  if (!metrics.length) return [];
+  const values = metrics
+    .map((metric) => Number(metric[valueKey]))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) return [];
+  const target = direction === "min" ? Math.min(...values) : Math.max(...values);
+  return metrics.filter((metric) => Math.abs(Number(metric[valueKey]) - target) < 0.005);
+}
+
+function subjectImprovementPassBenchmark(classes = []) {
+  const selectedClasses = classes.filter(Boolean);
+  const inStage = (stageName) => selectedClasses.some((className) =>
+    (analysisSectionClasses[stageName] || []).includes(className));
+  if (inStage("Foundational Stage") || inStage("Preparatory Stage")) return 90;
+  if (inStage("Elementary Stage")) return 80;
+  if (inStage("Secondary Stage")) return 75;
+  return 90;
+}
+
 function renderAcademicAnalysis() {
   if (!els.analysisReport || activeView !== "analysis") return;
   initializeAnalysisFilters();
@@ -7005,7 +7031,7 @@ function renderAcademicAnalysis() {
     ["Passed", overview.passed],
     ["Failed", overview.failed],
     ["Pass Percentage", `${overview.passPercentage.toFixed(2)}%`],
-    ["School Average", `${overview.schoolAverage.toFixed(2)}%`],
+    ["Average Score", `${overview.schoolAverage.toFixed(2)}%`],
     ["Distinction Rate", `${overview.total ? ((overview.distinction / overview.total) * 100).toFixed(2) : "0.00"}%`],
     ["Failure Rate", `${overview.total ? ((overview.failed / overview.total) * 100).toFixed(2) : "0.00"}%`],
     ["Distinction", overview.distinction],
@@ -7144,8 +7170,16 @@ function renderAcademicAnalysis() {
   const strengths = [];
   const weaknesses = [];
   const recommendations = [];
+  const strongSubjects = tiedAnalysisMetrics(subjectMetrics, "passPercentage", "max");
+  const subjectImprovementBenchmark = subjectImprovementPassBenchmark(classes);
+  const subjectsBelowBenchmark = strongSubject
+    ? subjectMetrics
+      .filter((subject) => subject.passPercentage < subjectImprovementBenchmark)
+      .sort((a, b) => a.passPercentage - b.passPercentage)
+    : [];
   if (strongSubject && !isSingleSubjectAnalysis) {
-    strengths.push(`${strongSubject.name} has the highest pass percentage (${strongSubject.passPercentage.toFixed(2)}%).`);
+    const subjectNames = listSentence(strongSubjects.map((subject) => subject.name));
+    strengths.push(`${subjectNames} ${strongSubjects.length === 1 ? "has" : "have"} the highest pass percentage (${strongSubject.passPercentage.toFixed(2)}%).`);
   } else if (strongSubject) {
     strengths.push(`${strongSubject.name} pass percentage is ${strongSubject.passPercentage.toFixed(2)}%.`);
   }
@@ -7153,9 +7187,12 @@ function renderAcademicAnalysis() {
     strengths.push(`${bestClass.className} has the highest pass percentage (${bestClass.passPercentage.toFixed(2)}%).`);
   }
   if (overview.distinction) strengths.push(`${overview.distinction} student(s) achieved Distinction.`);
-  if (weakSubject && !isSingleSubjectAnalysis) {
-    weaknesses.push(`${weakSubject.name} has the lowest pass percentage (${weakSubject.passPercentage.toFixed(2)}%).`);
-    recommendations.push(`Provide focused practice and remedial support in ${weakSubject.name}.`);
+  if (!isSingleSubjectAnalysis && subjectsBelowBenchmark.length) {
+    const subjectNames = listSentence(subjectsBelowBenchmark.map((subject) =>
+      `${subject.name} (${subject.passPercentage.toFixed(2)}%)`));
+    const recommendationSubjects = listSentence(subjectsBelowBenchmark.map((subject) => subject.name));
+    weaknesses.push(`${subjectNames} ${subjectsBelowBenchmark.length === 1 ? "is" : "are"} below the stage improvement benchmark (${subjectImprovementBenchmark.toFixed(0)}%).`);
+    recommendations.push(`Provide focused practice and remedial support in ${recommendationSubjects}.`);
   } else if (weakSubject?.failed) {
     weaknesses.push(`${weakSubject.failed} student(s) did not pass ${weakSubject.name}.`);
     recommendations.push(`Provide focused support to students who did not pass ${weakSubject.name}.`);

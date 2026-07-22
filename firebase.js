@@ -126,6 +126,21 @@ function splitDocId(value) {
     .replace(/%/g, "_");
 }
 
+function splitDocLabel(id) {
+  const encoded = String(id || "")
+    .replace(/_([0-9A-Fa-f]{2})/g, "%$1");
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return String(id || "");
+  }
+}
+
+function termFromSplitKey(key) {
+  const parts = splitDocLabel(key).split("::");
+  return parts.length > 1 ? parts.slice(1).join("::") : "";
+}
+
 function splitDocRef(session, collectionName, id) {
   return doc(db, splitRootCollection, splitDocId(session), collectionName, splitDocId(id));
 }
@@ -324,31 +339,34 @@ window.MarkHubFirebase = {
     };
 
     listenCollection("marks", (data, id) => ({
-      key: data.markKey || id,
+      key: splitDocLabel(data.markKey || id),
       value: data.marks || {},
       dataEntryKey: data.dataEntryUpdate?.key || "",
       dataEntryUpdate: data.dataEntryUpdate
     }));
-    listenCollection("attendance", (data, id) => ({
-      key: data.attendanceKey || id,
-      value: data.attendance || {},
-      term: data.term || "",
-      workingDays: data.workingDays,
-      dataEntryKey: data.dataEntryUpdate?.key || "",
-      dataEntryUpdate: data.dataEntryUpdate
-    }));
+    listenCollection("attendance", (data, id) => {
+      const key = splitDocLabel(data.attendanceKey || id);
+      return {
+        key,
+        value: data.attendance || {},
+        term: data.term || termFromSplitKey(key),
+        workingDays: data.workingDays,
+        dataEntryKey: data.dataEntryUpdate?.key || "",
+        dataEntryUpdate: data.dataEntryUpdate
+      };
+    });
     listenCollection("measurements", (data, id) => ({
-      key: data.attendanceKey || id,
+      key: splitDocLabel(data.attendanceKey || id),
       value: data.measurements || {},
       dataEntryKey: data.dataEntryUpdate?.key || "",
       dataEntryUpdate: data.dataEntryUpdate
     }));
     listenCollection("published", (data, id) => ({
-      key: data.key || id,
+      key: splitDocLabel(data.key || id),
       value: data.value || null
     }));
     listenCollection("publishedMarksheets", (data, id) => ({
-      key: data.key || id,
+      key: splitDocLabel(data.key || id),
       value: data.value || null
     }));
 
