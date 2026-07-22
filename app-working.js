@@ -8306,6 +8306,7 @@ function applyResultPdfTableScale(page, scale) {
   const classOnePdf = table.classList.contains("result-pdf-class-one");
   const classEightTerm = table.classList.contains("result-pdf-class-viii-term");
   const upperMiddleTerm = table.classList.contains("result-pdf-upper-middle-term");
+  const compactTermMarks = table.classList.contains("result-pdf-compact-term-marks");
   const earlyYearsPdf = table.classList.contains("result-pdf-early-years");
   const largeOneLine = table.classList.contains("result-pdf-large-one-line");
   const bodyFont = structured ? (largeOneLine ? 13 : 10.24) : (largeOneLine ? 19 : 16);
@@ -8330,17 +8331,17 @@ function applyResultPdfTableScale(page, scale) {
     const classEightTotalOrPercentage = !isHeader
       && classEightTerm
       && ["total", "percentage"].includes(role);
-    const upperMiddleMarkOrGrade = !isHeader
-      && upperMiddleTerm
+    const compactTermMarkOrGrade = !isHeader
+      && compactTermMarks
       && ["subject", "component", "grade"].includes(role);
-    const upperMiddleTotalOrPercentage = !isHeader
-      && upperMiddleTerm
+    const compactTermTotalOrPercentage = !isHeader
+      && compactTermMarks
       && ["total", "percentage"].includes(role);
-    const upperMiddleCompactValue = !isHeader
-      && upperMiddleTerm
+    const compactTermSmallValue = !isHeader
+      && compactTermMarks
       && ["attendance", "division", "result"].includes(role);
-    const upperMiddleCenteredValue = !isHeader
-      && upperMiddleTerm
+    const compactTermCenteredValue = !isHeader
+      && compactTermMarks
       && ["subject", "component", "grade", "attendance", "total", "percentage", "division", "result"].includes(role);
     const earlyYearsCompactValue = !isHeader
       && earlyYearsPdf
@@ -8355,11 +8356,11 @@ function applyResultPdfTableScale(page, scale) {
       ? 10
       : classOneResultValue
       ? 12
-      : upperMiddleMarkOrGrade
+      : compactTermMarkOrGrade
       ? 9
-      : upperMiddleTotalOrPercentage
+      : compactTermTotalOrPercentage
       ? 10.5
-      : upperMiddleCompactValue
+      : compactTermSmallValue
       ? 9
       : classEightMarkOrGrade
       ? 9
@@ -8372,11 +8373,11 @@ function applyResultPdfTableScale(page, scale) {
       ? 10
       : classOneResultValue
       ? 12
-      : upperMiddleMarkOrGrade
+      : compactTermMarkOrGrade
       ? 9
-      : upperMiddleTotalOrPercentage
+      : compactTermTotalOrPercentage
       ? 10.5
-      : upperMiddleCompactValue
+      : compactTermSmallValue
       ? 9
       : classEightMarkOrGrade
       ? 9
@@ -8386,7 +8387,7 @@ function applyResultPdfTableScale(page, scale) {
       ? 12
       : Math.max(7, pdfBaseFont * scale);
     cell.style.setProperty("--result-pdf-cell-font", `${pdfFont}pt`);
-    if (upperMiddleCenteredValue) {
+    if (compactTermCenteredValue) {
       cell.style.setProperty("text-align", "center", "important");
       cell.style.setProperty("white-space", "nowrap", "important");
     }
@@ -8488,7 +8489,7 @@ function fitResultPdfNameColumn(table, rows, layout) {
     context.measureText("STUDENT NAME").width
   );
   const tableWidthPx = layout.contentWidth * (96 / 25.4);
-  const compactMarksLayout = table.classList.contains("result-pdf-upper-middle-term");
+  const compactMarksLayout = table.classList.contains("result-pdf-compact-term-marks");
   const maxNameWidth = compactMarksLayout ? 220 : 280;
   const minNameWidth = compactMarksLayout ? 96 : 108;
   const maxNamePercent = compactMarksLayout ? 18 : 24;
@@ -8515,6 +8516,7 @@ function applyResultPdfTableProfile(table, className, exam) {
   const classOneToFive = ["Class I", "Class II", "Class III", "Class IV", "Class V"].includes(className);
   const classOneStyleTerm = classOneToFive && term;
   const upperMiddleTerm = ["Class VI", "Class VII", "Class VIII"].includes(className) && term;
+  const compactTermMarks = upperMiddleTerm || (["Class IV", "Class V"].includes(className) && term);
   const largeOneLine = (
     ["LKG", "UKG"].includes(className)
     || ["Class I", "Class II", "Class III", "Class IV", "Class V", "Class VII", "Class VIII"].includes(className)
@@ -8550,6 +8552,7 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-class-viii-term", className === "Class VIII" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
   table.classList.toggle("result-pdf-upper-middle-term", upperMiddleTerm);
+  table.classList.toggle("result-pdf-compact-term-marks", compactTermMarks);
 }
 
 function isClassSixTermPdf(className, exam) {
@@ -8615,7 +8618,7 @@ function formatClassVIIIResultPdfHeaders(table) {
 }
 
 function rebalanceUpperMiddleResultPdfColumns(table) {
-  if (!table.classList.contains("result-pdf-upper-middle-term")) return;
+  if (!table.classList.contains("result-pdf-compact-term-marks")) return;
   const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
   if (!columns.length) return;
 
