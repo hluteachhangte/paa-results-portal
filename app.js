@@ -727,9 +727,15 @@ async function saveClassStudents(className = selectedClass()) {
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.name || currentUser?.username || "Unknown"
     });
+    lastSyncedFirebaseStateJson = JSON.stringify(state);
     return;
   }
-  saveState();
+  if (window.MarkHubFirebase?.saveAppState) {
+    await window.MarkHubFirebase.saveAppState(structuredClone(state));
+    lastSyncedFirebaseStateJson = JSON.stringify(state);
+    return;
+  }
+  throw new Error("Firebase is not ready.");
 }
 
 function hasUnsavedMarkChanges() {

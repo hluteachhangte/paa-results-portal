@@ -25,6 +25,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const appStateRef = doc(db, "appState", "markhub");
 const splitRootCollection = "sessionData";
+const classListMarkKeyPrefix = "__classList__::";
 const duplicatedActiveSessionFields = [
   "classes",
   "workingDays",
@@ -145,6 +146,10 @@ function splitDocRef(session, collectionName, id) {
   return doc(db, splitRootCollection, splitDocId(session), collectionName, splitDocId(id));
 }
 
+function classListMarkKey(className) {
+  return `${classListMarkKeyPrefix}${String(className || "").trim()}`;
+}
+
 function markDocPayload(data = {}) {
   return {
     className: data.className || "",
@@ -155,6 +160,18 @@ function markDocPayload(data = {}) {
     dataEntryUpdate: sanitizeFirestoreValue(data.dataEntryUpdate
       ? { ...data.dataEntryUpdate, key: data.dataEntryKey || "" }
       : null, ["dataEntryUpdate"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
+function classListDocPayload(data = {}) {
+  const className = data.className || "";
+  return {
+    type: "classList",
+    className,
+    markKey: classListMarkKey(className),
+    students: sanitizeFirestoreValue(Array.isArray(data.students) ? data.students : [], ["students"]),
     updatedAt: data.updatedAt || new Date().toISOString(),
     updatedBy: data.updatedBy || ""
   };
@@ -184,15 +201,6 @@ function measurementsDocPayload(data = {}) {
     dataEntryUpdate: sanitizeFirestoreValue(data.dataEntryUpdate
       ? { ...data.dataEntryUpdate, key: data.dataEntryKey || "" }
       : null, ["dataEntryUpdate"]),
-    updatedAt: data.updatedAt || new Date().toISOString(),
-    updatedBy: data.updatedBy || ""
-  };
-}
-
-function classDocPayload(data = {}) {
-  return {
-    className: data.className || "",
-    students: sanitizeFirestoreValue(Array.isArray(data.students) ? data.students : [], ["students"]),
     updatedAt: data.updatedAt || new Date().toISOString(),
     updatedBy: data.updatedBy || ""
   };
@@ -302,9 +310,9 @@ window.MarkHubFirebase = {
     });
   },
   async saveSplitClasses(data) {
-    const payload = classDocPayload(data);
-    await setDoc(splitDocRef(data.session, "classes", payload.className), payload, { merge: true });
-    console.log("[Firestore] Split class list write success", {
+    const payload = classListDocPayload(data);
+    await setDoc(splitDocRef(data.session, "marks", payload.markKey), payload, { merge: true });
+    console.log("[Firestore] Split class list write success through marks collection", {
       session: data.session,
       className: payload.className,
       count: payload.students.length
@@ -333,7 +341,9 @@ window.MarkHubFirebase = {
           snapshot.docs.forEach((docSnapshot) => {
             const mapped = mapDoc(docSnapshot.data(), docSnapshot.id);
             if (!mapped?.key) return;
-            patch[collectionName][mapped.key] = mapped.value;
+            const targetCollection = mapped.targetCollection || collectionName;
+            patch[targetCollection] = patch[targetCollection] || {};
+            patch[targetCollection][mapped.key] = mapped.value;
             if (collectionName === "attendance" && mapped.term && mapped.workingDays !== undefined) {
               patch.workingDays = patch.workingDays || {};
               patch.workingDays[mapped.term] = mapped.workingDays;
@@ -356,12 +366,22 @@ window.MarkHubFirebase = {
       unsubs.push(unsubscribe);
     };
 
-    listenCollection("marks", (data, id) => ({
-      key: splitDocLabel(data.markKey || id),
-      value: data.marks || {},
-      dataEntryKey: data.dataEntryUpdate?.key || "",
-      dataEntryUpdate: data.dataEntryUpdate
-    }));
+    listenCollection("marks", (data, id) => {
+      const key = splitDocLabel(data.markKey || id);
+      if (data.type === "classList" || key.startsWith(classListMarkKeyPrefix)) {
+        return {
+          targetCollection: "classes",
+          key: data.className || key.slice(classListMarkKeyPrefix.length),
+          value: Array.isArray(data.students) ? data.students : []
+        };
+      }
+      return {
+        key,
+        value: data.marks || {},
+        dataEntryKey: data.dataEntryUpdate?.key || "",
+        dataEntryUpdate: data.dataEntryUpdate
+      };
+    });
     listenCollection("attendance", (data, id) => {
       const key = splitDocLabel(data.attendanceKey || id);
       return {
@@ -378,10 +398,6 @@ window.MarkHubFirebase = {
       value: data.measurements || {},
       dataEntryKey: data.dataEntryUpdate?.key || "",
       dataEntryUpdate: data.dataEntryUpdate
-    }));
-    listenCollection("classes", (data, id) => ({
-      key: splitDocLabel(data.className || id),
-      value: Array.isArray(data.students) ? data.students : []
     }));
     listenCollection("published", (data, id) => ({
       key: splitDocLabel(data.key || id),
