@@ -173,6 +173,7 @@ let firebaseStateWriteInFlight = false;
 let pendingFirebaseStateJson = "";
 let lastSyncedFirebaseStateJson = "";
 const firebaseStateSaveDelay = 900;
+const splitClassListSeededSessions = new Set();
 const unsavedMarkChanges = new Map();
 let marksSaveInProgress = false;
 let unsavedAttendanceChanges = false;
@@ -473,6 +474,15 @@ function normalizeState(existingState = {}) {
   });
   if (!parsed.sessions[parsed.academicSession]) {
     parsed.sessions[parsed.academicSession] = migratedActiveData;
+  } else {
+    const mergedSessionClasses = mergeMissingClassLists(
+      parsed.sessions[parsed.academicSession].classes,
+      migratedActiveData.classes
+    );
+    parsed.sessions[parsed.academicSession] = normalizeSessionData({
+      ...parsed.sessions[parsed.academicSession],
+      classes: mergedSessionClasses
+    });
   }
   setActiveSessionData(parsed, parsed.sessions[parsed.academicSession]);
   return parsed;
@@ -583,6 +593,31 @@ function setActiveSessionData(targetState, data) {
   targetState.dataEntryUpdates = normalizedData.dataEntryUpdates;
 }
 
+function preserveLocalClassesIfRemoteMissing(remoteState, localState = state) {
+  const normalized = normalizeState(remoteState);
+  const session = currentSessionKey(normalized.academicSession);
+  const localSession = normalizeSessionData((localState.sessions || {})[session] || {
+    classes: localState.classes
+  });
+  let changed = false;
+
+  classNames.forEach((className) => {
+    const remoteStudents = normalized.classes?.[className] || [];
+    const localStudents = localSession.classes?.[className] || localState.classes?.[className] || [];
+    if (remoteStudents.length === 0 && localStudents.length > 0) {
+      normalized.classes[className] = localStudents.map(normalizeStudent);
+      normalized.sessions[session] = normalized.sessions[session] || createEmptySessionData();
+      normalized.sessions[session].classes[className] = normalized.classes[className];
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    console.log("[Firestore] Preserved local student lists while waiting for split class-list sync.");
+  }
+  return normalized;
+}
+
 function normalizeTeacherAssignments(assignments = []) {
   return (Array.isArray(assignments) ? assignments : []).map((assignment, index) => ({
     id: String(assignment.id || `teacher-assignment-${index + 1}`),
@@ -664,6 +699,17 @@ function normalizeClasses(existingClasses = {}) {
     className,
     (existingClasses[className] || []).map(normalizeStudent)
   ]));
+}
+
+function mergeMissingClassLists(primaryClasses = {}, fallbackClasses = {}) {
+  const normalizedPrimary = normalizeClasses(primaryClasses);
+  const normalizedFallback = normalizeClasses(fallbackClasses);
+  classNames.forEach((className) => {
+    if ((normalizedPrimary[className] || []).length === 0 && (normalizedFallback[className] || []).length > 0) {
+      normalizedPrimary[className] = normalizedFallback[className];
+    }
+  });
+  return normalizedPrimary;
 }
 
 function normalizeStudent(student) {
@@ -1463,15 +1509,38 @@ function ensureSplitSessionListener(session = state.academicSession) {
   );
 }
 
-function mergeClassesPatch(existingClasses = {}, patchClasses = {}) {
-  return normalizeClasses({
-    ...existingClasses,
-    ...Object.fromEntries(
-      Object.entries(patchClasses || {})
-        .filter(([className]) => classNames.includes(className))
-        .map(([className, students]) => [className, Array.isArray(students) ? students : []])
-    )
+function seedSplitClassLists(session = state.academicSession) {
+  const sessionKey = currentSessionKey(session);
+  if (splitClassListSeededSessions.has(sessionKey) || !window.MarkHubFirebase?.saveSplitClasses) return;
+  const sessionData = normalizeSessionData(state.sessions?.[sessionKey] || getActiveSessionData());
+  const classEntries = classNames
+    .map((className) => [className, sessionData.classes?.[className] || []])
+    .filter(([, students]) => students.length > 0);
+  if (!classEntries.length) return;
+  splitClassListSeededSessions.add(sessionKey);
+  classEntries.forEach(([className, students]) => {
+    window.MarkHubFirebase.saveSplitClasses({
+      session: sessionKey,
+      className,
+      students,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    }).catch((error) => {
+      console.warn(`[Firestore] Could not seed split student list for ${className}`, error);
+    });
   });
+}
+
+function mergeClassesPatch(existingClasses = {}, patchClasses = {}) {
+  const mergedClasses = normalizeClasses(existingClasses);
+  Object.entries(patchClasses || {})
+    .filter(([className]) => classNames.includes(className))
+    .forEach(([className, students]) => {
+      if (Array.isArray(students) && students.length > 0) {
+        mergedClasses[className] = students.map(normalizeStudent);
+      }
+    });
+  return mergedClasses;
 }
 
 function mergeSplitPatchIntoSession(existingSession, patch = {}) {
@@ -1544,6 +1613,7 @@ function startFirebaseStateSync(attempt = 0) {
 
   firebaseStateSyncStarted = true;
   ensureSplitSessionListener(state.academicSession);
+  seedSplitClassLists(state.academicSession);
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
     if (publicationSaveInProgress) {
@@ -1577,9 +1647,10 @@ function startFirebaseStateSync(attempt = 0) {
 
     const uiState = captureUiState();
     applyingRemoteState = true;
-    state = normalizeState(remoteState);
+    state = preserveLocalClassesIfRemoteMissing(remoteState, state);
     ensureSplitSessionListener(state.academicSession);
     applyCachedSplitSessionPatch(currentSessionKey(state.academicSession));
+    seedSplitClassLists(state.academicSession);
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
     attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
     entryAccessDirty = false;
@@ -2565,6 +2636,7 @@ function init() {
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
     cancelStudentEdit();
+    clearMarksheetSearch();
     updateExamSelect();
     updateSubjectSelect();
     saveUiState();
@@ -2574,6 +2646,7 @@ function init() {
   els.studentsClassSelect.addEventListener("change", () => {
     els.classSelect.value = els.studentsClassSelect.value;
     cancelStudentEdit();
+    clearMarksheetSearch();
     updateExamSelect();
     updateSubjectSelect();
     saveUiState();
@@ -2581,6 +2654,7 @@ function init() {
   });
 
   els.examSelect.addEventListener("change", () => {
+    clearMarksheetSearch();
     updateSubjectSelect();
     saveUiState();
     render();
@@ -5157,8 +5231,13 @@ function filteredMarksheetStudents(students) {
   return students.filter((student) => String(student.name || "").toLowerCase().includes(query));
 }
 
+function clearMarksheetSearch() {
+  if (!els.marksheetNameSearchInput?.value) return;
+  els.marksheetNameSearchInput.value = "";
+}
+
 function renderMarksheets({ ignoreSearch = false } = {}) {
-  const allStudents = sortedStudents().filter((student) => !isStudentNotEnrolledForExam(student));
+  const allStudents = sortedStudents();
   const students = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
   const subjects = currentSubjects();
   const subjectsForMarks = markSubjects();
@@ -5182,10 +5261,14 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
   }
 
   if (!students.length) {
+    const query = (els.marksheetNameSearchInput?.value || "").trim();
+    const message = allStudents.length && query
+      ? `No marksheets match "${escapeHtml(query)}" in ${escapeHtml(selectedClass())}. Clear the search to show all students.`
+      : `No students loaded for ${escapeHtml(selectedClass())}. Please check the Students page and refresh after sync.`;
     els.marksheetBody.innerHTML = `
       <div class="table-wrap">
         <table>
-          <tbody><tr><td>No marksheets found for the selected class and name.</td></tr></tbody>
+          <tbody><tr><td>${message}</td></tr></tbody>
         </table>
       </div>
     `;
@@ -5519,11 +5602,12 @@ function marksheetHighClassValue(subject, value, passMarks) {
 }
 
 function marksheetDisplayValue(value) {
+  if (isNotEnrolledEntry(value)) return "";
   return escapeHtml(entryDisplayValue(value, "AB"));
 }
 
 function marksheetComponentValue(value) {
-  if (isNotEnrolledEntry(value)) return "NE";
+  if (isNotEnrolledEntry(value)) return "";
   return value === "" || isAbsentEntry(value) ? '<span class="failed-mark">AB</span>' : escapeHtml(value);
 }
 

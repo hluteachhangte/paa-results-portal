@@ -15478,3 +15478,56 @@ body.dashboard-active #resetBtn {
     background: #9b6dff !important;
   }
 }
+
+@media print {
+  body.print-marksheets,
+  body.print-marksheets .app-shell,
+  body.print-marksheets .main-content,
+  body.print-marksheets #marksheetView,
+  body.print-marksheets #marksheet-print-area,
+  body.print-marksheets #marksheetBody,
+  body.print-marksheets .marksheet-list {
+    background: #ffffff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body.print-marksheets .marksheet,
+  body.print-marksheets .marksheet .table-wrap,
+  body.print-marksheets .marksheet .student-details div,
+  body.print-marksheets .marksheet .marksheet-summary,
+  body.print-marksheets .marksheet .marksheet-graded-subjects,
+  body.print-marksheets .marksheet .marksheet-measurements,
+  body.print-marksheets .marksheet .marksheet-measurements div,
+  body.print-marksheets .marksheet .marksheet-signatures span {
+    box-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none !important;
+  }
+
+  body.print-marksheets .marksheet,
+  body.print-marksheets .marksheet * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  body.print-marksheets .marksheet {
+    background-color: #ffffff !important;
+    border-color: transparent !important;
+  }
+
+  body.print-marksheets .marksheet .table-wrap {
+    background: transparent !important;
+  }
+
+  body.print-marksheets .marksheet th,
+  body.print-marksheets .marksheet td {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
