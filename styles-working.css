@@ -15530,4 +15530,19 @@ body.dashboard-active #resetBtn {
     box-shadow: none !important;
     text-shadow: none !important;
   }
+
+  body.print-all-marksheets .marksheet::before,
+  body.print-all-marksheets .marksheet::after {
+    content: none !important;
+    display: none !important;
+    background: none !important;
+    background-image: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+  }
+
+  body.print-all-marksheets .marksheet {
+    print-color-adjust: economy;
+    -webkit-print-color-adjust: economy;
+  }
 }

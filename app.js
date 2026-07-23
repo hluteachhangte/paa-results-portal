@@ -9103,7 +9103,8 @@ function printAllMarksheets() {
     return;
   }
   clearCurrentPrintTarget();
-  startPrintMode("print-marksheets");
+  showToast("Preparing lightweight class marksheet print...");
+  startPrintMode("print-marksheets", "print-all-marksheets");
 }
 
 function saveMarksheetsPdf() {
@@ -9303,7 +9304,7 @@ function clearCurrentPrintTarget() {
 
 function startPrintMode(printClass, extraClass = "") {
   clearTimeout(printCleanupTimer);
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-all-marksheets", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
   activePrintClass = printClass;
   document.body.classList.add(printClass);
   if (extraClass) document.body.classList.add(extraClass);
@@ -9318,7 +9319,7 @@ function startPrintMode(printClass, extraClass = "") {
 function clearPrintMode() {
   clearTimeout(printCleanupTimer);
   printCleanupTimer = null;
-  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
+  document.body.classList.remove("print-results", "print-marksheets", "print-current-marksheet", "print-all-marksheets", "print-analysis", "print-teacher-analysis", "print-teacher-assessment");
   clearCurrentPrintTarget();
   activePrintClass = "";
   if (restoreMarksheetsAfterPrint) {
