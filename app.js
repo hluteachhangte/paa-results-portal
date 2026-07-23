@@ -6110,10 +6110,10 @@ function analysisPieChart(items, ariaLabel) {
 
 function analysisLineChart(items) {
   if (!items.length) return '<p class="analysis-empty">No trend data available.</p>';
-  const width = Math.max(720, ((items.length - 1) * 82) + 86);
+  const width = Math.max(420, ((items.length - 1) * 92) + 130);
   const height = 250;
   const padLeft = 48;
-  const padRight = 20;
+  const padRight = 28;
   const padTop = 30;
   const padBottom = 42;
   const plotBottom = height - padBottom;
@@ -6129,15 +6129,37 @@ function analysisLineChart(items) {
   const areaPoints = points.length
     ? `${points[0].x},${plotBottom} ${points.map((point) => `${point.x},${point.y}`).join(" ")} ${points[points.length - 1].x},${plotBottom}`
     : "";
-  return `<div class="analysis-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage result trend">
+  const areaGradientId = `analysisTrendArea${Math.random().toString(36).slice(2, 8)}`;
+  const trendSegmentClass = (start, end) => {
+    const change = end.average - start.average;
+    if (Math.abs(change) < 0.005) return "is-flat";
+    return change > 0 ? "is-progress" : "is-decline";
+  };
+  const trendSegments = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const change = point.average - previous.average;
+    const changeText = `${change >= 0 ? "+" : ""}${change.toFixed(2)} percentage points`;
+    return { previous, point, className: trendSegmentClass(previous, point), changeText };
+  });
+  return `<div class="analysis-line-chart"><svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage result trend">
+    <defs>
+      <linearGradient id="${areaGradientId}" x1="0" y1="${padTop}" x2="0" y2="${plotBottom}" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#6f8cff" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#23d3d0" stop-opacity="0.04"/>
+      </linearGradient>
+    </defs>
     <g class="chart-grid">${guideValues.map((value) => {
       const y = yPosition(value);
       return `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" class="chart-grid-line"/>
         <text x="${padLeft - 9}" y="${y + 3}" class="chart-y-label">${value}%</text>`;
     }).join("")}</g>
     <line x1="${padLeft}" y1="${plotBottom}" x2="${width - padRight}" y2="${plotBottom}" class="chart-axis"/>
-    <polygon points="${areaPoints}" class="chart-area"/>
-    <polyline points="${points.map((point) => `${point.x},${point.y}`).join(" ")}" class="chart-line"/>
+    <polygon points="${areaPoints}" class="chart-area" style="fill:url(#${areaGradientId})"/>
+    ${trendSegments.map((segment) => `<g class="chart-trend-segment ${segment.className}">
+      <title>${escapeHtml(segment.previous.label)} to ${escapeHtml(segment.point.label)}: ${segment.changeText}</title>
+      <line x1="${segment.previous.x}" y1="${segment.previous.y}" x2="${segment.point.x}" y2="${segment.point.y}" class="chart-line chart-line-glow"/>
+      <line x1="${segment.previous.x}" y1="${segment.previous.y}" x2="${segment.point.x}" y2="${segment.point.y}" class="chart-line"/>
+    </g>`).join("")}
     ${points.map((point) => `<g class="chart-data-point">
       <title>${escapeHtml(point.label)}: ${point.average.toFixed(2)}%</title>
       <circle cx="${point.x}" cy="${point.y}" r="5" class="chart-point"/>
