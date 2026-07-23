@@ -9129,6 +9129,26 @@ body.print-marksheets .marksheet .failed-mark {
   }
 }
 
+@media screen and (max-width: 1360px) {
+  #analysisView .analysis-report > .analysis-grid-three:has(#analysisAttendance) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #analysisView .analysis-report > .analysis-grid-three:has(#analysisAttendance) > .analysis-panel:has(#analysisAttendance) {
+    grid-column: 1 / -1;
+  }
+
+  #analysisView .analysis-panel:has(#analysisAttendance) .attendance-analysis-layout {
+    grid-template-columns: minmax(150px, 0.75fr) minmax(220px, 1.25fr);
+  }
+}
+
+@media screen and (max-width: 900px) {
+  #analysisView .analysis-panel:has(#analysisAttendance) .attendance-analysis-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .analysis-page-head,
   .analysis-panel-head {

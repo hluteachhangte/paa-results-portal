@@ -189,6 +189,15 @@ function measurementsDocPayload(data = {}) {
   };
 }
 
+function classDocPayload(data = {}) {
+  return {
+    className: data.className || "",
+    students: sanitizeFirestoreValue(Array.isArray(data.students) ? data.students : [], ["students"]),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedBy: data.updatedBy || ""
+  };
+}
+
 function publicationDocPayload(data = {}) {
   return {
     className: data.className || "",
@@ -292,6 +301,15 @@ window.MarkHubFirebase = {
       count: Object.keys(payload.measurements || {}).length
     });
   },
+  async saveSplitClasses(data) {
+    const payload = classDocPayload(data);
+    await setDoc(splitDocRef(data.session, "classes", payload.className), payload, { merge: true });
+    console.log("[Firestore] Split class list write success", {
+      session: data.session,
+      className: payload.className,
+      count: payload.students.length
+    });
+  },
   async saveSplitPublication(data) {
     const collectionName = data.type === "marksheet" ? "publishedMarksheets" : "published";
     const payload = publicationDocPayload(data);
@@ -360,6 +378,10 @@ window.MarkHubFirebase = {
       value: data.measurements || {},
       dataEntryKey: data.dataEntryUpdate?.key || "",
       dataEntryUpdate: data.dataEntryUpdate
+    }));
+    listenCollection("classes", (data, id) => ({
+      key: splitDocLabel(data.className || id),
+      value: Array.isArray(data.students) ? data.students : []
     }));
     listenCollection("published", (data, id) => ({
       key: splitDocLabel(data.key || id),

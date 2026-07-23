@@ -714,6 +714,24 @@ function saveState() {
   queueFirebaseStateSave();
 }
 
+async function saveClassStudents(className = selectedClass()) {
+  syncActiveSessionData();
+  localStorage.setItem(storageKey, JSON.stringify(state));
+  const students = normalizeClasses({ [className]: state.classes?.[className] || [] })[className] || [];
+  const session = currentSessionKey(state.academicSession);
+  if (window.MarkHubFirebase?.saveSplitClasses) {
+    await window.MarkHubFirebase.saveSplitClasses({
+      session,
+      className,
+      students,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    });
+    return;
+  }
+  saveState();
+}
+
 function hasUnsavedMarkChanges() {
   return unsavedMarkChanges.size > 0;
 }
@@ -1439,10 +1457,21 @@ function ensureSplitSessionListener(session = state.academicSession) {
   );
 }
 
+function mergeClassesPatch(existingClasses = {}, patchClasses = {}) {
+  return normalizeClasses({
+    ...existingClasses,
+    ...Object.fromEntries(
+      Object.entries(patchClasses || {})
+        .filter(([className]) => classNames.includes(className))
+        .map(([className, students]) => [className, Array.isArray(students) ? students : []])
+    )
+  });
+}
+
 function mergeSplitPatchIntoSession(existingSession, patch = {}) {
   return normalizeSessionData({
     ...existingSession,
-    classes: patch.classes ? normalizeClasses(patch.classes) : existingSession.classes,
+    classes: patch.classes ? mergeClassesPatch(existingSession.classes, patch.classes) : existingSession.classes,
     workingDays: patch.workingDays ? { ...existingSession.workingDays, ...patch.workingDays } : existingSession.workingDays,
     attendance: patch.attendance ? { ...existingSession.attendance, ...patch.attendance } : existingSession.attendance,
     measurements: patch.measurements ? { ...existingSession.measurements, ...patch.measurements } : existingSession.measurements,
@@ -1457,7 +1486,7 @@ function cacheSplitSessionPatch(sessionKey, patch = {}) {
   const previous = firebaseSplitSessionPatchCache.get(sessionKey) || { session: sessionKey };
   const cached = {
     session: sessionKey,
-    classes: patch.classes ? normalizeClasses(patch.classes) : previous.classes,
+    classes: patch.classes ? mergeClassesPatch(previous.classes, patch.classes) : previous.classes,
     workingDays: patch.workingDays ? { ...(previous.workingDays || {}), ...patch.workingDays } : previous.workingDays,
     attendance: patch.attendance ? { ...(previous.attendance || {}), ...patch.attendance } : previous.attendance,
     measurements: patch.measurements ? { ...(previous.measurements || {}), ...patch.measurements } : previous.measurements,
@@ -10234,9 +10263,10 @@ async function importStudentsCsv(event) {
   if (!file) return;
 
   try {
+    const className = selectedClass();
     const rows = parseCsv(await file.text());
     const result = mergeStudentsFromCsv(rows);
-    saveState();
+    await saveClassStudents(className);
     render();
     showToast(`${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`);
   } catch (error) {
@@ -10450,8 +10480,9 @@ function clearMarks() {
   showToast(`${subject} marks cleared. Click Save to save.`);
 }
 
-function addStudent(event) {
+async function addStudent(event) {
   event.preventDefault();
+  const className = selectedClass();
   const roll = Number(document.querySelector("#rollInput").value);
   const idNo = document.querySelector("#idNoInput").value.trim();
   const name = document.querySelector("#nameInput").value.trim();
@@ -10461,7 +10492,7 @@ function addStudent(event) {
   const address = document.querySelector("#addressInput").value.trim();
   const pen = document.querySelector("#penInput").value.trim();
   const aadhaarNo = document.querySelector("#aadhaarNoInput").value.trim();
-  const students = state.classes[selectedClass()];
+  const students = state.classes[className];
 
   if (!roll || !name) return;
   if (students.some((student) => student.roll === roll && student.roll !== editingStudentRoll)) {
@@ -10479,11 +10510,16 @@ function addStudent(event) {
   } else {
     students.push({ roll, idNo, name, dateOfBirth, fatherName, motherName, address, pen, aadhaarNo });
   }
-  saveState();
   const message = editingStudentRoll !== null ? `${name} updated.` : `${name} added.`;
-  cancelStudentEdit();
-  render();
-  showToast(message);
+  try {
+    await saveClassStudents(className);
+    cancelStudentEdit();
+    render();
+    showToast(message);
+  } catch (error) {
+    console.error("[Firestore] Could not save student list", error);
+    showToast(firestoreSaveErrorMessage("save student details", error));
+  }
 }
 
 function editStudent(roll) {
@@ -10521,31 +10557,37 @@ function moveStudentRecords(oldRoll, newRoll) {
   });
 }
 
-function removeStudent(roll) {
-  const student = (state.classes[selectedClass()] || []).find((entry) => entry.roll === roll);
+async function removeStudent(roll) {
+  const className = selectedClass();
+  const student = (state.classes[className] || []).find((entry) => entry.roll === roll);
   const studentLabel = student ? `${student.name} (Roll No. ${student.roll})` : `Roll No. ${roll}`;
   const confirmed = window.confirm(`Remove ${studentLabel}? This will also delete this student's marks, attendance, and measurements for ${selectedClass()}.`);
   if (!confirmed) return;
 
-  state.classes[selectedClass()] = state.classes[selectedClass()].filter((student) => student.roll !== roll);
+  state.classes[className] = state.classes[className].filter((student) => student.roll !== roll);
   Object.keys(state.marks).forEach((key) => {
-    if (key.startsWith(`${selectedClass()}::`)) {
+    if (key.startsWith(`${className}::`)) {
       delete state.marks[key][String(roll)];
     }
   });
   Object.keys(state.attendance).forEach((key) => {
-    if (key.startsWith(`${selectedClass()}::`)) {
+    if (key.startsWith(`${className}::`)) {
       delete state.attendance[key][String(roll)];
     }
   });
   Object.keys(state.measurements).forEach((key) => {
-    if (key.startsWith(`${selectedClass()}::`)) {
+    if (key.startsWith(`${className}::`)) {
       delete state.measurements[key][String(roll)];
     }
   });
-  saveState();
-  render();
-  showToast("Student removed.");
+  try {
+    await saveClassStudents(className);
+    render();
+    showToast("Student removed.");
+  } catch (error) {
+    console.error("[Firestore] Could not remove student", error);
+    showToast(firestoreSaveErrorMessage("remove student", error));
+  }
 }
 
 function clamp(value, min, max) {
