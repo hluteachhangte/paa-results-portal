@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=marksheet-print-all-lite-20260723">
+  <link rel="stylesheet" href="./styles.css?v=student-profile-full-csv-20260726">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -69,6 +69,10 @@
         <button type="button" data-mobile-view="students">
           <span class="mobile-nav-icon" aria-hidden="true">&#9787;</span>
           <span>Students</span>
+        </button>
+        <button class="hidden" type="button" data-mobile-view="studentProfiles" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#128100;</span>
+          <span>Student Profiles</span>
         </button>
         <a class="attendance-menu-link" href="./attendance.html">
           <span class="mobile-nav-icon" aria-hidden="true">&#10003;</span>
@@ -143,6 +147,10 @@
         <button class="nav-tab" data-view="students" type="button" title="Student list">
           <span aria-hidden="true">＋</span>
           Students
+        </button>
+        <button class="nav-tab hidden" data-view="studentProfiles" data-admin-only="true" type="button" title="Student profiles">
+          <span aria-hidden="true">&#128100;</span>
+          Student Profiles
         </button>
         <a class="nav-tab-link nav-link attendance-menu-link" href="./attendance.html" title="100% attendance students">
           <span aria-hidden="true">&#10003;</span>
@@ -909,15 +917,186 @@
           </table>
         </div>
       </section>
+
+      <section id="studentProfilesView" class="view" aria-label="Student profiles">
+        <div class="section-head student-profile-head">
+          <div>
+            <h3>Student Profiles</h3>
+            <p>Permanent student records linked with the selected academic session enrolment.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="addStudentProfileBtn" class="primary-button" type="button">Add New Student</button>
+            <button id="downloadStudentProfileSampleBtn" class="ghost-button" type="button">Download CSV Sample</button>
+            <button id="importStudentProfilesBtn" class="ghost-button" type="button">Import CSV</button>
+            <input id="studentProfileCsvInput" class="hidden" type="file" accept=".csv,text/csv">
+            <button id="exportStudentProfilesBtn" class="ghost-button" type="button">Export CSV</button>
+            <button id="printStudentProfilesBtn" class="ghost-button" type="button">Print Student List</button>
+          </div>
+        </div>
+
+        <div id="studentProfileSummary" class="student-profile-summary" aria-label="Student profile summary"></div>
+
+        <section class="student-profile-filters" aria-label="Student profile filters">
+          <label>Class<select id="profileClassFilter"></select></label>
+          <label>Gender<select id="profileGenderFilter"></select></label>
+          <label>House Colour<select id="profileHouseFilter"></select></label>
+          <label>Residential Status<select id="profileResidentialFilter"></select></label>
+          <label>Admission Type<select id="profileAdmissionFilter"></select></label>
+          <label>Religion<select id="profileReligionFilter"></select></label>
+          <label>Denomination<select id="profileDenominationFilter"></select></label>
+          <label>BPL/AAY<select id="profileSectionFilter"></select></label>
+          <label>Skill Development<select id="profileSkillFilter"></select></label>
+          <label>Student Status<select id="profileStatusFilter"></select></label>
+          <label class="student-profile-search">Search<input id="profileSearchInput" type="search" placeholder="Name, ID, admission no., PEN, APAR, parent, contact"></label>
+        </section>
+
+        <section id="studentProfileAgeReport" class="student-profile-age-report" aria-label="Age-wise student report"></section>
+
+        <div id="studentProfilePanel" class="student-profile-panel hidden" aria-live="polite"></div>
+
+        <form id="studentProfileForm" class="student-profile-form hidden">
+          <div class="profile-form-toolbar">
+            <div>
+              <strong id="studentProfileFormTitle">Add Student Profile</strong>
+              <span>Required fields are marked with *</span>
+            </div>
+            <button id="closeStudentProfileFormBtn" class="ghost-button" type="button">Cancel</button>
+          </div>
+
+          <fieldset>
+            <legend>Basic Information</legend>
+            <label>Student Photo<input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            <div id="profilePhotoPreview" class="student-profile-photo-preview" aria-label="Student photo preview"></div>
+            <label>Roll No. *<input id="profileRollInput" type="number" min="1" required></label>
+            <label>Student Name *<input id="profileNameInput" type="text" required></label>
+            <label>Class *<select id="profileClassInput" required></select></label>
+            <label>Section<input id="profileSectionInput" type="text" placeholder="A"></label>
+            <label>School ID No.<input id="profileSchoolIdInput" type="text"></label>
+            <label>Gender *<select id="profileGenderInput" required></select></label>
+            <label>Date of Birth<input id="profileDobInput" type="date"></label>
+            <label>Age<input id="profileAgeInput" type="text" readonly></label>
+            <label>Blood Group<select id="profileBloodGroupInput"></select></label>
+            <label>House Colour<select id="profileHouseInput"></select></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Address and Contact</legend>
+            <label>Address<input id="profileAddressInput" type="text"></label>
+            <label>Landmark<input id="profileLandmarkInput" type="text"></label>
+            <label>Student Contact No.<input id="profileStudentContactInput" type="tel"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Identification Details</legend>
+            <label>PEN<input id="profilePenInput" type="text"></label>
+            <label>Aadhaar No.<input id="profileAadhaarInput" type="text" inputmode="numeric"></label>
+            <label>APAR ID<input id="profileAparInput" type="text"></label>
+            <label>Nationality<input id="profileNationalityInput" type="text" value="Indian"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Parent and Guardian Details</legend>
+            <label>Father's Name<input id="profileFatherInput" type="text"></label>
+            <label>Father's Contact No.<input id="profileFatherContactInput" type="tel"></label>
+            <label>Mother's Name<input id="profileMotherInput" type="text"></label>
+            <label>Mother's Contact No.<input id="profileMotherContactInput" type="tel"></label>
+            <label>Guardian's Name<input id="profileGuardianInput" type="text"></label>
+            <label>Guardian's Relationship<input id="profileGuardianRelationshipInput" type="text"></label>
+            <label>Guardian's Contact No.<input id="profileGuardianContactInput" type="tel"></label>
+            <label>Parent/Guardian Aadhaar No.<input id="profileParentAadhaarInput" type="text" inputmode="numeric"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Personal, Admission and Residential Information</legend>
+            <label>Religion<select id="profileReligionInput"></select></label>
+            <label>Denomination<select id="profileDenominationInput"></select></label>
+            <label>BPL/AAY<select id="profileBplAayInput"></select></label>
+            <label>Residential Status<select id="profileResidentialInput"></select></label>
+            <label>Admission Type<select id="profileAdmissionInput"></select></label>
+            <label>Admission No.<input id="profileAdmissionNoInput" type="text"></label>
+            <label>Date of Admission<input id="profileAdmissionDateInput" type="date"></label>
+            <label>Student Status<select id="profileStatusInput"></select></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Skill Development</legend>
+            <label>Skill Development Programme<select id="profileSkillProgrammeInput"></select></label>
+          </fieldset>
+
+          <div id="studentProfileFormMessage" class="field-warning hidden"></div>
+          <div class="student-profile-form-actions">
+            <button id="saveStudentProfileDraftBtn" class="ghost-button" type="button">Save Draft</button>
+            <button id="saveStudentProfileBtn" class="primary-button" type="submit">Save and Continue</button>
+          </div>
+        </form>
+
+        <div id="studentPhotoCropModal" class="student-photo-crop-modal hidden" role="dialog" aria-modal="true" aria-labelledby="studentPhotoCropTitle">
+          <div class="student-photo-crop-card">
+            <div class="student-photo-crop-head">
+              <div>
+                <h3 id="studentPhotoCropTitle">Adjust Student Photo</h3>
+                <p>Drag the photo and use zoom to fit the face clearly.</p>
+              </div>
+              <button id="closeStudentPhotoCropBtn" class="ghost-button" type="button">Cancel</button>
+            </div>
+            <div class="student-photo-crop-stage">
+              <canvas id="studentPhotoCropCanvas" width="320" height="320" aria-label="Student photo crop preview"></canvas>
+            </div>
+            <div class="student-photo-crop-controls">
+              <label>Zoom<input id="studentPhotoZoomInput" type="range" min="1" max="3" step="0.01" value="1"></label>
+              <div class="student-photo-crop-actions">
+                <button id="studentPhotoCropResetBtn" class="ghost-button" type="button">Reset</button>
+                <button id="studentPhotoCropApplyBtn" class="primary-button" type="button">Use Photo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="student-profile-list-tools">
+          <span id="studentProfileCount">0 students</span>
+          <div class="inline-actions">
+            <button id="exportStudentProfilesTableBtn" class="ghost-button" type="button">Export CSV</button>
+            <label>Sort<select id="profileSortSelect"><option value="classRoll">Class and Roll No.</option><option value="name">Name</option><option value="status">Status</option></select></label>
+          </div>
+        </div>
+
+        <div class="student-profile-table-wrap">
+          <table class="student-profile-table">
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>Photo</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>School ID No.</th>
+                <th class="student-profile-dob-cell">Date of Birth</th>
+                <th>Gender</th>
+                <th>Primary Contact</th>
+                <th>Residential Status</th>
+                <th>Admission Type</th>
+                <th>Student Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentProfileBody"></tbody>
+          </table>
+        </div>
+        <div id="studentProfileCards" class="student-profile-cards"></div>
+        <div class="student-profile-pagination">
+          <button id="profilePrevPageBtn" class="ghost-button" type="button">Previous</button>
+          <span id="profilePageInfo">Page 1 of 1</span>
+          <button id="profileNextPageBtn" class="ghost-button" type="button">Next</button>
+        </div>
+      </section>
     </main>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=student-details-split-marks-sync-20260723"></script>
+  <script type="module" src="./firebase.js?v=student-profiles-bpl-aay-20260725"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=marksheet-print-all-lite-20260723"></script>
+  <script src="./app.js?v=student-profile-full-csv-20260726"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
 </body>
 </html>

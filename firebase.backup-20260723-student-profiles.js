@@ -7,18 +7,10 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
-  deleteDoc,
   updateDoc,
   FieldPath,
   deleteField
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
-import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject
-} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0RxeHkphyME9sziVGmT-0qXRkMA1J9V0",
@@ -31,7 +23,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const appStateRef = doc(db, "appState", "markhub");
 const splitRootCollection = "sessionData";
 const classListMarkKeyPrefix = "__classList__::";
@@ -226,71 +217,6 @@ function publicationDocPayload(data = {}) {
   };
 }
 
-function studentProfileDocPayload(profile = {}) {
-  const allowed = [
-    "studentId",
-    "studentName",
-    "normalizedName",
-    "schoolIdNo",
-    "gender",
-    "dateOfBirth",
-    "bloodGroup",
-    "address",
-    "landmark",
-    "studentContact",
-    "primaryParentContact",
-    "alternateContact",
-    "pen",
-    "aadhaarNo",
-    "aparId",
-    "fatherName",
-    "fatherContact",
-    "motherName",
-    "motherContact",
-    "guardianName",
-    "guardianRelationship",
-    "guardianContact",
-    "parentGuardianAadhaar",
-    "nationality",
-    "religion",
-    "denomination",
-    "bplAay",
-    "admissionNo",
-    "dateOfAdmission",
-    "photoURL",
-    "createdAt",
-    "createdBy",
-    "updatedAt",
-    "updatedBy"
-  ];
-  return sanitizeFirestoreValue(Object.fromEntries(
-    allowed.map((field) => [field, profile[field] ?? ""])
-  ), ["studentProfile"]);
-}
-
-function studentEnrolmentDocPayload(enrolment = {}) {
-  const allowed = [
-    "studentId",
-    "academicSessionId",
-    "className",
-    "section",
-    "rollNumber",
-    "houseColour",
-    "residentialStatus",
-    "admissionType",
-    "skillDevelopmentProgramme",
-    "skillDevelopmentGroup",
-    "instructor",
-    "studentStatus",
-    "promotedFromClass",
-    "createdAt",
-    "updatedAt"
-  ];
-  return sanitizeFirestoreValue(Object.fromEntries(
-    allowed.map((field) => [field, enrolment[field] ?? ""])
-  ), ["studentEnrolment"]);
-}
-
 window.MarkHubFirebase = {
   app,
   db,
@@ -402,42 +328,6 @@ window.MarkHubFirebase = {
       key: payload.key,
       published: Boolean(payload.value)
     });
-  },
-  async saveStudentProfileRecord(data = {}) {
-    const profile = studentProfileDocPayload(data.profile || {});
-    const enrolment = studentEnrolmentDocPayload(data.enrolment || {});
-    const session = data.session || enrolment.academicSessionId || "2026 - 2027";
-    if (!profile.studentId) throw new Error("Student profile is missing studentId.");
-    await setDoc(doc(db, "students", profile.studentId), profile, { merge: true });
-    await setDoc(doc(db, "academicSessions", splitDocId(session), "enrolments", profile.studentId), {
-      ...enrolment,
-      academicSessionId: session,
-      studentId: profile.studentId
-    }, { merge: true });
-    console.log("[Firestore] Student profile write success", {
-      session,
-      studentId: profile.studentId
-    });
-  },
-  async deleteStudentProfileRecord(data = {}) {
-    const studentId = String(data.studentId || "").trim();
-    const session = data.session || "2026 - 2027";
-    if (!studentId) return;
-    await deleteDoc(doc(db, "academicSessions", splitDocId(session), "enrolments", studentId));
-    await deleteDoc(doc(db, "students", studentId));
-    console.log("[Firestore] Student profile delete success", { session, studentId });
-  },
-  async uploadStudentPhoto(studentId, fileOrBlob) {
-    const cleanStudentId = String(studentId || "").trim();
-    if (!cleanStudentId || !fileOrBlob) throw new Error("Student photo upload is missing required data.");
-    const target = storageRef(storage, `studentPhotos/${cleanStudentId}/profile.webp`);
-    await uploadBytes(target, fileOrBlob, { contentType: fileOrBlob.type || "image/webp" });
-    return getDownloadURL(target);
-  },
-  async deleteStudentPhoto(studentId) {
-    const cleanStudentId = String(studentId || "").trim();
-    if (!cleanStudentId) return;
-    await deleteObject(storageRef(storage, `studentPhotos/${cleanStudentId}/profile.webp`));
   },
   listenSplitSession(session, onPatch, onError) {
     const sessionId = splitDocId(session);

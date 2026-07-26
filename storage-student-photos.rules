@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role is string
+        ? request.auth.token.role
+        : "";
+    }
+
+    function canViewStudentData() {
+      return role() in ["admin", "principal", "headmaster", "teacher"];
+    }
+
+    function canManageStudentPhotos() {
+      return role() in ["admin", "principal", "headmaster"];
+    }
+
+    match /studentPhotos/{studentId}/profile.webp {
+      allow read: if canViewStudentData();
+      allow write: if canManageStudentPhotos()
+        && request.resource != null
+        && request.resource.size < 300 * 1024
+        && request.resource.contentType.matches("image/(jpeg|png|webp)");
+      allow delete: if role() == "admin";
+    }
+  }
+}
