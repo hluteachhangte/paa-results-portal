@@ -272,6 +272,11 @@ const els = {
   loginForm: document.querySelector("#loginForm"),
   usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
+  registerApprovedBtn: document.querySelector("#registerApprovedBtn"),
+  sendPhoneCodeBtn: document.querySelector("#sendPhoneCodeBtn"),
+  phoneOtpPanel: document.querySelector("#phoneOtpPanel"),
+  phoneCodeInput: document.querySelector("#phoneCodeInput"),
+  verifyPhoneCodeBtn: document.querySelector("#verifyPhoneCodeBtn"),
   mobileMenuBtn: document.querySelector("#mobileMenuBtn"),
   mobileMenuCloseBtn: document.querySelector("#mobileMenuCloseBtn"),
   mobileNavDrawer: document.querySelector("#mobileNavDrawer"),
@@ -2167,6 +2172,7 @@ function loadCurrentUser() {
 
   try {
     const parsed = JSON.parse(saved);
+    if (parsed?.authProvider === "firebase" && parsed?.role && parsed?.name) return parsed;
     return users[parsed.username] ? parsed : null;
   } catch {
     return null;
@@ -2199,7 +2205,7 @@ function isAdmin() {
 }
 
 function isPrincipalUser() {
-  return currentUser?.username === "principal";
+  return currentUser?.username === "principal" || currentUser?.staffRole === "principal";
 }
 
 function canPreviewUnpublished() {
@@ -2337,7 +2343,7 @@ function renderAuth() {
 
   startFirebaseStateSync();
 
-  const roleLabel = currentUser.role === "admin" ? "Admin" : isPrincipalUser() ? "Principal" : "Teacher";
+  const roleLabel = currentUser.role === "admin" ? "Admin" : isPrincipalUser() ? "Principal" : currentUser.staffRole === "headmaster" ? "Headmaster" : "Teacher";
   els.userBadge.textContent = roleLabel;
   els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
@@ -2356,30 +2362,136 @@ function renderAuth() {
   els.academicSessionInput.disabled = !isAdmin();
 }
 
-function handleLogin(event) {
-  event.preventDefault();
-  const username = els.usernameInput.value.trim().toLowerCase();
-  const password = els.passwordInput.value;
-  const account = users[username];
+function isEmailLoginIdentifier(identifier) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(identifier || "").trim());
+}
 
-  if (!account || account.password !== password) {
-    showToast("Invalid username or password.");
-    return;
-  }
+function isPhoneLoginIdentifier(identifier) {
+  return /^\+\d{8,15}$/.test(String(identifier || "").replace(/[\s().-]/g, ""));
+}
+
+function normalizePhoneLoginIdentifier(identifier) {
+  return String(identifier || "").replace(/[\s().-]/g, "");
+}
+
+function legacyLogin(username, password) {
+  const account = users[username];
+  if (!account || account.password !== password) return false;
 
   activeView = "dashboard";
   saveUiState();
-  saveCurrentUser({ username, role: account.role, name: account.name });
+  saveCurrentUser({ username, role: account.role, staffRole: account.role === "admin" ? "admin" : username === "principal" ? "principal" : "teacher", name: account.name, authProvider: "legacy" });
   els.loginForm.reset();
   showToast(`Logged in as ${account.name}.`);
   renderAuth();
   render();
+  return true;
 }
 
-function logout() {
+function completeApprovedLogin(profile) {
+  activeView = "dashboard";
+  saveUiState();
+  saveCurrentUser(profile);
+  els.loginForm.reset();
+  els.phoneOtpPanel?.classList.add("hidden");
+  if (els.phoneCodeInput) els.phoneCodeInput.value = "";
+  showToast(`Logged in as ${profile.name}.`);
+  renderAuth();
+  render();
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const identifier = els.usernameInput.value.trim();
+  const username = identifier.toLowerCase();
+  const password = els.passwordInput.value;
+
+  if (isEmailLoginIdentifier(identifier) && window.MarkHubFirebase?.signInApprovedUser) {
+    try {
+      const profile = await window.MarkHubFirebase.signInApprovedUser({ identifier, password });
+      completeApprovedLogin(profile);
+    } catch (error) {
+      showToast(error.message || "Could not login with this approved email.");
+    }
+    return;
+  }
+
+  if (isPhoneLoginIdentifier(identifier)) {
+    await sendApprovedPhoneCode();
+    return;
+  }
+
+  if (!legacyLogin(username, password)) showToast("Invalid username or password.");
+}
+
+async function registerApprovedUser() {
+  const identifier = els.usernameInput.value.trim();
+  const password = els.passwordInput.value;
+  if (!isEmailLoginIdentifier(identifier)) {
+    showToast("Registration uses an approved email address. Use OTP for phone login.");
+    return;
+  }
+  if (!window.MarkHubFirebase?.registerApprovedEmailUser) {
+    showToast("Firebase Authentication is not ready. Refresh and try again.");
+    return;
+  }
+  try {
+    const profile = await window.MarkHubFirebase.registerApprovedEmailUser({ identifier, password });
+    completeApprovedLogin(profile);
+  } catch (error) {
+    showToast(error.message || "Could not register this approved email.");
+  }
+}
+
+async function sendApprovedPhoneCode() {
+  const phoneNumber = normalizePhoneLoginIdentifier(els.usernameInput.value);
+  if (!isPhoneLoginIdentifier(phoneNumber)) {
+    showToast("Enter phone number with country code, for example +919876543210.");
+    return;
+  }
+  if (!window.MarkHubFirebase?.sendApprovedPhoneCode) {
+    showToast("Firebase phone login is not ready. Refresh and try again.");
+    return;
+  }
+  try {
+    await window.MarkHubFirebase.sendApprovedPhoneCode(phoneNumber);
+    els.phoneOtpPanel?.classList.remove("hidden");
+    els.phoneCodeInput?.focus();
+    showToast("OTP sent to the approved phone number.");
+  } catch (error) {
+    showToast(error.message || "Could not send phone OTP.");
+  }
+}
+
+async function verifyApprovedPhoneCode() {
+  const code = els.phoneCodeInput?.value.trim();
+  if (!code) {
+    showToast("Enter the OTP.");
+    return;
+  }
+  if (!window.MarkHubFirebase?.confirmApprovedPhoneCode) {
+    showToast("Firebase phone login is not ready. Refresh and try again.");
+    return;
+  }
+  try {
+    const profile = await window.MarkHubFirebase.confirmApprovedPhoneCode(code);
+    completeApprovedLogin(profile);
+  } catch (error) {
+    showToast(error.message || "Could not verify phone OTP.");
+  }
+}
+
+async function logout() {
   if (hasUnsavedLocalChanges() && !window.confirm("You have unsaved changes. Leave without saving?")) return;
   flushFirebaseStateSave(true);
   stopFirebaseStateSync();
+  if (currentUser?.authProvider === "firebase" && window.MarkHubFirebase?.signOutApprovedUser) {
+    try {
+      await window.MarkHubFirebase.signOutApprovedUser();
+    } catch {
+      // Local logout should still finish if Firebase sign-out is temporarily unavailable.
+    }
+  }
   unsavedMarkChanges.clear();
   unsavedAttendanceChanges = false;
   unsavedAttendanceSections.clear();
@@ -3079,6 +3191,9 @@ function init() {
   });
 
   els.loginForm.addEventListener("submit", handleLogin);
+  els.registerApprovedBtn?.addEventListener("click", registerApprovedUser);
+  els.sendPhoneCodeBtn?.addEventListener("click", sendApprovedPhoneCode);
+  els.verifyPhoneCodeBtn?.addEventListener("click", verifyApprovedPhoneCode);
   els.publicFirebaseResultSearch?.addEventListener("submit", searchPublicFirebaseResult);
   els.publicClearFirebaseResultBtn?.addEventListener("click", clearPublicFirebaseResultSearch);
   els.logoutBtn.addEventListener("click", logout);
@@ -3271,6 +3386,19 @@ function init() {
   initializeMarksheetZoomDefault();
   updateMarksheetZoom();
   renderAuth();
+  if (window.MarkHubFirebase?.listenApprovedAuthState) {
+    window.MarkHubFirebase.listenApprovedAuthState((profile) => {
+      if (!profile) {
+        if (currentUser?.authProvider === "firebase") saveCurrentUser(null);
+        return;
+      }
+      if (currentUser?.uid === profile.uid) return;
+      completeApprovedLogin(profile);
+    }, () => {
+      if (currentUser?.authProvider === "firebase") saveCurrentUser(null);
+      showToast("Firebase Authentication is not available.");
+    });
+  }
 
   render();
 }

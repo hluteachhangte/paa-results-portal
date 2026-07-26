@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=split-doc-safe-20260726">
+  <link rel="stylesheet" href="./styles.css?v=approved-auth-20260726">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -20,14 +20,27 @@
           <h1>Pinehill Adventist Academy</h1>
         </div>
         <label>
-          Username
-          <input id="usernameInput" type="text" autocomplete="username" required>
+          Approved Email or Phone No.
+          <input id="usernameInput" type="text" autocomplete="username" placeholder="email@school.com or +91..." required>
         </label>
         <label>
           Password
-          <input id="passwordInput" type="password" autocomplete="current-password" required>
+          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Required for email login">
         </label>
-        <button class="primary-button" type="submit">Login</button>
+        <div class="login-actions">
+          <button class="primary-button" type="submit">Login</button>
+          <button id="registerApprovedBtn" class="ghost-button" type="button">Register</button>
+        </div>
+        <button id="sendPhoneCodeBtn" class="ghost-button login-wide-button" type="button">Send Phone OTP</button>
+        <div id="phoneOtpPanel" class="phone-otp-panel hidden">
+          <label>
+            Verification Code
+            <input id="phoneCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit OTP">
+          </label>
+          <button id="verifyPhoneCodeBtn" class="primary-button" type="button">Verify OTP</button>
+        </div>
+        <div id="phoneRecaptcha" class="phone-recaptcha" aria-hidden="true"></div>
+        <p class="login-help">Only pre-approved emails or phone numbers can enter the portal. Ask Admin to add your email or phone in Firebase before registering.</p>
       </form>
     </div>
   </section>
@@ -1091,10 +1104,10 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=split-doc-safe-20260726"></script>
+  <script type="module" src="./firebase.js?v=approved-auth-20260726"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=split-doc-safe-20260726"></script>
+  <script src="./app.js?v=approved-auth-20260726"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
 </body>
 </html>

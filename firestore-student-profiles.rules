@@ -5,34 +5,85 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function role() {
-      return signedIn() && request.auth.token.role is string
-        ? request.auth.token.role
+    function emailKey() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email
         : "";
     }
 
+    function phoneKey() {
+      return signedIn() && request.auth.token.phone_number is string
+        ? request.auth.token.phone_number
+        : "";
+    }
+
+    function approvedByEmail() {
+      return emailKey() != ""
+        && exists(/databases/$(database)/documents/approvedUsers/$(emailKey()))
+        && get(/databases/$(database)/documents/approvedUsers/$(emailKey())).data.active != false;
+    }
+
+    function approvedByPhone() {
+      return phoneKey() != ""
+        && exists(/databases/$(database)/documents/approvedUsers/$(phoneKey()))
+        && get(/databases/$(database)/documents/approvedUsers/$(phoneKey())).data.active != false;
+    }
+
+    function approvedUser() {
+      return signedIn() && (approvedByEmail() || approvedByPhone());
+    }
+
+    function approvedRole() {
+      return approvedByEmail()
+        ? get(/databases/$(database)/documents/approvedUsers/$(emailKey())).data.role
+        : approvedByPhone()
+          ? get(/databases/$(database)/documents/approvedUsers/$(phoneKey())).data.role
+          : "";
+    }
+
     function isAdmin() {
-      return role() == "admin";
+      return approvedRole() == "admin";
     }
 
     function isSchoolLeader() {
-      return role() in ["admin", "principal", "headmaster"];
+      return approvedRole() in ["admin", "principal", "headmaster"];
     }
 
-    function canViewStudentData() {
-      return role() in ["admin", "principal", "headmaster", "teacher"];
+    function canViewSchoolData() {
+      return approvedRole() in ["admin", "principal", "headmaster", "teacher"];
+    }
+
+    match /approvedUsers/{identifier} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appState/{docId} {
+      allow read: if canViewSchoolData();
+      allow write: if isSchoolLeader();
+    }
+
+    match /sessionData/{sessionId}/{collectionName}/{docId} {
+      allow read: if canViewSchoolData();
+      allow write: if approvedUser();
     }
 
     match /students/{studentId} {
-      allow read: if canViewStudentData();
+      allow read: if canViewSchoolData();
       allow create, update: if isSchoolLeader();
       allow delete: if isAdmin();
     }
 
     match /academicSessions/{sessionId}/enrolments/{studentId} {
-      allow read: if canViewStudentData();
+      allow read: if canViewSchoolData();
       allow create, update: if isSchoolLeader();
       allow delete: if isAdmin();
+    }
+
+    match /results/{rollNo} {
+      allow read: if true;
+      allow write: if isSchoolLeader();
     }
   }
 }

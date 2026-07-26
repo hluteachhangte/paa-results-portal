@@ -19,6 +19,15 @@ import {
   getDownloadURL,
   deleteObject
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-storage.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB0RxeHkphyME9sziVGmT-0qXRkMA1J9V0",
@@ -32,9 +41,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
 const appStateRef = doc(db, "appState", "markhub");
 const splitRootCollection = "sessionData";
 const classListMarkKeyPrefix = "__classList__::";
+let phoneConfirmationResult = null;
+let phoneRecaptchaVerifier = null;
 const duplicatedActiveSessionFields = [
   "classes",
   "workingDays",
@@ -179,6 +191,65 @@ function splitDocRef(session, collectionName, id) {
   return doc(db, splitRootCollection, splitDocId(session), collectionName, splitDocId(id));
 }
 
+function normalizeApprovedIdentifier(identifier = "") {
+  const value = String(identifier || "").trim();
+  if (!value) return "";
+  if (value.includes("@")) return value.toLowerCase();
+  return value.replace(/[\s().-]/g, "");
+}
+
+function approvedUserRef(identifier = "") {
+  const normalized = normalizeApprovedIdentifier(identifier);
+  if (!normalized || normalized.includes("/")) return null;
+  return doc(db, "approvedUsers", normalized);
+}
+
+function authProfileFromApprovedDoc(identifier, data = {}, firebaseUser = null) {
+  const rawRole = String(data.role || "teacher").trim().toLowerCase();
+  const staffRole = ["admin", "principal", "headmaster", "teacher"].includes(rawRole) ? rawRole : "teacher";
+  const displayName = String(data.name || firebaseUser?.displayName || firebaseUser?.email || firebaseUser?.phoneNumber || identifier || staffRole).trim();
+  return {
+    username: String(data.username || (staffRole === "principal" ? "principal" : staffRole === "headmaster" ? "headmaster" : firebaseUser?.uid || normalizeApprovedIdentifier(identifier))).trim(),
+    role: staffRole === "admin" ? "admin" : staffRole === "headmaster" ? "headmaster" : "user",
+    staffRole,
+    name: displayName,
+    email: firebaseUser?.email || data.email || "",
+    phoneNumber: firebaseUser?.phoneNumber || data.phoneNumber || "",
+    uid: firebaseUser?.uid || "",
+    photoURL: firebaseUser?.photoURL || data.photoURL || "",
+    authProvider: "firebase"
+  };
+}
+
+async function getApprovedPortalUser(identifier, firebaseUser = null) {
+  const candidates = [
+    identifier,
+    firebaseUser?.email,
+    firebaseUser?.phoneNumber
+  ].map(normalizeApprovedIdentifier).filter(Boolean);
+  for (const candidate of [...new Set(candidates)]) {
+    const ref = approvedUserRef(candidate);
+    if (!ref) continue;
+    const snapshot = await getDoc(ref);
+    if (!snapshot.exists()) continue;
+    const data = snapshot.data() || {};
+    if (data.active === false) return null;
+    return authProfileFromApprovedDoc(candidate, data, firebaseUser);
+  }
+  return null;
+}
+
+function requireApprovedPortalUser(profile) {
+  if (!profile) throw new Error("This email or phone number is not approved for this portal.");
+  return profile;
+}
+
+function ensurePhoneRecaptcha() {
+  if (phoneRecaptchaVerifier) return phoneRecaptchaVerifier;
+  phoneRecaptchaVerifier = new RecaptchaVerifier(auth, "phoneRecaptcha", { size: "invisible" });
+  return phoneRecaptchaVerifier;
+}
+
 function classListMarkKey(className) {
   return `${classListMarkKeyPrefix}${String(className || "").trim()}`;
 }
@@ -318,6 +389,69 @@ function studentEnrolmentDocPayload(enrolment = {}) {
 window.MarkHubFirebase = {
   app,
   db,
+  auth,
+  async signInApprovedUser({ identifier, password } = {}) {
+    const email = normalizeApprovedIdentifier(identifier);
+    if (!email || !email.includes("@")) throw new Error("Enter an approved email address.");
+    if (!password) throw new Error("Enter your password.");
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const profile = await getApprovedPortalUser(email, credential.user);
+    if (!profile) {
+      await signOut(auth);
+      throw new Error("This email is not approved for this portal.");
+    }
+    return profile;
+  },
+  async registerApprovedEmailUser({ identifier, password } = {}) {
+    const email = normalizeApprovedIdentifier(identifier);
+    if (!email || !email.includes("@")) throw new Error("Enter an approved email address.");
+    if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
+    const approved = await getApprovedPortalUser(email);
+    if (!approved) throw new Error("This email is not pre-approved. Ask Admin to add it first.");
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    return requireApprovedPortalUser(await getApprovedPortalUser(email, credential.user));
+  },
+  async sendApprovedPhoneCode(phoneNumber) {
+    const phone = normalizeApprovedIdentifier(phoneNumber);
+    if (!phone || !phone.startsWith("+")) throw new Error("Enter phone number with country code, for example +919876543210.");
+    const approved = await getApprovedPortalUser(phone);
+    if (!approved) throw new Error("This phone number is not pre-approved. Ask Admin to add it first.");
+    phoneConfirmationResult = await signInWithPhoneNumber(auth, phone, ensurePhoneRecaptcha());
+    return true;
+  },
+  async confirmApprovedPhoneCode(code) {
+    if (!phoneConfirmationResult) throw new Error("Send the phone OTP first.");
+    const credential = await phoneConfirmationResult.confirm(String(code || "").trim());
+    phoneConfirmationResult = null;
+    const profile = await getApprovedPortalUser(credential.user.phoneNumber, credential.user);
+    if (!profile) {
+      await signOut(auth);
+      throw new Error("This phone number is not approved for this portal.");
+    }
+    return profile;
+  },
+  listenApprovedAuthState(onUser, onError) {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        onUser(null);
+        return;
+      }
+      try {
+        const profile = await getApprovedPortalUser(firebaseUser.email || firebaseUser.phoneNumber, firebaseUser);
+        if (!profile) {
+          await signOut(auth);
+          onUser(null);
+          return;
+        }
+        onUser(profile);
+      } catch (error) {
+        onError?.(error);
+      }
+    }, onError);
+  },
+  async signOutApprovedUser() {
+    await signOut(auth);
+  },
   listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();
     if (!roll) return () => {};
@@ -658,4 +792,4 @@ window.MarkHubFirebase = {
   }
 };
 
-export { app, db };
+export { app, db, auth };
