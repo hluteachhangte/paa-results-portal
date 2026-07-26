@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=student-profile-full-csv-20260726">
+  <link rel="stylesheet" href="./styles.css?v=split-doc-safe-20260726">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -952,84 +952,6 @@
 
         <section id="studentProfileAgeReport" class="student-profile-age-report" aria-label="Age-wise student report"></section>
 
-        <div id="studentProfilePanel" class="student-profile-panel hidden" aria-live="polite"></div>
-
-        <form id="studentProfileForm" class="student-profile-form hidden">
-          <div class="profile-form-toolbar">
-            <div>
-              <strong id="studentProfileFormTitle">Add Student Profile</strong>
-              <span>Required fields are marked with *</span>
-            </div>
-            <button id="closeStudentProfileFormBtn" class="ghost-button" type="button">Cancel</button>
-          </div>
-
-          <fieldset>
-            <legend>Basic Information</legend>
-            <label>Student Photo<input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label>
-            <div id="profilePhotoPreview" class="student-profile-photo-preview" aria-label="Student photo preview"></div>
-            <label>Roll No. *<input id="profileRollInput" type="number" min="1" required></label>
-            <label>Student Name *<input id="profileNameInput" type="text" required></label>
-            <label>Class *<select id="profileClassInput" required></select></label>
-            <label>Section<input id="profileSectionInput" type="text" placeholder="A"></label>
-            <label>School ID No.<input id="profileSchoolIdInput" type="text"></label>
-            <label>Gender *<select id="profileGenderInput" required></select></label>
-            <label>Date of Birth<input id="profileDobInput" type="date"></label>
-            <label>Age<input id="profileAgeInput" type="text" readonly></label>
-            <label>Blood Group<select id="profileBloodGroupInput"></select></label>
-            <label>House Colour<select id="profileHouseInput"></select></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Address and Contact</legend>
-            <label>Address<input id="profileAddressInput" type="text"></label>
-            <label>Landmark<input id="profileLandmarkInput" type="text"></label>
-            <label>Student Contact No.<input id="profileStudentContactInput" type="tel"></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Identification Details</legend>
-            <label>PEN<input id="profilePenInput" type="text"></label>
-            <label>Aadhaar No.<input id="profileAadhaarInput" type="text" inputmode="numeric"></label>
-            <label>APAR ID<input id="profileAparInput" type="text"></label>
-            <label>Nationality<input id="profileNationalityInput" type="text" value="Indian"></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Parent and Guardian Details</legend>
-            <label>Father's Name<input id="profileFatherInput" type="text"></label>
-            <label>Father's Contact No.<input id="profileFatherContactInput" type="tel"></label>
-            <label>Mother's Name<input id="profileMotherInput" type="text"></label>
-            <label>Mother's Contact No.<input id="profileMotherContactInput" type="tel"></label>
-            <label>Guardian's Name<input id="profileGuardianInput" type="text"></label>
-            <label>Guardian's Relationship<input id="profileGuardianRelationshipInput" type="text"></label>
-            <label>Guardian's Contact No.<input id="profileGuardianContactInput" type="tel"></label>
-            <label>Parent/Guardian Aadhaar No.<input id="profileParentAadhaarInput" type="text" inputmode="numeric"></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Personal, Admission and Residential Information</legend>
-            <label>Religion<select id="profileReligionInput"></select></label>
-            <label>Denomination<select id="profileDenominationInput"></select></label>
-            <label>BPL/AAY<select id="profileBplAayInput"></select></label>
-            <label>Residential Status<select id="profileResidentialInput"></select></label>
-            <label>Admission Type<select id="profileAdmissionInput"></select></label>
-            <label>Admission No.<input id="profileAdmissionNoInput" type="text"></label>
-            <label>Date of Admission<input id="profileAdmissionDateInput" type="date"></label>
-            <label>Student Status<select id="profileStatusInput"></select></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Skill Development</legend>
-            <label>Skill Development Programme<select id="profileSkillProgrammeInput"></select></label>
-          </fieldset>
-
-          <div id="studentProfileFormMessage" class="field-warning hidden"></div>
-          <div class="student-profile-form-actions">
-            <button id="saveStudentProfileDraftBtn" class="ghost-button" type="button">Save Draft</button>
-            <button id="saveStudentProfileBtn" class="primary-button" type="submit">Save and Continue</button>
-          </div>
-        </form>
-
         <div id="studentPhotoCropModal" class="student-photo-crop-modal hidden" role="dialog" aria-modal="true" aria-labelledby="studentPhotoCropTitle">
           <div class="student-photo-crop-card">
             <div class="student-photo-crop-head">
@@ -1071,7 +993,7 @@
                 <th>School ID No.</th>
                 <th class="student-profile-dob-cell">Date of Birth</th>
                 <th>Gender</th>
-                <th>Primary Contact</th>
+                <th>Contact No.</th>
                 <th>Residential Status</th>
                 <th>Admission Type</th>
                 <th>Student Status</th>
@@ -1087,16 +1009,92 @@
           <span id="profilePageInfo">Page 1 of 1</span>
           <button id="profileNextPageBtn" class="ghost-button" type="button">Next</button>
         </div>
+        <div id="studentProfilePanel" class="student-profile-panel hidden" aria-live="polite"></div>
+        <form id="studentProfileForm" class="student-profile-form hidden">
+          <div class="profile-form-toolbar">
+            <div>
+              <strong id="studentProfileFormTitle">Add Student Profile</strong>
+              <span>Required fields are marked with *</span>
+            </div>
+            <button id="closeStudentProfileFormBtn" class="ghost-button" type="button">Cancel</button>
+          </div>
+
+          <fieldset>
+            <legend>Basic Information</legend>
+            <label>Student Photo<input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            <div id="profilePhotoPreview" class="student-profile-photo-preview" aria-label="Student photo preview"></div>
+            <label>Roll No. *<input id="profileRollInput" type="number" min="1" required></label>
+            <label>Student Name *<input id="profileNameInput" type="text" required></label>
+            <label>Class *<select id="profileClassInput" required></select></label>
+            <label>Section<input id="profileSectionInput" type="text" placeholder="A"></label>
+            <label>School ID No.<input id="profileSchoolIdInput" type="text"></label>
+            <label>Gender *<select id="profileGenderInput" required></select></label>
+            <label>Date of Birth<input id="profileDobInput" type="date"></label>
+            <label>Age<input id="profileAgeInput" type="text" readonly></label>
+            <label>Blood Group<select id="profileBloodGroupInput"></select></label>
+            <label>House Colour<select id="profileHouseInput"></select></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Address and Contact</legend>
+            <label>Address<input id="profileAddressInput" type="text"></label>
+            <label>Landmark<input id="profileLandmarkInput" type="text"></label>
+            <label>Student's Contact No.<input id="profileStudentContactInput" type="tel"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Identification Details</legend>
+            <label>PEN<input id="profilePenInput" type="text"></label>
+            <label>Aadhaar No.<input id="profileAadhaarInput" type="text" inputmode="numeric"></label>
+            <label>APAAR ID<input id="profileAparInput" type="text"></label>
+            <label>Nationality<input id="profileNationalityInput" type="text" value="Indian"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Parent and Guardian Details</legend>
+            <label>Father's Name<input id="profileFatherInput" type="text"></label>
+            <label>Father's Contact No.<input id="profileFatherContactInput" type="tel"></label>
+            <label>Mother's Name<input id="profileMotherInput" type="text"></label>
+            <label>Mother's Contact No.<input id="profileMotherContactInput" type="tel"></label>
+            <label>Guardian's Name<input id="profileGuardianInput" type="text"></label>
+            <label>Guardian's Relationship<input id="profileGuardianRelationshipInput" type="text"></label>
+            <label>Guardian's Contact No.<input id="profileGuardianContactInput" type="tel"></label>
+            <label>Parent/Guardian Aadhaar No.<input id="profileParentAadhaarInput" type="text" inputmode="numeric"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Personal, Admission and Residential Information</legend>
+            <label>Religion<select id="profileReligionInput"></select></label>
+            <label>Denomination<select id="profileDenominationInput"></select></label>
+            <label>BPL/AAY<select id="profileBplAayInput"></select></label>
+            <label>Residential Status<select id="profileResidentialInput"></select></label>
+            <label>Admission Type<select id="profileAdmissionInput"></select></label>
+            <label>Admission No.<input id="profileAdmissionNoInput" type="text"></label>
+            <label>Date of Admission<input id="profileAdmissionDateInput" type="date"></label>
+            <label>Student Status<select id="profileStatusInput"></select></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Skill Development</legend>
+            <label>Skill Development Programme<select id="profileSkillProgrammeInput"></select></label>
+          </fieldset>
+
+          <div id="studentProfileFormMessage" class="field-warning hidden"></div>
+          <div class="student-profile-form-actions">
+            <button id="saveStudentProfileDraftBtn" class="ghost-button" type="button">Save Draft</button>
+            <button id="saveStudentProfileBtn" class="primary-button" type="submit">Save and Continue</button>
+          </div>
+        </form>
       </section>
     </main>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=student-profiles-bpl-aay-20260725"></script>
+  <script type="module" src="./firebase.js?v=split-doc-safe-20260726"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=student-profile-full-csv-20260726"></script>
+  <script src="./app.js?v=split-doc-safe-20260726"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
 </body>
 </html>

@@ -42,12 +42,36 @@ const duplicatedActiveSessionFields = [
   "measurements",
   "marks",
   "published",
+  "dataEntryUpdates",
+  "studentProfiles",
+  "studentEnrolments",
+  "studentProfileAudit"
+];
+
+const splitSessionFields = [
+  "classes",
+  "workingDays",
+  "attendance",
+  "measurements",
+  "marks",
+  "published",
+  "publishedMarksheets",
   "dataEntryUpdates"
 ];
 
 function compactStateForFirestore(state = {}) {
   const compactState = sanitizeFirestoreValue({ ...state }, ["state"]);
   duplicatedActiveSessionFields.forEach((field) => delete compactState[field]);
+  if (compactState.sessions && typeof compactState.sessions === "object") {
+    compactState.sessions = Object.fromEntries(
+      Object.entries(compactState.sessions)
+        .map(([session, sessionData]) => {
+          const sessionShell = { ...(sessionData || {}) };
+          splitSessionFields.forEach((field) => delete sessionShell[field]);
+          return [session, sessionShell];
+        })
+    );
+  }
   return compactState;
 }
 
@@ -517,6 +541,53 @@ window.MarkHubFirebase = {
       key: splitDocLabel(data.key || id),
       value: data.value || null
     }));
+
+    const unsubscribeStudents = onSnapshot(
+      collection(db, "students"),
+      (snapshot) => {
+        const patch = { session, studentProfiles: {} };
+        snapshot.docs.forEach((docSnapshot) => {
+          const data = docSnapshot.data() || {};
+          const studentId = String(data.studentId || docSnapshot.id || "").trim();
+          if (!studentId) return;
+          patch.studentProfiles[studentId] = { ...data, studentId };
+        });
+        console.log("[Firestore] Student profile listener update", {
+          count: Object.keys(patch.studentProfiles).length,
+          fromCache: snapshot.metadata.fromCache,
+          hasPendingWrites: snapshot.metadata.hasPendingWrites
+        });
+        onPatch(patch);
+      },
+      onError
+    );
+    unsubs.push(unsubscribeStudents);
+
+    const unsubscribeEnrolments = onSnapshot(
+      collection(db, "academicSessions", sessionId, "enrolments"),
+      (snapshot) => {
+        const patch = { session, studentEnrolments: { [session]: {} } };
+        snapshot.docs.forEach((docSnapshot) => {
+          const data = docSnapshot.data() || {};
+          const studentId = String(data.studentId || docSnapshot.id || "").trim();
+          if (!studentId) return;
+          patch.studentEnrolments[session][studentId] = {
+            ...data,
+            academicSessionId: session,
+            studentId
+          };
+        });
+        console.log("[Firestore] Student enrolment listener update", {
+          session,
+          count: Object.keys(patch.studentEnrolments[session]).length,
+          fromCache: snapshot.metadata.fromCache,
+          hasPendingWrites: snapshot.metadata.hasPendingWrites
+        });
+        onPatch(patch);
+      },
+      onError
+    );
+    unsubs.push(unsubscribeEnrolments);
 
     return () => {
       unsubs.forEach((unsubscribe) => unsubscribe());

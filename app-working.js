@@ -239,7 +239,7 @@ let firebaseStateWriteInFlight = false;
 let pendingFirebaseStateJson = "";
 let lastSyncedFirebaseStateJson = "";
 const firebaseStateSaveDelay = 900;
-const splitClassListSeededSessions = new Set();
+const splitSessionDataSeededSessions = new Set();
 const unsavedMarkChanges = new Map();
 let marksSaveInProgress = false;
 let unsavedAttendanceChanges = false;
@@ -1013,28 +1013,25 @@ function saveState() {
   queueFirebaseStateSave();
 }
 
+function saveStateLocalOnly() {
+  syncActiveSessionData();
+  localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
 async function saveClassStudents(className = selectedClass()) {
   syncActiveSessionData();
   localStorage.setItem(storageKey, JSON.stringify(state));
   const students = normalizeClasses({ [className]: state.classes?.[className] || [] })[className] || [];
   const session = currentSessionKey(state.academicSession);
-  if (window.MarkHubFirebase?.saveSplitClasses) {
-    await window.MarkHubFirebase.saveSplitClasses({
-      session,
-      className,
-      students,
-      updatedAt: new Date().toISOString(),
-      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
-    });
-    lastSyncedFirebaseStateJson = JSON.stringify(state);
-    return;
-  }
-  if (window.MarkHubFirebase?.saveAppState) {
-    await window.MarkHubFirebase.saveAppState(structuredClone(state));
-    lastSyncedFirebaseStateJson = JSON.stringify(state);
-    return;
-  }
-  throw new Error("Firebase is not ready.");
+  if (!window.MarkHubFirebase?.saveSplitClasses) throw new Error("Firebase split class-list storage is not ready.");
+  await window.MarkHubFirebase.saveSplitClasses({
+    session,
+    className,
+    students,
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+  });
+  lastSyncedFirebaseStateJson = JSON.stringify(state);
 }
 
 function hasUnsavedMarkChanges() {
@@ -1268,6 +1265,9 @@ function firestoreSaveErrorMessage(action, error) {
   if (String(error?.message || "").includes("Firebase is not ready")) {
     return `Could not ${action}: Firebase is not ready. Refresh the page and try again.`;
   }
+  if (String(error?.message || "").includes("Firebase split")) {
+    return `Could not ${action}: split Firestore storage is not ready. Refresh the page and check Firestore rules for sessionData.`;
+  }
   if (String(error?.message || "").includes("Firebase field updates are not ready")) {
     return `Could not ${action}: save marks first, then try attendance again.`;
   }
@@ -1397,12 +1397,8 @@ async function saveAttendanceData() {
 
     if (splitSaves.length > 0) {
       await Promise.all(splitSaves);
-    } else if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
-    } else if (window.MarkHubFirebase?.saveAppState) {
-      await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
-      throw new Error("Firebase is not ready.");
+      throw new Error("Firebase split attendance storage is not ready.");
     }
     changedSections.forEach((section) => unsavedAttendanceSections.delete(section));
     unsavedAttendanceChanges = unsavedAttendanceSections.size > 0;
@@ -1577,12 +1573,8 @@ async function saveAllMarks() {
         updatedBy: currentUser?.name || currentUser?.username || "Unknown"
       });
       savedWithSplitMarks = true;
-    } else if (window.MarkHubFirebase?.updateAppStateFields && fieldUpdates.length > 0) {
-      await window.MarkHubFirebase.updateAppStateFields(fieldUpdates, null);
-    } else if (window.MarkHubFirebase?.saveAppState) {
-      await window.MarkHubFirebase.saveAppState(structuredClone(state));
     } else {
-      throw new Error("Firebase is not ready.");
+      throw new Error("Firebase split marks storage is not ready.");
     }
 
     localStorage.setItem(storageKey, stateJson);
@@ -1772,24 +1764,112 @@ function ensureSplitSessionListener(session = state.academicSession) {
   );
 }
 
-function seedSplitClassLists(session = state.academicSession) {
+function seedSplitSessionData(session = state.academicSession) {
   const sessionKey = currentSessionKey(session);
-  if (splitClassListSeededSessions.has(sessionKey) || !window.MarkHubFirebase?.saveSplitClasses) return;
+  if (splitSessionDataSeededSessions.has(sessionKey)) return;
   const sessionData = normalizeSessionData(state.sessions?.[sessionKey] || getActiveSessionData());
+  const updatedAt = new Date().toISOString();
+  const updatedBy = currentUser?.name || currentUser?.username || "Unknown";
+  const requiredSplitWriters = [
+    "saveSplitClasses",
+    "saveSplitMarks",
+    "saveSplitAttendance",
+    "saveSplitMeasurements",
+    "saveSplitPublication"
+  ];
+  if (!requiredSplitWriters.every((writer) => typeof window.MarkHubFirebase?.[writer] === "function")) return;
+  splitSessionDataSeededSessions.add(sessionKey);
+
   const classEntries = classNames
     .map((className) => [className, sessionData.classes?.[className] || []])
     .filter(([, students]) => students.length > 0);
-  if (!classEntries.length) return;
-  splitClassListSeededSessions.add(sessionKey);
   classEntries.forEach(([className, students]) => {
     window.MarkHubFirebase.saveSplitClasses({
       session: sessionKey,
       className,
       students,
-      updatedAt: new Date().toISOString(),
-      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+      updatedAt,
+      updatedBy
     }).catch((error) => {
       console.warn(`[Firestore] Could not seed split student list for ${className}`, error);
+    });
+  });
+
+  Object.entries(sessionData.marks || {}).forEach(([key, marks]) => {
+    const [className = "", exam = "", ...subjectParts] = String(key).split("::");
+    const subject = subjectParts.join("::");
+    const updateKey = dataEntryUpdateKey("marks", className, exam, subject);
+    window.MarkHubFirebase.saveSplitMarks({
+      session: sessionKey,
+      className,
+      exam,
+      subject,
+      markKey: key,
+      marks,
+      dataEntryKey: updateKey,
+      dataEntryUpdate: sessionData.dataEntryUpdates?.[updateKey] || null,
+      updatedAt,
+      updatedBy
+    }).catch((error) => {
+      console.warn(`[Firestore] Could not seed split marks for ${key}`, error);
+    });
+  });
+
+  Object.entries(sessionData.attendance || {}).forEach(([key, attendance]) => {
+    const [className = "", term = ""] = String(key).split("::");
+    const updateKey = dataEntryUpdateKey("attendance", className, term);
+    window.MarkHubFirebase.saveSplitAttendance({
+      session: sessionKey,
+      className,
+      term,
+      attendanceKey: key,
+      workingDays: sessionData.workingDays?.[term] ?? 0,
+      attendance,
+      dataEntryKey: updateKey,
+      dataEntryUpdate: sessionData.dataEntryUpdates?.[updateKey] || null,
+      updatedAt,
+      updatedBy
+    }).catch((error) => {
+      console.warn(`[Firestore] Could not seed split attendance for ${key}`, error);
+    });
+  });
+
+  Object.entries(sessionData.measurements || {}).forEach(([key, measurements]) => {
+    const [className = "", term = ""] = String(key).split("::");
+    const updateKey = dataEntryUpdateKey("measurement", className, term);
+    window.MarkHubFirebase.saveSplitMeasurements({
+      session: sessionKey,
+      className,
+      term,
+      attendanceKey: key,
+      measurements,
+      dataEntryKey: updateKey,
+      dataEntryUpdate: sessionData.dataEntryUpdates?.[updateKey] || null,
+      updatedAt,
+      updatedBy
+    }).catch((error) => {
+      console.warn(`[Firestore] Could not seed split measurements for ${key}`, error);
+    });
+  });
+
+  [
+    ["published", "result"],
+    ["publishedMarksheets", "marksheet"]
+  ].forEach(([collectionKey, type]) => {
+    Object.entries(sessionData[collectionKey] || {}).forEach(([key, value]) => {
+      const [className = "", exam = ""] = String(key).split("::");
+      window.MarkHubFirebase.saveSplitPublication({
+        session: sessionKey,
+        type,
+        className,
+        exam,
+        key,
+        value,
+        updatedAt: value?.publishedAt || updatedAt,
+        updatedBy
+      }).catch((error) => {
+        console.warn(`[Firestore] Could not seed split ${type} publication for ${key}`, error);
+      });
     });
   });
 }
@@ -1831,7 +1911,12 @@ function cacheSplitSessionPatch(sessionKey, patch = {}) {
     marks: patch.marks ? { ...(previous.marks || {}), ...patch.marks } : previous.marks,
     published: patch.published ? { ...(previous.published || {}), ...patch.published } : previous.published,
     publishedMarksheets: patch.publishedMarksheets ? { ...(previous.publishedMarksheets || {}), ...patch.publishedMarksheets } : previous.publishedMarksheets,
-    dataEntryUpdates: patch.dataEntryUpdates ? { ...(previous.dataEntryUpdates || {}), ...patch.dataEntryUpdates } : previous.dataEntryUpdates
+    dataEntryUpdates: patch.dataEntryUpdates ? { ...(previous.dataEntryUpdates || {}), ...patch.dataEntryUpdates } : previous.dataEntryUpdates,
+    studentProfiles: patch.studentProfiles ? { ...(previous.studentProfiles || {}), ...patch.studentProfiles } : previous.studentProfiles,
+    studentEnrolments: patch.studentEnrolments ? normalizeStudentEnrolments({
+      ...(previous.studentEnrolments || {}),
+      ...patch.studentEnrolments
+    }) : previous.studentEnrolments
   };
   firebaseSplitSessionPatchCache.set(sessionKey, cached);
   return cached;
@@ -1841,6 +1926,18 @@ function applyCachedSplitSessionPatch(sessionKey) {
   const cachedPatch = firebaseSplitSessionPatchCache.get(sessionKey);
   if (!cachedPatch) return false;
   state.sessions = state.sessions || {};
+  if (cachedPatch.studentProfiles) {
+    state.studentProfiles = normalizeStudentProfiles({
+      ...(state.studentProfiles || {}),
+      ...cachedPatch.studentProfiles
+    });
+  }
+  if (cachedPatch.studentEnrolments) {
+    state.studentEnrolments = normalizeStudentEnrolments({
+      ...(state.studentEnrolments || {}),
+      ...cachedPatch.studentEnrolments
+    });
+  }
   const existingSession = normalizeSessionData(state.sessions[sessionKey] || createEmptySessionData());
   const mergedSession = mergeSplitPatchIntoSession(existingSession, cachedPatch);
   state.sessions[sessionKey] = mergedSession;
@@ -1876,7 +1973,6 @@ function startFirebaseStateSync(attempt = 0) {
 
   firebaseStateSyncStarted = true;
   ensureSplitSessionListener(state.academicSession);
-  seedSplitClassLists(state.academicSession);
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
     if (publicationSaveInProgress) {
@@ -1904,6 +2000,7 @@ function startFirebaseStateSync(attempt = 0) {
       return;
     }
     if (!remoteState) {
+      seedSplitSessionData(state.academicSession);
       queueFirebaseStateSave();
       return;
     }
@@ -1913,7 +2010,7 @@ function startFirebaseStateSync(attempt = 0) {
     state = preserveLocalClassesIfRemoteMissing(remoteState, state);
     ensureSplitSessionListener(state.academicSession);
     applyCachedSplitSessionPatch(currentSessionKey(state.academicSession));
-    seedSplitClassLists(state.academicSession);
+    seedSplitSessionData(state.academicSession);
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
     attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
     entryAccessDirty = false;
@@ -10186,7 +10283,7 @@ function renderStudentProfileSummary(records) {
     { key: "withAadhaar", label: "Students with Aadhaar", count: countWhere((record) => hasValue(record.aadhaarNo)) },
     { key: "bpl", label: "BPL", count: countWhere((record) => record.bplAay === "BPL") },
     { key: "aay", label: "AAY", count: countWhere((record) => record.bplAay === "AAY") },
-    { key: "withApar", label: "Students with APAR ID", count: countWhere((record) => hasValue(record.aparId)) },
+    { key: "withApar", label: "Students with APAAR ID", count: countWhere((record) => hasValue(record.aparId)) },
     { key: "transferred", label: "Transferred Students", count: countWhere((record) => record.studentStatus === "Transferred") },
     { key: "withdrawn", label: "Withdrawn Students", count: countWhere((record) => record.studentStatus === "Withdrawn") }
   ].map((item, index) => {
@@ -10361,7 +10458,7 @@ function studentProfileRowHtml(record) {
       <td>${escapeHtml(record.schoolIdNo || "-")}</td>
       <td class="student-profile-dob-cell">${escapeHtml(formatDisplayDate(record.dateOfBirth) || "-")}</td>
       <td>${escapeHtml(record.gender || "-")}</td>
-      <td>${escapeHtml(primaryContact(record) || "-")}</td>
+      <td>${escapeHtml(record.studentContact || "-")}</td>
       <td>${escapeHtml(record.residentialStatus || "-")}</td>
       <td>${escapeHtml(record.admissionType || "-")}</td>
       <td>${studentStatusBadge(record.studentStatus)}</td>
@@ -10384,7 +10481,7 @@ function studentProfileCardHtml(record) {
       <div class="student-profile-card-grid">
         <span>School ID</span><strong>${escapeHtml(record.schoolIdNo || "-")}</strong>
         <span>Gender</span><strong>${escapeHtml(record.gender || "-")}</strong>
-        <span>Contact</span><strong>${escapeHtml(primaryContact(record) || "-")}</strong>
+        <span>Contact</span><strong>${escapeHtml(record.studentContact || "-")}</strong>
         <span>Residential</span><strong>${escapeHtml(record.residentialStatus || "-")}</strong>
       </div>
       ${studentProfileActionsHtml(record)}
@@ -10444,7 +10541,7 @@ function openStudentProfilePanel(record) {
       <div>
         <span class="eyebrow">Student Profile</span>
         <h3>${escapeHtml(record.studentName || "-")}</h3>
-        <p>${escapeHtml(record.className || "-")} | Roll ${escapeHtml(record.rollNumber || "-")} | ${studentStatusBadge(record.studentStatus)}</p>
+        <p>${escapeHtml(record.className || "-")} | Roll No. ${escapeHtml(record.rollNumber || "-")} | ${studentStatusBadge(record.studentStatus)}</p>
       </div>
       <div class="student-profile-actions">
         ${canEditStudentProfileRecord(record) ? `<button type="button" data-profile-action="edit" data-profile-id="${escapeAttr(record.studentId)}">Edit</button>` : ""}
@@ -10453,24 +10550,35 @@ function openStudentProfilePanel(record) {
     </div>
     <div class="student-profile-panel-grid">
       ${studentProfileDetail("School ID No.", record.schoolIdNo)}
-      ${studentProfileDetail("Admission No.", record.admissionNo)}
       ${studentProfileDetail("Gender", record.gender)}
       ${studentProfileDetail("Date of Birth", formatDisplayDate(record.dateOfBirth))}
       ${studentProfileDetail("Age", profileAge(record.dateOfBirth))}
       ${studentProfileDetail("Blood Group", record.bloodGroup)}
       ${studentProfileDetail("House Colour", record.houseColour)}
+      ${studentProfileDetail("Address", record.address)}
+      ${studentProfileDetail("Landmark", record.landmark)}
+      ${studentProfileDetail("Student's Contact No.", record.studentContact)}
+      ${studentProfileDetail("PEN", displayIdentifier(record.pen))}
+      ${studentProfileDetail("Aadhaar No.", displayIdentifier(record.aadhaarNo))}
+      ${studentProfileDetail("APAAR ID", displayIdentifier(record.aparId))}
+      ${studentProfileDetail("Nationality", record.nationality)}
+      ${studentProfileDetail("Father's Name", record.fatherName)}
+      ${studentProfileDetail("Father's Contact No.", record.fatherContact)}
+      ${studentProfileDetail("Mother's Name", record.motherName)}
+      ${studentProfileDetail("Mother's Contact No.", record.motherContact)}
+      ${studentProfileDetail("Guardian's Name", record.guardianName)}
+      ${studentProfileDetail("Guardian's Relationship", record.guardianRelationship)}
+      ${studentProfileDetail("Guardian's Contact No.", record.guardianContact)}
+      ${studentProfileDetail("Parent/Guardian Aadhaar No.", displayIdentifier(record.parentGuardianAadhaar))}
+      ${studentProfileDetail("Religion", record.religion)}
+      ${studentProfileDetail("Denomination", record.denomination)}
       ${studentProfileDetail("BPL/AAY", record.bplAay)}
       ${studentProfileDetail("Residential Status", record.residentialStatus)}
       ${studentProfileDetail("Admission Type", record.admissionType)}
-      ${studentProfileDetail("PEN", displayIdentifier(record.pen))}
-      ${studentProfileDetail("Aadhaar No.", displayIdentifier(record.aadhaarNo))}
-      ${studentProfileDetail("APAR ID", displayIdentifier(record.aparId))}
-      ${studentProfileDetail("Father's Name", record.fatherName)}
-      ${studentProfileDetail("Mother's Name", record.motherName)}
-      ${studentProfileDetail("Guardian", record.guardianName)}
-      ${studentProfileDetail("Primary Contact", primaryContact(record))}
-      ${studentProfileDetail("Address", record.address)}
-      ${studentProfileDetail("Skill Development", record.skillDevelopmentProgramme)}
+      ${studentProfileDetail("Admission No.", record.admissionNo)}
+      ${studentProfileDetail("Date of Admission", formatDisplayDate(record.dateOfAdmission))}
+      ${studentProfileDetail("Student Status", record.studentStatus)}
+      ${studentProfileDetail("Skill Development Programme", record.skillDevelopmentProgramme)}
     </div>
   `;
   els.studentProfilePanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -10521,7 +10629,7 @@ function closeStudentProfileForm() {
   closeStudentPhotoCropModal();
   els.studentProfileForm?.reset();
   els.studentProfileForm?.classList.add("hidden");
-  if (els.studentProfileFormMessage) els.studentProfileFormMessage.textContent = "";
+  setStudentProfileFormMessage("");
   if (els.profilePhotoPreview) els.profilePhotoPreview.innerHTML = "";
 }
 
@@ -10872,12 +10980,19 @@ function currentUserLabel() {
   return currentUser?.name || currentUser?.username || "Unknown";
 }
 
+function setStudentProfileFormMessage(message = "") {
+  if (!els.studentProfileFormMessage) return;
+  els.studentProfileFormMessage.textContent = message;
+  els.studentProfileFormMessage.classList.toggle("hidden", !message);
+}
+
 async function saveStudentProfileFromForm(event, options = {}) {
   event?.preventDefault?.();
+  setStudentProfileFormMessage("");
   const { profile, enrolment } = readStudentProfileForm();
   const errors = validateStudentProfilePayload(profile, enrolment);
   if (errors.length) {
-    if (els.studentProfileFormMessage) els.studentProfileFormMessage.textContent = errors[0];
+    setStudentProfileFormMessage(errors[0]);
     showToast(errors[0]);
     return;
   }
@@ -10902,11 +11017,7 @@ async function saveStudentProfileFromForm(event, options = {}) {
     state.studentProfiles[profile.studentId] = profile;
     state.studentEnrolments[session][profile.studentId] = enrolment;
     syncStudentProfileToLegacyClassList(profile, enrolment, oldRecord);
-    saveState();
-    await saveClassStudents(enrolment.className);
-    if (oldRecord?.className && oldRecord.className !== enrolment.className) {
-      await saveClassStudents(oldRecord.className);
-    }
+    saveStateLocalOnly();
     if (window.MarkHubFirebase?.saveStudentProfileRecord) {
       try {
         await window.MarkHubFirebase.saveStudentProfileRecord({ profile, enrolment, session });
@@ -10914,6 +11025,15 @@ async function saveStudentProfileFromForm(event, options = {}) {
         console.warn("[Firestore] Student profile split write skipped", profileCollectionError);
         showToast("Profile saved in the portal. Publish the new Firestore rules to enable split profile documents.");
       }
+    }
+    try {
+      await saveClassStudents(enrolment.className);
+      if (oldRecord?.className && oldRecord.className !== enrolment.className) {
+        await saveClassStudents(oldRecord.className);
+      }
+    } catch (classListError) {
+      console.warn("[Firestore] Student profile legacy class-list sync skipped", classListError);
+      showToast("Student profile saved. Class list sync was skipped; refresh after Firestore rules are updated.");
     }
     closeStudentProfileForm();
     initializeStudentProfileControls(captureUiState());
@@ -10965,7 +11085,7 @@ function studentProfileDuplicateErrors(profile, enrolment) {
   duplicateField("admissionNo", "Admission No.");
   duplicateField("pen", "PEN");
   duplicateField("aadhaarNo", "Aadhaar No.");
-  duplicateField("aparId", "APAR ID");
+  duplicateField("aparId", "APAAR ID");
   const roll = String(enrolment.rollNumber || "").trim();
   const section = String(enrolment.section || "").trim().toLowerCase();
   if (roll && records.some((record) =>
@@ -11060,7 +11180,7 @@ async function updateStudentProfileStatus(record, status) {
   state.studentEnrolments[currentSessionKey(state.academicSession)] = state.studentEnrolments[currentSessionKey(state.academicSession)] || {};
   state.studentEnrolments[currentSessionKey(state.academicSession)][profile.studentId] = enrolment;
   recordStudentProfileAudit(record, profile, enrolment);
-  saveState();
+  saveStateLocalOnly();
   if (window.MarkHubFirebase?.saveStudentProfileRecord) {
     try {
       await window.MarkHubFirebase.saveStudentProfileRecord({ profile, enrolment, session: currentSessionKey(state.academicSession) });
@@ -11077,7 +11197,7 @@ async function deleteStudentProfile(record) {
   if (!window.confirm(`Delete ${record.studentName}? Existing marks and attendance will not be deleted.`)) return;
   delete state.studentProfiles?.[record.studentId];
   delete state.studentEnrolments?.[currentSessionKey(state.academicSession)]?.[record.studentId];
-  saveState();
+  saveStateLocalOnly();
   if (window.MarkHubFirebase?.deleteStudentProfileRecord) {
     await window.MarkHubFirebase.deleteStudentProfileRecord({
       studentId: record.studentId,
@@ -11116,12 +11236,12 @@ function exportStudentProfilesCsv() {
     "House Colour",
     "Address",
     "Landmark",
-    "Student Contact No.",
+    "Student's Contact No.",
     "Primary Parent Contact No.",
     "Alternate Contact No.",
     "PEN",
     "Aadhaar No.",
-    "APAR ID",
+    "APAAR ID",
     "Nationality",
     "Father's Name",
     "Father's Contact No.",
@@ -11219,10 +11339,10 @@ function downloadStudentProfileCsvSample() {
       "House Colour",
       "Address",
       "Landmark",
-      "Student Contact No.",
+      "Student's Contact No.",
       "PEN",
       "Aadhaar No.",
-      "APAR ID",
+      "APAAR ID",
       "Father's Name",
       "Father Contact No.",
       "Mother's Name",
@@ -11733,25 +11853,19 @@ async function persistResultPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.saveSplitPublication) {
-      await window.MarkHubFirebase.saveSplitPublication({
-        session,
-        type: "result",
-        className,
-        exam,
-        key,
-        value: shouldPublish ? publicationValue : null,
-        updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
-        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
-      });
-      lastSyncedFirebaseStateJson = JSON.stringify(state);
-      if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
-    } else if (window.MarkHubFirebase?.saveAppState) {
-      await window.MarkHubFirebase.saveAppState(structuredClone(state));
-      lastSyncedFirebaseStateJson = JSON.stringify(state);
-    } else {
-      throw new Error("Firebase is not ready.");
-    }
+    if (!window.MarkHubFirebase?.saveSplitPublication) throw new Error("Firebase split publication storage is not ready.");
+    await window.MarkHubFirebase.saveSplitPublication({
+      session,
+      type: "result",
+      className,
+      exam,
+      key,
+      value: shouldPublish ? publicationValue : null,
+      updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    });
+    lastSyncedFirebaseStateJson = JSON.stringify(state);
+    if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
     showToast(`${className} ${exam} ${shouldPublish ? "published" : "unpublished"}.`);
   } catch (error) {
     console.error(`[Firestore] Could not ${shouldPublish ? "publish" : "unpublish"} result`, error);
@@ -11808,25 +11922,19 @@ async function persistMarksheetPublication(shouldPublish) {
 
   try {
     const session = currentSessionKey(state.academicSession);
-    if (window.MarkHubFirebase?.saveSplitPublication) {
-      await window.MarkHubFirebase.saveSplitPublication({
-        session,
-        type: "marksheet",
-        className,
-        exam,
-        key,
-        value: shouldPublish ? publicationValue : null,
-        updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
-        updatedBy: currentUser?.name || currentUser?.username || "Unknown"
-      });
-      lastSyncedFirebaseStateJson = JSON.stringify(state);
-      if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
-    } else if (window.MarkHubFirebase?.saveAppState) {
-      await window.MarkHubFirebase.saveAppState(structuredClone(state));
-      lastSyncedFirebaseStateJson = JSON.stringify(state);
-    } else {
-      throw new Error("Firebase is not ready.");
-    }
+    if (!window.MarkHubFirebase?.saveSplitPublication) throw new Error("Firebase split publication storage is not ready.");
+    await window.MarkHubFirebase.saveSplitPublication({
+      session,
+      type: "marksheet",
+      className,
+      exam,
+      key,
+      value: shouldPublish ? publicationValue : null,
+      updatedAt: publicationValue?.publishedAt || new Date().toISOString(),
+      updatedBy: currentUser?.name || currentUser?.username || "Unknown"
+    });
+    lastSyncedFirebaseStateJson = JSON.stringify(state);
+    if (pendingFirebaseStateJson === lastSyncedFirebaseStateJson) pendingFirebaseStateJson = "";
     showToast(`${className} ${exam} marksheets ${shouldPublish ? "published" : "unpublished"}.`);
   } catch (error) {
     console.error(`[Firestore] Could not ${shouldPublish ? "publish" : "unpublish"} marksheets`, error);
