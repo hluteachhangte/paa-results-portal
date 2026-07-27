@@ -21,7 +21,7 @@
         </div>
         <label>
           Approved Email or Phone No.
-          <input id="usernameInput" type="text" autocomplete="username" placeholder="email@school.com or +91..." required>
+          <input id="usernameInput" type="text" autocomplete="username" placeholder="Enter email or phone number" required>
         </label>
         <label>
           Password
@@ -40,7 +40,7 @@
           <button id="verifyPhoneCodeBtn" class="primary-button" type="button">Verify OTP</button>
         </div>
         <div id="phoneRecaptcha" class="phone-recaptcha" aria-hidden="true"></div>
-        <p class="login-help">Only pre-approved emails or phone numbers can enter the portal. Ask Admin to add your email or phone in Firebase before registering.</p>
+        <p class="login-help">Only pre-approved emails or phone numbers can enter the portal. Ask Admin to add your email or phone before registering.</p>
       </form>
     </div>
   </section>
@@ -708,12 +708,12 @@
 
           <div class="analysis-grid analysis-grid-two">
             <section class="analysis-panel">
-              <div class="analysis-panel-head"><h4>Class Analysis</h4><span id="analysisClassHighlight"></span></div>
-              <div id="analysisClassChart"></div>
-            </section>
-            <section class="analysis-panel">
               <div class="analysis-panel-head"><h4>Result Trend</h4></div>
               <div id="analysisTrendChart"></div>
+            </section>
+            <section class="analysis-panel">
+              <div class="analysis-panel-head"><h4>Class Analysis</h4><span id="analysisClassHighlight"></span></div>
+              <div id="analysisClassChart"></div>
             </section>
           </div>
 
@@ -1023,7 +1023,7 @@
           <button id="profileNextPageBtn" class="ghost-button" type="button">Next</button>
         </div>
         <div id="studentProfilePanel" class="student-profile-panel hidden" aria-live="polite"></div>
-        <form id="studentProfileForm" class="student-profile-form hidden">
+        <form id="studentProfileForm" class="student-profile-form hidden" novalidate>
           <div class="profile-form-toolbar">
             <div>
               <strong id="studentProfileFormTitle">Add Student Profile</strong>

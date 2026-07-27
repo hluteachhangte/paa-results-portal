@@ -367,6 +367,7 @@ const els = {
   closeStudentProfileFormBtn: document.querySelector("#closeStudentProfileFormBtn"),
   studentProfileFormMessage: document.querySelector("#studentProfileFormMessage"),
   saveStudentProfileDraftBtn: document.querySelector("#saveStudentProfileDraftBtn"),
+  saveStudentProfileBtn: document.querySelector("#saveStudentProfileBtn"),
   profileClassFilter: document.querySelector("#profileClassFilter"),
   profileSectionFilter: document.querySelector("#profileSectionFilter"),
   profileGenderFilter: document.querySelector("#profileGenderFilter"),
@@ -1491,14 +1492,29 @@ function markInputsRequiredForSave() {
   return allInputs.filter((input) => changedPartKeys.has(input.dataset.partKey));
 }
 
+function currentSubjectHasPendingClear() {
+  return [...unsavedMarkChanges.values()].some((change) =>
+    change.type === "deleteSubject"
+    && change.className === selectedClass()
+    && change.exam === selectedExam()
+    && change.subject === selectedSubject());
+}
+
+function currentMarkInputsAreAllBlank() {
+  const inputs = markInputsRequiredForSave().filter((input) => !input.disabled);
+  return inputs.length > 0 && inputs.every((input) => input.value.trim() === "");
+}
+
 async function saveAllMarks() {
   if (marksSaveInProgress) return;
   if (selectedMarksEntryLocked()) {
     showToast("This marks entry is locked by Administrator.");
     return;
   }
-  const blankMarkInput = markInputsRequiredForSave()
-    .find((input) => !input.disabled && input.value.trim() === "");
+  const allowBlankClearedSubject = currentSubjectHasPendingClear() || currentMarkInputsAreAllBlank();
+  const blankMarkInput = allowBlankClearedSubject
+    ? null
+    : markInputsRequiredForSave().find((input) => !input.disabled && input.value.trim() === "");
   if (blankMarkInput) {
     showContextMessage(blankMarkInput, "This field cannot be blank. Enter -1 for Absent or -2 for Not yet enrolled.", {
       type: "error",
@@ -10136,6 +10152,7 @@ function setupStudentProfileEvents() {
   });
   els.closeStudentProfileFormBtn?.addEventListener("click", closeStudentProfileForm);
   els.studentProfileForm?.addEventListener("submit", saveStudentProfileFromForm);
+  els.saveStudentProfileBtn?.addEventListener("click", saveStudentProfileFromForm);
   els.saveStudentProfileDraftBtn?.addEventListener("click", () => saveStudentProfileFromForm(null, { draft: true }));
   els.profilePhotoInput?.addEventListener("change", handleStudentProfilePhotoPreview);
   els.closeStudentPhotoCropBtn?.addEventListener("click", closeStudentPhotoCropModal);
@@ -10971,7 +10988,7 @@ function closeStudentPhotoCropModal() {
   resetStudentPhotoCropState();
 }
 
-async function applyStudentPhotoCrop() {
+async function applyStudentPhotoCrop(options = {}) {
   const canvas = els.studentPhotoCropCanvas;
   const image = studentPhotoCropState.image;
   if (!canvas || !image) return;
@@ -11005,7 +11022,7 @@ async function applyStudentPhotoCrop() {
   studentProfilePhotoPreviousPreviewHtml = "";
   els.studentPhotoCropModal?.classList.add("hidden");
   resetStudentPhotoCropState();
-  showToast(`Photo adjusted and compressed to ${formatFileSize(blob.size)}.`);
+  if (!options.silent) showToast(`Photo adjusted and compressed to ${formatFileSize(blob.size)}.`);
 }
 
 function compressStudentPhotoCanvas(canvas) {
@@ -11028,6 +11045,14 @@ function compressStudentPhotoCanvas(canvas) {
     };
     tryQuality(0);
   });
+}
+
+function promiseWithTimeout(promise, ms, message) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function revokeStudentPhotoPreviewUrl() {
@@ -11116,25 +11141,49 @@ function setStudentProfileFormMessage(message = "") {
 
 async function saveStudentProfileFromForm(event, options = {}) {
   event?.preventDefault?.();
+  if (saveStudentProfileFromForm.busy) return;
   setStudentProfileFormMessage("");
-  const { profile, enrolment } = readStudentProfileForm();
-  const errors = validateStudentProfilePayload(profile, enrolment);
-  if (errors.length) {
-    setStudentProfileFormMessage(errors[0]);
-    showToast(errors[0]);
-    return;
+
+  saveStudentProfileFromForm.busy = true;
+  const primaryButtonText = els.saveStudentProfileBtn?.textContent || "Save and Continue";
+  const draftButtonText = els.saveStudentProfileDraftBtn?.textContent || "Save Draft";
+  if (els.saveStudentProfileBtn) {
+    els.saveStudentProfileBtn.disabled = true;
+    els.saveStudentProfileBtn.textContent = "Saving...";
   }
+  if (els.saveStudentProfileDraftBtn) els.saveStudentProfileDraftBtn.disabled = true;
 
   try {
+    if (studentPhotoCropState.image && !studentProfilePhotoDraft) {
+      try {
+        await applyStudentPhotoCrop({ silent: true });
+      } catch (cropError) {
+        console.warn("[Student Profiles] Pending photo crop skipped", cropError);
+        showToast("Photo could not be prepared. Saving profile details without changing the photo.");
+      }
+    }
+
+    const { profile, enrolment } = readStudentProfileForm();
+    const errors = validateStudentProfilePayload(profile, enrolment);
+    if (errors.length) {
+      setStudentProfileFormMessage(errors[0]);
+      showToast(errors[0]);
+      return;
+    }
+
     const oldRecord = editingStudentProfileId
       ? getStudentProfileRecords({ includeUnauthorized: true }).find((record) => record.studentId === editingStudentProfileId)
       : null;
     if (studentProfilePhotoDraft && window.MarkHubFirebase?.uploadStudentPhoto) {
       try {
-        profile.photoURL = await window.MarkHubFirebase.uploadStudentPhoto(profile.studentId, studentProfilePhotoDraft);
+        profile.photoURL = await promiseWithTimeout(
+          window.MarkHubFirebase.uploadStudentPhoto(profile.studentId, studentProfilePhotoDraft),
+          12000,
+          "Student photo upload took too long."
+        );
       } catch (photoError) {
         console.warn("[Firestore] Student photo upload skipped", photoError);
-        showToast("Student photo could not upload. The profile details will still be saved.");
+        setStudentProfileFormMessage("Student profile details were saved, but the photo upload was skipped. Publish Storage rules for approved users if this continues.");
       }
     }
     state.studentProfiles = state.studentProfiles || {};
@@ -11146,35 +11195,58 @@ async function saveStudentProfileFromForm(event, options = {}) {
     state.studentEnrolments[session][profile.studentId] = enrolment;
     syncStudentProfileToLegacyClassList(profile, enrolment, oldRecord);
     saveStateLocalOnly();
+    let profileSavedToFirestore = false;
     if (window.MarkHubFirebase?.saveStudentProfileRecord) {
       try {
         await window.MarkHubFirebase.saveStudentProfileRecord({ profile, enrolment, session });
+        profileSavedToFirestore = true;
       } catch (profileCollectionError) {
         console.warn("[Firestore] Student profile split write skipped", profileCollectionError);
-        showToast("Profile saved in the portal. Publish the new Firestore rules to enable split profile documents.");
+        const message = firestoreSaveErrorMessage("save student profile to Firestore", profileCollectionError);
+        setStudentProfileFormMessage(`${message} The profile was saved locally in this browser.`);
       }
     }
+    let classListSynced = false;
     try {
       await saveClassStudents(enrolment.className);
+      classListSynced = true;
       if (oldRecord?.className && oldRecord.className !== enrolment.className) {
         await saveClassStudents(oldRecord.className);
       }
     } catch (classListError) {
       console.warn("[Firestore] Student profile legacy class-list sync skipped", classListError);
-      showToast("Student profile saved. Class list sync was skipped; refresh after Firestore rules are updated.");
+      if (!profileSavedToFirestore) {
+        setStudentProfileFormMessage("Student profile saved locally. Firestore profile and class-list sync were skipped; publish the approved-user rules and login with an approved Firebase user.");
+      } else {
+        setStudentProfileFormMessage("Student profile saved. Class list sync was skipped; refresh after Firestore rules are updated.");
+      }
     }
     closeStudentProfileForm();
     initializeStudentProfileControls(captureUiState());
     renderStudentProfiles();
-    showToast(options.draft ? "Student profile draft saved." : "Student profile saved.");
+    const syncNote = profileSavedToFirestore && classListSynced ? "" : " Some Firestore sync was skipped.";
+    showToast(`${options.draft ? "Student profile draft saved." : "Student profile saved."}${syncNote}`);
   } catch (error) {
     console.error("[Firestore] Could not save student profile", error);
-    showToast(firestoreSaveErrorMessage("save student profile", error));
+    const message = firestoreSaveErrorMessage("save student profile", error);
+    setStudentProfileFormMessage(message);
+    showToast(message);
+  } finally {
+    saveStudentProfileFromForm.busy = false;
+    if (els.saveStudentProfileBtn) {
+      els.saveStudentProfileBtn.disabled = false;
+      els.saveStudentProfileBtn.textContent = primaryButtonText;
+    }
+    if (els.saveStudentProfileDraftBtn) {
+      els.saveStudentProfileDraftBtn.disabled = false;
+      els.saveStudentProfileDraftBtn.textContent = draftButtonText;
+    }
   }
 }
 
 function validateStudentProfilePayload(profile, enrolment) {
   const errors = [];
+  if (!enrolment.rollNumber) errors.push("Roll No. is required.");
   if (!profile.studentName) errors.push("Student Name is required.");
   if (!enrolment.className) errors.push("Class is required.");
   if (!profile.gender) errors.push("Gender is required.");
