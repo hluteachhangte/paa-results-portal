@@ -7843,6 +7843,9 @@ function renderAcademicAnalysis() {
   const weaknesses = [];
   const recommendations = [];
   const strongSubjects = tiedAnalysisMetrics(subjectMetrics, "passPercentage", "max");
+  const failedSubjects = subjectMetrics
+    .filter((subject) => (Number(subject.failed) || 0) > 0)
+    .sort((a, b) => (b.failed - a.failed) || a.name.localeCompare(b.name));
   const subjectImprovementBenchmark = subjectImprovementPassBenchmark(classes);
   const subjectsBelowBenchmark = strongSubject
     ? subjectMetrics
@@ -7865,9 +7868,13 @@ function renderAcademicAnalysis() {
     const recommendationSubjects = listSentence(subjectsBelowBenchmark.map((subject) => subject.name));
     weaknesses.push(`${subjectNames} ${subjectsBelowBenchmark.length === 1 ? "is" : "are"} below the stage improvement benchmark (${subjectImprovementBenchmark.toFixed(0)}%).`);
     recommendations.push(`Provide focused practice and remedial support in ${recommendationSubjects}.`);
-  } else if (weakSubject?.failed) {
-    weaknesses.push(`${weakSubject.failed} student(s) did not pass ${weakSubject.name}.`);
-    recommendations.push(`Provide focused support to students who did not pass ${weakSubject.name}.`);
+  }
+  if (failedSubjects.length) {
+    const failedSubjectSummary = listSentence(failedSubjects.map((subject) =>
+      `${subject.name} (${subject.failed} student${subject.failed === 1 ? "" : "s"})`));
+    const failedSubjectNames = listSentence(failedSubjects.map((subject) => subject.name));
+    weaknesses.push(`Students did not pass ${failedSubjectSummary}.`);
+    recommendations.push(`Provide focused support to students who did not pass ${failedSubjectNames}.`);
   }
   if (weakClass && hasClassComparison) {
     weaknesses.push(`${weakClass.className} has the lowest pass percentage (${weakClass.passPercentage.toFixed(2)}%).`);
