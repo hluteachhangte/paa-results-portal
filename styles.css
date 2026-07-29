@@ -7820,6 +7820,23 @@ body.print-marksheets .marksheet .failed-mark {
   font-size: 0.8rem;
 }
 
+#analysisView select {
+  color-scheme: light;
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  color: var(--primary-blue-dark) !important;
+}
+
+#analysisView select option {
+  background: #ffffff !important;
+  color: #0b2b63 !important;
+}
+
+#analysisView select:focus,
+#analysisView select:focus-visible {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .analysis-report {
   display: grid;
   gap: 12px;
@@ -7901,6 +7918,17 @@ body.print-marksheets .marksheet .failed-mark {
 
 .analysis-grid-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#analysisView .analysis-report > .analysis-grid-three:has(#analysisAttendance) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#analysisView .analysis-report > .analysis-grid-three:has(#analysisAttendance) > .analysis-panel:has(#analysisAttendance) {
+  grid-column: 1 / -1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .analysis-panel {
@@ -8924,6 +8952,7 @@ body.print-marksheets .marksheet .failed-mark {
 
 .analysis-pie-layout {
   display: grid;
+  min-width: 0;
   justify-items: center;
   gap: 10px;
 }
@@ -9085,13 +9114,17 @@ body.print-marksheets .marksheet .failed-mark {
 
 .attendance-analysis-layout {
   display: grid;
-  grid-template-columns: 146px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 146px) minmax(0, 1fr);
   align-items: center;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .attendance-analysis-details {
   min-width: 0;
+  max-width: 100%;
 }
 
 .attendance-analysis-value strong {
@@ -9109,18 +9142,22 @@ body.print-marksheets .marksheet .failed-mark {
   display: grid;
   gap: 5px;
   margin: 10px 0 0;
+  min-width: 0;
 }
 
 #analysisAttendance dl div {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   font-size: 0.72rem;
 }
 
 #analysisAttendance dt,
 #analysisAttendance dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .analysis-insights ul {
@@ -11271,6 +11308,59 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   .analysis-overview span,
   .teacher-analytics-overview span {
     color: var(--text-muted);
+  }
+
+  @media screen and (min-width: 769px) {
+    #analysisView .analysis-overview {
+      grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+      gap: 10px;
+    }
+
+    #analysisView .analysis-overview article {
+      min-height: 82px;
+      padding: 12px 10px;
+      border: 0 !important;
+      border-radius: 12px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 12px 22px rgba(19, 34, 67, 0.14);
+    }
+
+    #analysisView .analysis-overview article::before {
+      display: none;
+      content: none;
+    }
+
+    #analysisView .analysis-overview span,
+    #analysisView .analysis-overview strong {
+      color: #ffffff !important;
+      text-shadow: 0 1px 2px rgba(9, 21, 44, 0.2);
+    }
+
+    #analysisView .analysis-overview span {
+      font-size: clamp(0.58rem, 0.64vw, 0.72rem);
+      line-height: 1.12;
+    }
+
+    #analysisView .analysis-overview strong {
+      font-size: clamp(0.98rem, 1vw, 1.22rem);
+      line-height: 1.08;
+    }
+
+    #analysisView .analysis-overview article:nth-child(1) { background: #1769d1 !important; }
+    #analysisView .analysis-overview article:nth-child(2) { background: #168a7a !important; }
+    #analysisView .analysis-overview article:nth-child(3) { background: #6f7787 !important; }
+    #analysisView .analysis-overview article:nth-child(4) { background: #1f985f !important; }
+    #analysisView .analysis-overview article:nth-child(5) { background: #d0525e !important; }
+    #analysisView .analysis-overview article:nth-child(6) { background: #6d5ee8 !important; }
+    #analysisView .analysis-overview article:nth-child(7) { background: #087d9d !important; }
+    #analysisView .analysis-overview article:nth-child(8) { background: #8b5cc9 !important; }
+    #analysisView .analysis-overview article:nth-child(9) { background: #c2414b !important; }
+    #analysisView .analysis-overview article:nth-child(10) { background: #75617f !important; }
+    #analysisView .analysis-overview article:nth-child(11) { background: #236fae !important; }
+    #analysisView .analysis-overview article:nth-child(12) { background: #2f8067 !important; }
+    #analysisView .analysis-overview article:nth-child(13) { background: #b66a22 !important; }
+    #analysisView .analysis-overview article:nth-child(14) { background: #5266ba !important; }
   }
 
   .view:not(#marksheetView) > .table-wrap,
