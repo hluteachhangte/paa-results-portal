@@ -11368,6 +11368,59 @@ body.attendance-active #attendanceView > .table-wrap thead th {
     #analysisView .analysis-overview article:nth-child(14) { background: #5266ba !important; }
   }
 
+  @media screen and (max-width: 768px) {
+    #analysisView .analysis-overview article {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      min-height: 78px;
+      padding: 11px 8px;
+      border: 0 !important;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 10px 18px rgba(19, 34, 67, 0.12);
+    }
+
+    #analysisView .analysis-overview article::before {
+      display: none;
+      content: none;
+    }
+
+    #analysisView .analysis-overview span,
+    #analysisView .analysis-overview strong {
+      color: #ffffff !important;
+      text-shadow: 0 1px 2px rgba(9, 21, 44, 0.2);
+    }
+
+    #analysisView .analysis-overview span {
+      font-size: 0.72rem;
+      line-height: 1.16;
+    }
+
+    #analysisView .analysis-overview strong {
+      margin-top: 5px;
+      font-size: 1.14rem;
+      line-height: 1.08;
+    }
+
+    #analysisView .analysis-overview article:nth-child(1) { background: #1769d1 !important; }
+    #analysisView .analysis-overview article:nth-child(2) { background: #168a7a !important; }
+    #analysisView .analysis-overview article:nth-child(3) { background: #6f7787 !important; }
+    #analysisView .analysis-overview article:nth-child(4) { background: #1f985f !important; }
+    #analysisView .analysis-overview article:nth-child(5) { background: #d0525e !important; }
+    #analysisView .analysis-overview article:nth-child(6) { background: #6d5ee8 !important; }
+    #analysisView .analysis-overview article:nth-child(7) { background: #087d9d !important; }
+    #analysisView .analysis-overview article:nth-child(8) { background: #8b5cc9 !important; }
+    #analysisView .analysis-overview article:nth-child(9) { background: #c2414b !important; }
+    #analysisView .analysis-overview article:nth-child(10) { background: #75617f !important; }
+    #analysisView .analysis-overview article:nth-child(11) { background: #236fae !important; }
+    #analysisView .analysis-overview article:nth-child(12) { background: #2f8067 !important; }
+    #analysisView .analysis-overview article:nth-child(13) { background: #b66a22 !important; }
+    #analysisView .analysis-overview article:nth-child(14) { background: #5266ba !important; }
+  }
+
   .view:not(#marksheetView) > .table-wrap,
   #resultsView > .table-wrap,
   #entryView > .table-wrap,
@@ -15892,7 +15945,7 @@ body.student-profiles-active #studentProfilesView > .student-profile-head {
     inset 9px 0 14px rgba(255, 255, 255, 0.24),
     inset -10px 0 15px color-mix(in srgb, var(--cylinder-dark) 36%, transparent),
     0 0 18px var(--cylinder-glow);
-  animation: studentProfileCylinderFill 1200ms ease-out both, studentProfileCylinderRipple 2200ms ease-in-out 1200ms 1;
+  animation: none;
   transform-origin: bottom;
   z-index: 1;
 }
@@ -15920,7 +15973,7 @@ body.student-profiles-active #studentProfilesView > .student-profile-head {
   border-radius: inherit;
   background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.28) 48%, transparent 66%);
   transform: translateX(-130%);
-  animation: studentProfileCylinderShimmer 3000ms ease-in-out 1400ms infinite;
+  animation: none;
 }
 
 .student-profile-cylinder-label {

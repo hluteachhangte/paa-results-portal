@@ -273,6 +273,7 @@ const els = {
   usernameInput: document.querySelector("#usernameInput"),
   passwordInput: document.querySelector("#passwordInput"),
   registerApprovedBtn: document.querySelector("#registerApprovedBtn"),
+  forgotPasswordBtn: document.querySelector("#forgotPasswordBtn"),
   sendPhoneCodeBtn: document.querySelector("#sendPhoneCodeBtn"),
   phoneOtpPanel: document.querySelector("#phoneOtpPanel"),
   phoneCodeInput: document.querySelector("#phoneCodeInput"),
@@ -2459,6 +2460,25 @@ async function registerApprovedUser() {
   }
 }
 
+async function sendPasswordReset() {
+  const identifier = els.usernameInput.value.trim();
+  if (!isEmailLoginIdentifier(identifier)) {
+    showToast("Enter your approved email address first.");
+    els.usernameInput?.focus();
+    return;
+  }
+  if (!window.MarkHubFirebase?.sendApprovedPasswordReset) {
+    showToast("Firebase password reset is not ready. Refresh and try again.");
+    return;
+  }
+  try {
+    await window.MarkHubFirebase.sendApprovedPasswordReset(identifier);
+    showToast("Password reset email sent. Please check your inbox.");
+  } catch (error) {
+    showToast(error.message || "Could not send password reset email.");
+  }
+}
+
 async function sendApprovedPhoneCode() {
   const phoneNumber = normalizePhoneLoginIdentifier(els.usernameInput.value);
   if (!isPhoneLoginIdentifier(phoneNumber)) {
@@ -3208,6 +3228,7 @@ function init() {
 
   els.loginForm.addEventListener("submit", handleLogin);
   els.registerApprovedBtn?.addEventListener("click", registerApprovedUser);
+  els.forgotPasswordBtn?.addEventListener("click", sendPasswordReset);
   els.sendPhoneCodeBtn?.addEventListener("click", sendApprovedPhoneCode);
   els.verifyPhoneCodeBtn?.addEventListener("click", verifyApprovedPhoneCode);
   els.publicFirebaseResultSearch?.addEventListener("submit", searchPublicFirebaseResult);

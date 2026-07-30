@@ -41,16 +41,26 @@ service cloud.firestore {
           : "";
     }
 
+    function approvedStaffRole() {
+      return approvedByEmail()
+        ? get(/databases/$(database)/documents/approvedUsers/$(emailKey())).data.staffRole
+        : approvedByPhone()
+          ? get(/databases/$(database)/documents/approvedUsers/$(phoneKey())).data.staffRole
+          : "";
+    }
+
     function isAdmin() {
-      return approvedRole() == "admin";
+      return approvedRole() == "admin" || approvedStaffRole() == "admin";
     }
 
     function isSchoolLeader() {
-      return approvedRole() in ["admin", "principal", "headmaster"];
+      return approvedRole() in ["admin", "principal", "headmaster"]
+        || approvedStaffRole() in ["admin", "principal", "headmaster"];
     }
 
     function canViewSchoolData() {
-      return approvedRole() in ["admin", "principal", "headmaster", "teacher"];
+      return approvedRole() in ["admin", "principal", "headmaster", "teacher"]
+        || approvedStaffRole() in ["admin", "principal", "headmaster", "teacher"];
     }
 
     match /approvedUsers/{identifier} {

@@ -24,6 +24,7 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   RecaptchaVerifier,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut
@@ -410,6 +411,14 @@ window.MarkHubFirebase = {
     if (!approved) throw new Error("This email is not pre-approved. Ask Admin to add it first.");
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     return requireApprovedPortalUser(await getApprovedPortalUser(email, credential.user));
+  },
+  async sendApprovedPasswordReset(identifier) {
+    const email = normalizeApprovedIdentifier(identifier);
+    if (!email || !email.includes("@")) throw new Error("Enter your approved email address first.");
+    const approved = await getApprovedPortalUser(email);
+    if (!approved) throw new Error("This email is not pre-approved. Ask Admin to add it first.");
+    await sendPasswordResetEmail(auth, email);
+    return true;
   },
   async sendApprovedPhoneCode(phoneNumber) {
     const phone = normalizeApprovedIdentifier(phoneNumber);

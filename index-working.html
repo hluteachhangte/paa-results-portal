@@ -20,18 +20,18 @@
           <h1>Pinehill Adventist Academy</h1>
         </div>
         <label>
-          Approved Email or Phone No.
-          <input id="usernameInput" type="text" autocomplete="username" placeholder="Enter email or phone number" required>
+          Email
+          <input id="usernameInput" type="email" autocomplete="username" required>
         </label>
         <label>
           Password
-          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Required for email login">
+          <input id="passwordInput" type="password" autocomplete="current-password">
         </label>
         <div class="login-actions">
           <button class="primary-button" type="submit">Login</button>
           <button id="registerApprovedBtn" class="ghost-button" type="button">Register</button>
         </div>
-        <button id="sendPhoneCodeBtn" class="ghost-button login-wide-button" type="button">Send Phone OTP</button>
+        <button id="forgotPasswordBtn" class="ghost-button login-wide-button" type="button">Forgot Password?</button>
         <div id="phoneOtpPanel" class="phone-otp-panel hidden">
           <label>
             Verification Code
@@ -40,7 +40,6 @@
           <button id="verifyPhoneCodeBtn" class="primary-button" type="button">Verify OTP</button>
         </div>
         <div id="phoneRecaptcha" class="phone-recaptcha" aria-hidden="true"></div>
-        <p class="login-help">Only pre-approved emails or phone numbers can enter the portal. Ask Admin to add your email or phone before registering.</p>
       </form>
     </div>
   </section>
