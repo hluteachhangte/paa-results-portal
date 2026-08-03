@@ -52,7 +52,7 @@
     currentState = nextState && typeof nextState === "object" ? nextState : {};
     localStorage.setItem(storageKey, JSON.stringify(currentState));
     const data = getActiveSessionData(currentState);
-    renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()));
+    renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false });
     startSplitSessionListener(data.academicSession);
   }
 
@@ -379,7 +379,7 @@
       startSplitSessionListener(data.academicSession);
       if (!splitSessionKey || splitAttendanceReady) {
         logAttendanceKeyDiagnostics(data);
-        renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()));
+        renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false });
       }
     } catch {
       renderEmpty("Could not read attendance data from Firestore.");
