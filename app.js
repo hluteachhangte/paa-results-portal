@@ -857,6 +857,21 @@ function normalizeStudentEnrolments(enrolments = {}) {
   );
 }
 
+function mergeStudentEnrolments(existingEnrolments = {}, incomingEnrolments = {}) {
+  const merged = normalizeStudentEnrolments(existingEnrolments);
+  Object.entries(incomingEnrolments || {}).forEach(([sessionId, sessionEnrolments]) => {
+    const sessionKey = currentSessionKey(sessionId);
+    const existingSession = merged[sessionKey] || {};
+    const incomingSession = sessionEnrolments || {};
+    const incomingCount = Object.keys(incomingSession).length;
+    if (incomingCount === 0 && Object.keys(existingSession).length > 0) return;
+    merged[sessionKey] = normalizeStudentEnrolments({
+      [sessionKey]: { ...existingSession, ...incomingSession }
+    })[sessionKey] || {};
+  });
+  return merged;
+}
+
 function normalizeStudentEnrolment(enrolment = {}) {
   return {
     studentId: String(enrolment.studentId || "").trim(),
@@ -1935,10 +1950,9 @@ function cacheSplitSessionPatch(sessionKey, patch = {}) {
     publishedMarksheets: patch.publishedMarksheets ? { ...(previous.publishedMarksheets || {}), ...patch.publishedMarksheets } : previous.publishedMarksheets,
     dataEntryUpdates: patch.dataEntryUpdates ? { ...(previous.dataEntryUpdates || {}), ...patch.dataEntryUpdates } : previous.dataEntryUpdates,
     studentProfiles: patch.studentProfiles ? { ...(previous.studentProfiles || {}), ...patch.studentProfiles } : previous.studentProfiles,
-    studentEnrolments: patch.studentEnrolments ? normalizeStudentEnrolments({
-      ...(previous.studentEnrolments || {}),
-      ...patch.studentEnrolments
-    }) : previous.studentEnrolments
+    studentEnrolments: patch.studentEnrolments
+      ? mergeStudentEnrolments(previous.studentEnrolments || {}, patch.studentEnrolments)
+      : previous.studentEnrolments
   };
   firebaseSplitSessionPatchCache.set(sessionKey, cached);
   return cached;
@@ -1955,10 +1969,7 @@ function applyCachedSplitSessionPatch(sessionKey) {
     });
   }
   if (cachedPatch.studentEnrolments) {
-    state.studentEnrolments = normalizeStudentEnrolments({
-      ...(state.studentEnrolments || {}),
-      ...cachedPatch.studentEnrolments
-    });
+    state.studentEnrolments = mergeStudentEnrolments(state.studentEnrolments || {}, cachedPatch.studentEnrolments);
   }
   const existingSession = normalizeSessionData(state.sessions[sessionKey] || createEmptySessionData());
   const mergedSession = mergeSplitPatchIntoSession(existingSession, cachedPatch);

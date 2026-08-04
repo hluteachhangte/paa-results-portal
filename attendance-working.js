@@ -21,8 +21,12 @@
   let unsubscribeSplitSession = null;
   let splitSessionKey = "";
   let splitAttendanceReady = false;
+  let splitRosterReady = false;
   let stablePerfectStudents = [];
   let currentState = {};
+  let lastRenderedStateJson = "";
+  const useSplitSessionLiveSync = true;
+  const useCompactAppStateLiveSync = false;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -40,19 +44,81 @@
   function getActiveSessionData(state) {
     const session = currentSessionKey(state.academicSession);
     const sessionData = state.sessions?.[session];
+    const profileClasses = classesFromStudentProfiles(state, session);
     return {
       academicSession: session,
-      classes: { ...(state.classes || {}), ...(sessionData?.classes || {}) },
+      classes: mergeClassRosters(
+        mergeClassRosters(state.classes || {}, sessionData?.classes || {}),
+        profileClasses
+      ),
       workingDays: { ...(state.workingDays || {}), ...(sessionData?.workingDays || {}) },
       attendance: { ...(state.attendance || {}), ...(sessionData?.attendance || {}) }
     };
   }
 
-  function storeAndRenderState(nextState) {
+  function mergeClassRosters(baseClasses = {}, profileClasses = {}) {
+    const merged = { ...(baseClasses || {}) };
+    Object.entries(profileClasses || {}).forEach(([className, students]) => {
+      const existing = Array.isArray(merged[className]) ? merged[className] : [];
+      const byKey = new Map();
+      existing.forEach((student) => {
+        if (!student?.name) return;
+        byKey.set(studentListKey({ ...student, className }), student);
+      });
+      students.forEach((student) => {
+        if (!student?.name) return;
+        byKey.set(studentListKey({ ...student, className }), student);
+      });
+      merged[className] = Array.from(byKey.values())
+        .sort((a, b) => Number(a.roll) - Number(b.roll));
+    });
+    return merged;
+  }
+
+  function mergeStudentEnrolments(baseEnrolments = {}, incomingEnrolments = {}) {
+    const merged = { ...(baseEnrolments || {}) };
+    Object.entries(incomingEnrolments || {}).forEach(([session, sessionEnrolments]) => {
+      const sessionKey = currentSessionKey(session);
+      const existingSession = merged[sessionKey] || {};
+      const incomingSession = sessionEnrolments || {};
+      const hasIncomingStudents = Object.keys(incomingSession).length > 0;
+      if (!hasIncomingStudents && Object.keys(existingSession).length > 0) return;
+      merged[sessionKey] = { ...existingSession, ...incomingSession };
+    });
+    return merged;
+  }
+
+  function classesFromStudentProfiles(state = {}, session) {
+    const classes = {};
+    const profiles = state.studentProfiles || {};
+    const enrolments = state.studentEnrolments?.[currentSessionKey(session)] || {};
+    Object.entries(enrolments).forEach(([studentId, enrolment]) => {
+      const profile = profiles[studentId] || {};
+      const className = canonicalClassLabel(enrolment.className);
+      if (!classNames.includes(className)) return;
+      const status = String(enrolment.studentStatus || "Active").trim();
+      if (["Transferred", "Withdrawn", "Graduated", "Inactive", "Archived"].includes(status)) return;
+      const name = String(profile.studentName || profile.name || enrolment.studentName || "").trim();
+      if (!name) return;
+      classes[className] = classes[className] || [];
+      classes[className].push({
+        name,
+        roll: String(enrolment.rollNumber ?? enrolment.roll ?? "").trim(),
+        idNo: String(profile.schoolIdNo || profile.idNo || "").trim()
+      });
+    });
+    return classes;
+  }
+
+  function storeAndRenderState(nextState, renderOptions = {}) {
     currentState = nextState && typeof nextState === "object" ? nextState : {};
     localStorage.setItem(storageKey, JSON.stringify(currentState));
     const data = getActiveSessionData(currentState);
-    renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false });
+    renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), {
+      preserveExisting: false,
+      data,
+      ...renderOptions
+    });
     startSplitSessionListener(data.academicSession);
   }
 
@@ -71,9 +137,11 @@
     const nextState = {
       ...base,
       ...incoming,
-      classes: { ...(base.classes || {}), ...(incoming.classes || {}) },
+      classes: mergeClassRosters(base.classes || {}, incoming.classes || {}),
       workingDays: { ...(base.workingDays || {}), ...(incoming.workingDays || {}) },
       attendance: { ...(base.attendance || {}), ...(incoming.attendance || {}) },
+      studentProfiles: { ...(base.studentProfiles || {}), ...(incoming.studentProfiles || {}) },
+      studentEnrolments: mergeStudentEnrolments(base.studentEnrolments || {}, incoming.studentEnrolments || {}),
       sessions: { ...(base.sessions || {}), ...(incoming.sessions || {}) }
     };
 
@@ -83,7 +151,7 @@
       nextState.sessions[session] = {
         ...baseSession,
         ...incomingSession,
-        classes: { ...(baseSession.classes || {}), ...(incomingSession.classes || {}) },
+        classes: mergeClassRosters(baseSession.classes || {}, incomingSession.classes || {}),
         workingDays: { ...(baseSession.workingDays || {}), ...(incomingSession.workingDays || {}) },
         attendance: { ...(baseSession.attendance || {}), ...(incomingSession.attendance || {}) }
       };
@@ -99,9 +167,15 @@
     nextState.sessions = { ...(nextState.sessions || {}) };
 
     const existingSession = nextState.sessions[session] || {};
+    const nextStudentEnrolments = patch.studentEnrolments
+      ? mergeStudentEnrolments(nextState.studentEnrolments || {}, patch.studentEnrolments)
+      : nextState.studentEnrolments;
+    const sessionClasses = mergeClassRosters(nextState.classes || {}, existingSession.classes || {});
     const mergedSession = {
       ...existingSession,
-      classes: patch.classes || existingSession.classes || nextState.classes || {},
+      classes: patch.classes
+        ? mergeClassRosters(sessionClasses, patch.classes)
+        : sessionClasses,
       workingDays: patch.workingDays
         ? { ...(existingSession.workingDays || nextState.workingDays || {}), ...patch.workingDays }
         : (existingSession.workingDays || nextState.workingDays || {}),
@@ -110,6 +184,10 @@
         : (existingSession.attendance || nextState.attendance || {})
     };
 
+    nextState.studentProfiles = patch.studentProfiles
+      ? { ...(nextState.studentProfiles || {}), ...patch.studentProfiles }
+      : nextState.studentProfiles;
+    nextState.studentEnrolments = nextStudentEnrolments;
     nextState.sessions[session] = mergedSession;
     if (currentSessionKey(nextState.academicSession) === session) {
       nextState.classes = mergedSession.classes;
@@ -201,10 +279,17 @@
   function getClassAttendanceForTerm(data, className, term) {
     const attendance = data.attendance || {};
     const exactKey = attendanceKey(className, term);
-    if (attendance[exactKey]) return attendance[exactKey];
+    if (attendanceRecordHasEntries(attendance[exactKey])) return attendance[exactKey];
 
-    const matchedKey = Object.keys(attendance).find((key) => attendanceKeyMatches(key, className, term));
-    return matchedKey ? attendance[matchedKey] || {} : {};
+    const matchedKeys = Object.keys(attendance).filter((key) => attendanceKeyMatches(key, className, term));
+    const populatedKey = matchedKeys.find((key) => attendanceRecordHasEntries(attendance[key]));
+    if (populatedKey) return attendance[populatedKey] || {};
+    if (attendance[exactKey]) return attendance[exactKey];
+    return matchedKeys.length ? attendance[matchedKeys[0]] || {} : {};
+  }
+
+  function attendanceRecordHasEntries(record) {
+    return record && typeof record === "object" && Object.keys(record).length > 0;
   }
 
   function isEnteredAttendanceValue(value) {
@@ -281,11 +366,52 @@
       classFilterValue === "All Classes" || canonicalClassLabel(student.className) === canonicalClassLabel(classFilterValue));
   }
 
+  function classWorkingTerms(data) {
+    return terms.filter((term) => Number(data?.workingDays?.[term]) > 0);
+  }
+
+  function classHasCompleteAttendanceCoverage(data, className, studentsToCheck = null) {
+    const students = Array.isArray(studentsToCheck) && studentsToCheck.length
+      ? studentsToCheck
+      : data?.classes?.[className] || [];
+    const workingTerms = classWorkingTerms(data);
+    if (!students.length || !workingTerms.length) return false;
+    return workingTerms.some((term) => {
+      const classAttendance = getClassAttendanceForTerm(data, className, term);
+      if (!attendanceRecordHasEntries(classAttendance)) return false;
+      return students
+        .filter((student) => student?.name)
+        .every((student) => getClassAttendanceValue(classAttendance, student.roll) !== undefined);
+    });
+  }
+
+  function preserveStudentsFromUnreadyClasses(previousStudents = [], nextStudents = [], data, authoritativeClasses = new Set()) {
+    if (!data) return nextStudents;
+    const nextClassNames = new Set(nextStudents.map((student) => canonicalClassLabel(student.className)));
+    const stillLoadingStudents = previousStudents.filter((student) => {
+      const className = canonicalClassLabel(student.className);
+      const previousClassStudents = previousStudents.filter((item) =>
+        canonicalClassLabel(item.className) === className);
+      if (authoritativeClasses.has(className)
+        && classHasCompleteAttendanceCoverage(data, className, previousClassStudents)) {
+        return false;
+      }
+      return !nextClassNames.has(className)
+        && !classHasCompleteAttendanceCoverage(data, className, previousClassStudents);
+    });
+    return mergeStudentLists(stillLoadingStudents, nextStudents);
+  }
+
   function renderCalculatedStudents(students, options = {}) {
     const preserveExisting = options.preserveExisting !== false;
+    const nextStudents = preserveExisting
+      ? students
+      : options.forceReplace
+        ? students
+        : preserveStudentsFromUnreadyClasses(stablePerfectStudents, students, options.data, options.authoritativeClasses || new Set());
     stablePerfectStudents = preserveExisting
-      ? mergeStudentLists(stablePerfectStudents, students)
-      : students;
+      ? mergeStudentLists(stablePerfectStudents, nextStudents)
+      : nextStudents;
     renderStudents(filterStableStudents());
   }
 
@@ -307,13 +433,28 @@
       });
   }
 
+  function hasAnyStudentRoster(data) {
+    return Object.values(data?.classes || {}).some((students) =>
+      Array.isArray(students) && students.some((student) => student?.name));
+  }
+
+  function attendancePatchClassNames(patch = {}) {
+    return new Set(Object.keys(patch.attendance || {})
+      .map((key) => canonicalClassLabel(splitDocLabel(key).split("::")[0]))
+      .filter((className) => classNames.includes(className)));
+  }
+
   function getTotalEnrolment(data, classFilterValue = "All Classes") {
-    return Object.entries(data.classes || {})
+    const enrolledStudents = new Set();
+    Object.entries(data.classes || {})
       .filter(([className]) => classFilterValue === "All Classes"
         || canonicalClassLabel(className) === canonicalClassLabel(classFilterValue))
-      .reduce((sum, [className, students]) => sum + (students || [])
-        .filter((student) => student?.name && isStudentEnrolledForAttendance(student, className, data))
-        .length, 0);
+      .forEach(([className, students]) => {
+        (students || [])
+          .filter((student) => student?.name)
+          .forEach((student) => enrolledStudents.add(studentListKey({ ...student, className })));
+      });
+    return enrolledStudents.size;
   }
 
   function updateSummary(students) {
@@ -354,15 +495,20 @@
     `).join("");
   }
 
-  function renderPerfectAttendance() {
+  function renderPerfectAttendance(options = {}) {
     if (!tableBody) return;
 
     try {
       const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      lastRenderedStateJson = localStorage.getItem(storageKey) || "{}";
       currentState = state && typeof state === "object" ? state : {};
       const data = getActiveSessionData(currentState);
       logAttendanceKeyDiagnostics(data);
-      renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false });
+      renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), {
+        preserveExisting: false,
+        forceReplace: Boolean(options.forceReplace),
+        data
+      });
       startSplitSessionListener(data.academicSession);
     } catch {
       renderEmpty("Could not read attendance data from this browser.");
@@ -377,9 +523,9 @@
       storeStateOnly(nextState);
       const data = getActiveSessionData(currentState);
       startSplitSessionListener(data.academicSession);
-      if (!splitSessionKey || splitAttendanceReady) {
+      if (!splitSessionKey || (splitAttendanceReady && (splitRosterReady || hasAnyStudentRoster(data)))) {
         logAttendanceKeyDiagnostics(data);
-        renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false });
+        renderCalculatedStudents(getPerfectAttendanceStudents(data, selectedClassFilter()), { preserveExisting: false, data });
       }
     } catch {
       renderEmpty("Could not read attendance data from Firestore.");
@@ -387,6 +533,7 @@
   }
 
   function startSplitSessionListener(session, attempt = 0) {
+    if (!useSplitSessionLiveSync) return;
     const sessionKey = currentSessionKey(session);
     if (!sessionKey || splitSessionKey === sessionKey) return;
 
@@ -400,18 +547,25 @@
     if (typeof unsubscribeSplitSession === "function") unsubscribeSplitSession();
     splitSessionKey = sessionKey;
     splitAttendanceReady = false;
+    splitRosterReady = false;
     unsubscribeSplitSession = window.MarkHubFirebase.listenSplitSession(
       sessionKey,
       (patch) => {
         const hasAttendancePatch = Object.prototype.hasOwnProperty.call(patch || {}, "attendance");
+        const hasRosterPatch = Object.prototype.hasOwnProperty.call(patch || {}, "classes")
+          || Object.prototype.hasOwnProperty.call(patch || {}, "studentProfiles")
+          || Object.prototype.hasOwnProperty.call(patch || {}, "studentEnrolments");
         if (hasAttendancePatch) {
           splitAttendanceReady = true;
         }
+        if (hasRosterPatch) {
+          splitRosterReady = true;
+        }
         currentState = mergeSplitPatchIntoState(currentState, patch || {});
-        if (splitAttendanceReady) {
-          const data = getActiveSessionData(currentState);
+        const data = getActiveSessionData(currentState);
+        if (splitAttendanceReady && (splitRosterReady || hasAnyStudentRoster(data))) {
           logAttendanceKeyDiagnostics(data);
-          storeAndRenderState(currentState);
+          storeAndRenderState(currentState, { authoritativeClasses: attendancePatchClassNames(patch || {}) });
         } else {
           storeStateOnly(currentState);
         }
@@ -423,6 +577,7 @@
   }
 
   function startFirestoreAttendanceListener(attempt = 0) {
+    if (!useCompactAppStateLiveSync) return;
     if (unsubscribeAppState) return;
 
     if (!window.MarkHubFirebase?.listenAppState) {
@@ -457,6 +612,7 @@
     unsubscribeSplitSession = null;
     splitSessionKey = "";
     splitAttendanceReady = false;
+    splitRosterReady = false;
   }
 
   function openMobileMenu() {
@@ -544,4 +700,10 @@
   window.addEventListener("storage", (event) => {
     if (event.key === storageKey) renderPerfectAttendance();
   });
+  setInterval(() => {
+    const savedStateJson = localStorage.getItem(storageKey) || "{}";
+    if (savedStateJson !== lastRenderedStateJson) {
+      renderPerfectAttendance();
+    }
+  }, 1000);
 })();
