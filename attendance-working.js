@@ -444,7 +444,89 @@
       .filter((className) => classNames.includes(className)));
   }
 
+  function slugifyIdentifier(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "student";
+  }
+
+  function studentProfileIdFromLegacy(className, student) {
+    if (student?.studentId) return String(student.studentId);
+    const idSeed = student?.idNo || student?.schoolIdNo || student?.pen || student?.aadhaarNo
+      || `${className}-${student?.roll || student?.rollNumber || ""}-${student?.name || student?.studentName || ""}`;
+    return `student-${slugifyIdentifier(idSeed)}`;
+  }
+
+  function findStoredProfileForLegacy(state = currentState, student = {}) {
+    const profiles = Object.values(state?.studentProfiles || {});
+    const schoolId = String(student?.idNo || student?.schoolIdNo || "").trim().toLowerCase();
+    const pen = String(student?.pen || "").trim().toLowerCase();
+    const aadhaar = String(student?.aadhaarNo || "").trim();
+    return profiles.find((profile) =>
+      (schoolId && String(profile.schoolIdNo || profile.idNo || "").trim().toLowerCase() === schoolId)
+      || (pen && String(profile.pen || "").trim().toLowerCase() === pen)
+      || (aadhaar && String(profile.aadhaarNo || "").trim() === aadhaar)
+    );
+  }
+
+  function getStudentProfileRecordsForAttendance(state = currentState, data, classFilterValue = "All Classes") {
+    const session = currentSessionKey(state?.academicSession);
+    const enrolments = state?.studentEnrolments?.[session] || {};
+    const profiles = state?.studentProfiles || {};
+    const records = [];
+    const used = new Set();
+    const selectedClass = canonicalClassLabel(classFilterValue);
+    const includesClass = (className) => classFilterValue === "All Classes"
+      || canonicalClassLabel(className) === selectedClass;
+
+    Object.entries(data?.classes || {})
+      .filter(([className]) => includesClass(className))
+      .forEach(([className, students]) => {
+        (students || [])
+          .filter((student) => student?.name)
+          .forEach((student) => {
+            const matchedProfile = findStoredProfileForLegacy(state, student);
+            const studentId = String(matchedProfile?.studentId || studentProfileIdFromLegacy(className, student));
+            const enrolment = enrolments[studentId] || {};
+            records.push({
+              studentId,
+              className: canonicalClassLabel(enrolment.className || className),
+              rollNumber: String(enrolment.rollNumber ?? enrolment.roll ?? student.roll ?? "").trim(),
+              studentName: matchedProfile?.studentName || matchedProfile?.name || student.name || "",
+              studentStatus: String(enrolment.studentStatus || "Active").trim() || "Active"
+            });
+            used.add(studentId);
+          });
+      });
+
+    Object.entries(enrolments).forEach(([studentId, enrolment]) => {
+      if (used.has(studentId)) return;
+      const className = canonicalClassLabel(enrolment?.className);
+      if (!classNames.includes(className) || !includesClass(className)) return;
+      const profile = profiles[studentId] || {};
+      records.push({
+        studentId,
+        className,
+        rollNumber: String(enrolment.rollNumber ?? enrolment.roll ?? "").trim(),
+        studentName: profile.studentName || profile.name || enrolment.studentName || "",
+        studentStatus: String(enrolment.studentStatus || "Active").trim() || "Active"
+      });
+    });
+
+    return records;
+  }
+
+  function getActiveStudentProfileTotal(state = currentState, data, classFilterValue = "All Classes") {
+    return getStudentProfileRecordsForAttendance(state, data, classFilterValue)
+      .filter((record) => record.studentStatus === "Active")
+      .length;
+  }
+
   function getTotalEnrolment(data, classFilterValue = "All Classes") {
+    const activeProfileTotal = getActiveStudentProfileTotal(currentState, data, classFilterValue);
+    if (activeProfileTotal !== null) return activeProfileTotal;
+
     const enrolledStudents = new Set();
     Object.entries(data.classes || {})
       .filter(([className]) => classFilterValue === "All Classes"

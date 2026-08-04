@@ -3,12 +3,7 @@ const authKey = "markhub-current-user-v1";
 const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
 const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1";
-
-const users = {
-  admin: { password: "admin_#123", role: "admin", name: "Admin" },
-  teacher: { password: "teacher123", role: "user", name: "Teacher" },
-  principal: { password: "principal#123", role: "user", name: "Principal" }
-};
+const loginLogLocalKey = "markhub-local-login-logs-v1";
 
 const classNames = [
   "LKG",
@@ -44,7 +39,8 @@ const portalViews = [
   "analysis",
   "teacherAnalytics",
   "teacherAssessment",
-  "entryAccess"
+  "entryAccess",
+  "loginLogs"
 ];
 
 const profileGenderOptions = ["Male", "Female"];
@@ -261,6 +257,9 @@ let activeTeacherAssessmentTab = "overview";
 let editingTeacherAssessmentRecord = null;
 let teacherAssessmentCurrentData = null;
 let publicationSaveInProgress = false;
+let loginLogs = [];
+let unsubscribeLoginLogs = null;
+let loginLogsLoading = false;
 const firebaseResultListeners = {
   app: null,
   public: null
@@ -340,6 +339,14 @@ const els = {
   saveEntryAccessBtn: document.querySelector("#saveEntryAccessBtn"),
   unlockAllEntryAccessBtn: document.querySelector("#unlockAllEntryAccessBtn"),
   lockAllEntryAccessBtn: document.querySelector("#lockAllEntryAccessBtn"),
+  loginLogSummary: document.querySelector("#loginLogSummary"),
+  loginLogActionFilter: document.querySelector("#loginLogActionFilter"),
+  loginLogRoleFilter: document.querySelector("#loginLogRoleFilter"),
+  loginLogSearchInput: document.querySelector("#loginLogSearchInput"),
+  loginLogStatus: document.querySelector("#loginLogStatus"),
+  loginLogBody: document.querySelector("#loginLogBody"),
+  refreshLoginLogsBtn: document.querySelector("#refreshLoginLogsBtn"),
+  exportLoginLogsBtn: document.querySelector("#exportLoginLogsBtn"),
   studentsClassSelect: document.querySelector("#studentsClassSelect"),
   studentCsvInput: document.querySelector("#studentCsvInput"),
   importStudentsBtn: document.querySelector("#importStudentsBtn"),
@@ -2201,7 +2208,7 @@ function loadCurrentUser() {
   try {
     const parsed = JSON.parse(saved);
     if (parsed?.authProvider === "firebase" && parsed?.role && parsed?.name) return parsed;
-    return users[parsed.username] ? parsed : null;
+    return null;
   } catch {
     return null;
   }
@@ -2299,6 +2306,242 @@ function renderDashboardAvatar(profile) {
   `;
 }
 
+function normalizeLoginLogAction(action = "") {
+  const value = String(action || "").trim().toLowerCase();
+  if (value === "logout") return "logout";
+  if (value === "login_failed" || value === "failed") return "login_failed";
+  return "login";
+}
+
+function loginLogActionLabel(action = "") {
+  const normalized = normalizeLoginLogAction(action);
+  if (normalized === "logout") return "Logout";
+  if (normalized === "login_failed") return "Failed Login";
+  return "Login";
+}
+
+function loginLogStatusLabel(status = "") {
+  const normalized = String(status || "").trim().toLowerCase();
+  return normalized === "failure" || normalized === "failed" ? "Failure" : "Success";
+}
+
+function readLocalLoginLogs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(loginLogLocalKey) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalLoginLog(entry) {
+  const rows = [entry, ...readLocalLoginLogs()]
+    .slice(0, 200);
+  localStorage.setItem(loginLogLocalKey, JSON.stringify(rows));
+}
+
+function loginLogBaseEntry(action, options = {}) {
+  const profile = options.profile || currentUser || {};
+  const identifier = String(options.identifier || profile.email || profile.phoneNumber || profile.username || "").trim();
+  return {
+    id: options.id || `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    action: normalizeLoginLogAction(action),
+    status: String(options.status || (action === "login_failed" ? "failure" : "success")).trim().toLowerCase(),
+    identifier,
+    email: String(options.email || profile.email || (identifier.includes("@") ? identifier : "") || "").trim().toLowerCase(),
+    phoneNumber: String(options.phoneNumber || profile.phoneNumber || "").trim(),
+    uid: String(options.uid || profile.uid || "").trim(),
+    name: String(options.name || profile.name || profile.username || "").trim(),
+    role: String(options.role || profile.role || "").trim(),
+    staffRole: String(options.staffRole || profile.staffRole || "").trim(),
+    message: String(options.message || "").trim(),
+    userAgent: navigator.userAgent || "",
+    createdAt: new Date().toISOString(),
+    source: options.source || "local"
+  };
+}
+
+async function recordLoginEvent(action, options = {}) {
+  const entry = loginLogBaseEntry(action, options);
+  if (window.MarkHubFirebase?.recordLoginEvent) {
+    try {
+      await window.MarkHubFirebase.recordLoginEvent(entry);
+      return;
+    } catch (error) {
+      entry.message = entry.message || String(error?.code || error?.message || "Saved locally only.");
+    }
+  }
+  writeLocalLoginLog(entry);
+  loginLogs = mergeLoginLogRows(loginLogs, [entry]);
+  if (activeView === "loginLogs") renderLoginLogs();
+}
+
+function mergeLoginLogRows(remoteRows = [], localRows = readLocalLoginLogs()) {
+  const byKey = new Map();
+  [...remoteRows, ...localRows].forEach((row) => {
+    const key = row.id || `${row.createdAt}-${row.action}-${row.identifier || row.email || row.uid}`;
+    if (!key) return;
+    byKey.set(key, row);
+  });
+  return [...byKey.values()].sort((a, b) =>
+    String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+function stopLoginLogSync() {
+  if (typeof unsubscribeLoginLogs === "function") unsubscribeLoginLogs();
+  unsubscribeLoginLogs = null;
+}
+
+function startLoginLogSync() {
+  if (!isAdmin() || unsubscribeLoginLogs || !window.MarkHubFirebase?.listenLoginLogs) {
+    loginLogs = mergeLoginLogRows(loginLogs);
+    return;
+  }
+  loginLogsLoading = true;
+  unsubscribeLoginLogs = window.MarkHubFirebase.listenLoginLogs((rows) => {
+    loginLogsLoading = false;
+    loginLogs = mergeLoginLogRows(rows);
+    renderLoginLogs();
+  }, (error) => {
+    loginLogsLoading = false;
+    loginLogs = mergeLoginLogRows([]);
+    if (els.loginLogStatus) {
+      els.loginLogStatus.textContent = firestoreSaveErrorMessage("read login logs", error);
+    }
+    renderLoginLogs();
+  });
+}
+
+async function refreshLoginLogs() {
+  if (!isAdmin()) {
+    showToast("Only admin can refresh Login Logs.");
+    return;
+  }
+  if (!window.MarkHubFirebase?.getLoginLogsOnce) {
+    loginLogs = mergeLoginLogRows([]);
+    renderLoginLogs();
+    return;
+  }
+  loginLogsLoading = true;
+  renderLoginLogs();
+  try {
+    const rows = await window.MarkHubFirebase.getLoginLogsOnce(250);
+    loginLogs = mergeLoginLogRows(rows);
+  } catch (error) {
+    loginLogs = mergeLoginLogRows([]);
+    showToast(firestoreSaveErrorMessage("read login logs", error));
+  } finally {
+    loginLogsLoading = false;
+    renderLoginLogs();
+  }
+}
+
+function filteredLoginLogs() {
+  const actionFilter = String(els.loginLogActionFilter?.value || "All");
+  const roleFilter = String(els.loginLogRoleFilter?.value || "All").toLowerCase();
+  const query = String(els.loginLogSearchInput?.value || "").trim().toLowerCase();
+  return mergeLoginLogRows(loginLogs)
+    .filter((row) => actionFilter === "All" || normalizeLoginLogAction(row.action) === actionFilter)
+    .filter((row) => roleFilter === "all"
+      || String(row.staffRole || row.role || "").trim().toLowerCase() === roleFilter)
+    .filter((row) => {
+      if (!query) return true;
+      return [
+        row.name,
+        row.email,
+        row.identifier,
+        row.phoneNumber,
+        row.role,
+        row.staffRole,
+        row.action,
+        row.status,
+        row.message
+      ].some((value) => String(value || "").toLowerCase().includes(query));
+    });
+}
+
+function formatLoginLogTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "-";
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function renderLoginLogs() {
+  if (!els.loginLogBody || activeView !== "loginLogs") return;
+  if (!isAdmin()) {
+    els.loginLogBody.innerHTML = '<tr><td colspan="7">Only admin can view login logs.</td></tr>';
+    return;
+  }
+
+  const rows = filteredLoginLogs();
+  const today = new Date().toISOString().slice(0, 10);
+  const successCount = rows.filter((row) => loginLogStatusLabel(row.status) === "Success").length;
+  const failureCount = rows.filter((row) => loginLogStatusLabel(row.status) === "Failure").length;
+  const todayCount = rows.filter((row) => String(row.createdAt || "").startsWith(today)).length;
+  const uniqueUsers = new Set(rows.map((row) => row.uid || row.email || row.identifier).filter(Boolean)).size;
+
+  if (els.loginLogSummary) {
+    els.loginLogSummary.innerHTML = [
+      ["Total Logs", rows.length],
+      ["Today", todayCount],
+      ["Successful", successCount],
+      ["Failed", failureCount],
+      ["Unique Users", uniqueUsers]
+    ].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+  }
+
+  if (els.loginLogStatus) {
+    const localCount = readLocalLoginLogs().length;
+    els.loginLogStatus.textContent = loginLogsLoading
+      ? "Loading login activity..."
+      : `${rows.length} record${rows.length === 1 ? "" : "s"} shown${localCount ? ` | ${localCount} local fallback record${localCount === 1 ? "" : "s"}` : ""}.`;
+  }
+
+  els.loginLogBody.innerHTML = rows.length
+    ? rows.map((row) => {
+      const action = normalizeLoginLogAction(row.action);
+      const status = loginLogStatusLabel(row.status);
+      const identity = row.email || row.phoneNumber || row.identifier || row.uid || "-";
+      const role = row.staffRole || row.role || "-";
+      return `<tr>
+        <td>${escapeHtml(formatLoginLogTime(row.createdAt))}</td>
+        <td>${escapeHtml(row.name || "-")}</td>
+        <td>${escapeHtml(identity)}</td>
+        <td>${escapeHtml(role)}</td>
+        <td><span class="login-log-pill action-${escapeAttr(action)}">${escapeHtml(loginLogActionLabel(action))}</span></td>
+        <td><span class="login-log-pill status-${escapeAttr(status.toLowerCase())}">${escapeHtml(status)}</span></td>
+        <td>${escapeHtml(row.message || "-")}</td>
+      </tr>`;
+    }).join("")
+    : '<tr><td colspan="7">No login records are available.</td></tr>';
+}
+
+function exportLoginLogsCsv() {
+  if (!isAdmin()) {
+    showToast("Only admin can export Login Logs.");
+    return;
+  }
+  const rows = [
+    ["Date and Time", "Name", "Email / ID", "Role", "Action", "Status", "Message"],
+    ...filteredLoginLogs().map((row) => [
+      formatLoginLogTime(row.createdAt),
+      row.name || "",
+      row.email || row.phoneNumber || row.identifier || row.uid || "",
+      row.staffRole || row.role || "",
+      loginLogActionLabel(row.action),
+      loginLogStatusLabel(row.status),
+      row.message || ""
+    ])
+  ];
+  downloadCsv(rows, `Login_Logs_${currentSessionKey(state.academicSession)}.csv`);
+}
+
 function entryAccessGroupForClass(className = selectedClass()) {
   return isHighClass(className) ? "classes9to10" : "classes1to8";
 }
@@ -2366,10 +2609,16 @@ function renderAuth() {
 
   if (!signedIn) {
     stopFirebaseStateSync();
+    stopLoginLogSync();
     return;
   }
 
   startFirebaseStateSync();
+  if (isAdmin()) {
+    startLoginLogSync();
+  } else {
+    stopLoginLogSync();
+  }
 
   const roleLabel = currentUser.role === "admin" ? "Admin" : isPrincipalUser() ? "Principal" : currentUser.staffRole === "headmaster" ? "Headmaster" : "Teacher";
   els.userBadge.textContent = roleLabel;
@@ -2377,6 +2626,7 @@ function renderAuth() {
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
   if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
   if (!isAdmin() && activeView === "studentProfiles") activeView = "dashboard";
+  if (!isAdmin() && activeView === "loginLogs") activeView = "dashboard";
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
   els.resetBtn.classList.toggle("hidden", !isAdmin());
@@ -2402,20 +2652,6 @@ function normalizePhoneLoginIdentifier(identifier) {
   return String(identifier || "").replace(/[\s().-]/g, "");
 }
 
-function legacyLogin(username, password) {
-  const account = users[username];
-  if (!account || account.password !== password) return false;
-
-  activeView = "dashboard";
-  saveUiState();
-  saveCurrentUser({ username, role: account.role, staffRole: account.role === "admin" ? "admin" : username === "principal" ? "principal" : "teacher", name: account.name, authProvider: "legacy" });
-  els.loginForm.reset();
-  showToast(`Logged in as ${account.name}.`);
-  renderAuth();
-  render();
-  return true;
-}
-
 function completeApprovedLogin(profile) {
   activeView = "dashboard";
   saveUiState();
@@ -2423,6 +2659,7 @@ function completeApprovedLogin(profile) {
   els.loginForm.reset();
   els.phoneOtpPanel?.classList.add("hidden");
   if (els.phoneCodeInput) els.phoneCodeInput.value = "";
+  void recordLoginEvent("login", { profile, status: "success", message: "Portal login successful." });
   showToast(`Logged in as ${profile.name}.`);
   renderAuth();
   render();
@@ -2431,7 +2668,6 @@ function completeApprovedLogin(profile) {
 async function handleLogin(event) {
   event.preventDefault();
   const identifier = els.usernameInput.value.trim();
-  const username = identifier.toLowerCase();
   const password = els.passwordInput.value;
 
   if (isEmailLoginIdentifier(identifier) && window.MarkHubFirebase?.signInApprovedUser) {
@@ -2439,17 +2675,17 @@ async function handleLogin(event) {
       const profile = await window.MarkHubFirebase.signInApprovedUser({ identifier, password });
       completeApprovedLogin(profile);
     } catch (error) {
+      void recordLoginEvent("login_failed", {
+        identifier,
+        status: "failure",
+        message: error.message || "Email login failed."
+      });
       showToast(error.message || "Could not login with this approved email.");
     }
     return;
   }
 
-  if (isPhoneLoginIdentifier(identifier)) {
-    await sendApprovedPhoneCode();
-    return;
-  }
-
-  if (!legacyLogin(username, password)) showToast("Invalid username or password.");
+  showToast("Enter your approved Gmail address to login.");
 }
 
 async function registerApprovedUser() {
@@ -2467,6 +2703,11 @@ async function registerApprovedUser() {
     const profile = await window.MarkHubFirebase.registerApprovedEmailUser({ identifier, password });
     completeApprovedLogin(profile);
   } catch (error) {
+    void recordLoginEvent("login_failed", {
+      identifier,
+      status: "failure",
+      message: error.message || "Registration failed."
+    });
     showToast(error.message || "Could not register this approved email.");
   }
 }
@@ -2530,6 +2771,11 @@ async function verifyApprovedPhoneCode() {
 
 async function logout() {
   if (hasUnsavedLocalChanges() && !window.confirm("You have unsaved changes. Leave without saving?")) return;
+  await recordLoginEvent("logout", {
+    profile: currentUser,
+    status: "success",
+    message: "Portal logout."
+  });
   flushFirebaseStateSave(true);
   stopFirebaseStateSync();
   if (currentUser?.authProvider === "firebase" && window.MarkHubFirebase?.signOutApprovedUser) {
@@ -3260,6 +3506,11 @@ function init() {
   els.saveEntryAccessBtn?.addEventListener("click", () => saveEntryAccessSettings());
   els.unlockAllEntryAccessBtn?.addEventListener("click", () => setAllEntryAccess(true));
   els.lockAllEntryAccessBtn?.addEventListener("click", () => setAllEntryAccess(false));
+  els.loginLogActionFilter?.addEventListener("change", renderLoginLogs);
+  els.loginLogRoleFilter?.addEventListener("change", renderLoginLogs);
+  els.loginLogSearchInput?.addEventListener("input", renderLoginLogs);
+  els.refreshLoginLogsBtn?.addEventListener("click", refreshLoginLogs);
+  els.exportLoginLogsBtn?.addEventListener("click", exportLoginLogsCsv);
   document.querySelector("#studentForm").addEventListener("submit", addStudent);
   document.querySelector("#cancelStudentEditBtn").addEventListener("click", cancelStudentEdit);
   els.importStudentsBtn.addEventListener("click", () => els.studentCsvInput.click());
@@ -3586,6 +3837,10 @@ function switchView(view) {
   }
   if (view === "studentProfiles" && !isAdmin()) {
     showToast("Only admin can open Student Profiles.");
+    view = "dashboard";
+  }
+  if (view === "loginLogs" && !isAdmin()) {
+    showToast("Only admin can open Login Logs.");
     view = "dashboard";
   }
   activeView = view;
@@ -4189,6 +4444,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("teacher-analytics-active", activeView === "teacherAnalytics");
   document.body.classList.toggle("teacher-assessment-active", activeView === "teacherAssessment");
   document.body.classList.toggle("entry-access-active", activeView === "entryAccess");
+  document.body.classList.toggle("login-logs-active", activeView === "loginLogs");
   document.querySelectorAll(".nav-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === activeView));
   document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.id === `${activeView}View`));
   updateMobileNavActiveState();
@@ -4203,7 +4459,8 @@ function renderActiveViewChrome() {
     analysis: "Academic Analysis",
     teacherAnalytics: "Teacher Performance Analytics",
     teacherAssessment: "Teacher Assessment",
-    entryAccess: "Entry Access Control"
+    entryAccess: "Entry Access Control",
+    loginLogs: "Login Logs"
   };
   els.viewTitle.textContent = titles[activeView] || "Dashboard";
 }
@@ -4223,12 +4480,13 @@ function render() {
   renderTeacherAnalytics();
   renderTeacherAssessment();
   renderEntryAccessControl();
+  renderLoginLogs();
 }
 
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = !["dashboard", "attendance", "students", "studentProfiles", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess"].includes(activeView);
+  const showMainFilters = !["dashboard", "attendance", "students", "studentProfiles", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess", "loginLogs"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);

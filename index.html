@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=approved-auth-20260726">
+    <link rel="stylesheet" href="./styles.css?v=login-logs-glass-clear-20260804">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -120,6 +120,10 @@
           <span class="mobile-nav-icon" aria-hidden="true">&#9881;</span>
           <span>Settings</span>
         </button>
+        <button class="hidden" type="button" data-mobile-view="loginLogs" data-admin-only="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#128203;</span>
+          <span>Login Logs</span>
+        </button>
         <button id="mobileResetBtn" class="hidden mobile-reset-button" type="button" data-admin-only="true">
           <span class="mobile-nav-icon" aria-hidden="true">&#8634;</span>
           <span>Reset</span>
@@ -183,6 +187,10 @@
         <button class="nav-tab hidden" data-view="entryAccess" data-admin-only="true" type="button" title="Entry access control">
           <span aria-hidden="true">&#128274;</span>
           Entry Access Control
+        </button>
+        <button class="nav-tab hidden" data-view="loginLogs" data-admin-only="true" type="button" title="Login logs">
+          <span aria-hidden="true">&#128203;</span>
+          Login Logs
         </button>
       </nav>
 
@@ -1098,15 +1106,66 @@
           </div>
         </form>
       </section>
+
+      <section id="loginLogsView" class="view" aria-label="Login logs">
+        <div class="section-head login-log-head">
+          <div>
+            <h3>Login Logs</h3>
+            <p>Admin-only record of portal login and logout activity.</p>
+          </div>
+          <div class="inline-actions">
+            <button id="refreshLoginLogsBtn" class="ghost-button" type="button">Refresh</button>
+            <button id="exportLoginLogsBtn" class="ghost-button" type="button">Export CSV</button>
+          </div>
+        </div>
+
+        <div id="loginLogSummary" class="login-log-summary" aria-label="Login log summary"></div>
+
+        <section class="login-log-filters" aria-label="Login log filters">
+          <label>Action<select id="loginLogActionFilter">
+            <option value="All">All Actions</option>
+            <option value="login">Login</option>
+            <option value="logout">Logout</option>
+            <option value="login_failed">Failed Login</option>
+          </select></label>
+          <label>User Type<select id="loginLogRoleFilter">
+            <option value="All">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="principal">Principal</option>
+            <option value="headmaster">Headmaster</option>
+            <option value="teacher">Teacher</option>
+          </select></label>
+          <label>Search<input id="loginLogSearchInput" type="search" placeholder="Name, email, role, message"></label>
+        </section>
+
+        <p id="loginLogStatus" class="login-log-status">Loading login activity...</p>
+
+        <div class="login-log-table-wrap">
+          <table class="login-log-table">
+            <thead>
+              <tr>
+                <th>Date and Time</th>
+                <th>Name</th>
+                <th>Email / ID</th>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="loginLogBody"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=approved-auth-20260726"></script>
+  <script type="module" src="./firebase.js?v=login-logs-20260804"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=enrolment-merge-guard-20260803"></script>
+  <script src="./app.js?v=login-logs-20260804"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
 </body>
 </html>

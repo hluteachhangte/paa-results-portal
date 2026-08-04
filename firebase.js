@@ -5,6 +5,9 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
+  orderBy,
+  limit as firestoreLimit,
   onSnapshot,
   setDoc,
   deleteDoc,
@@ -387,6 +390,36 @@ function studentEnrolmentDocPayload(enrolment = {}) {
   ), ["studentEnrolment"]);
 }
 
+function loginLogPayload(event = {}) {
+  const now = new Date().toISOString();
+  const payload = {
+    action: String(event.action || "login").trim() || "login",
+    status: String(event.status || "success").trim() || "success",
+    identifier: normalizeApprovedIdentifier(event.identifier || event.email || event.phoneNumber || ""),
+    email: String(event.email || "").trim().toLowerCase(),
+    phoneNumber: String(event.phoneNumber || "").trim(),
+    uid: String(event.uid || "").trim(),
+    name: String(event.name || "").trim(),
+    role: String(event.role || "").trim(),
+    staffRole: String(event.staffRole || "").trim(),
+    message: String(event.message || "").trim().slice(0, 240),
+    userAgent: String(event.userAgent || navigator.userAgent || "").slice(0, 240),
+    createdAt: String(event.createdAt || now)
+  };
+  return sanitizeFirestoreValue(payload, ["loginLog"]);
+}
+
+function loginLogFromSnapshot(docSnapshot) {
+  const data = docSnapshot.data() || {};
+  return {
+    id: docSnapshot.id,
+    ...data,
+    createdAt: typeof data.createdAt?.toDate === "function"
+      ? data.createdAt.toDate().toISOString()
+      : String(data.createdAt || "")
+  };
+}
+
 window.MarkHubFirebase = {
   app,
   db,
@@ -460,6 +493,32 @@ window.MarkHubFirebase = {
   },
   async signOutApprovedUser() {
     await signOut(auth);
+  },
+  async recordLoginEvent(event = {}) {
+    const payload = loginLogPayload(event);
+    await setDoc(doc(collection(db, "loginLogs")), payload);
+    return payload;
+  },
+  listenLoginLogs(onLogs, onError, maxCount = 250) {
+    const logsQuery = query(
+      collection(db, "loginLogs"),
+      orderBy("createdAt", "desc"),
+      firestoreLimit(Math.max(1, Math.min(Number(maxCount) || 250, 500)))
+    );
+    return onSnapshot(
+      logsQuery,
+      (snapshot) => onLogs(snapshot.docs.map(loginLogFromSnapshot)),
+      onError
+    );
+  },
+  async getLoginLogsOnce(maxCount = 250) {
+    const logsQuery = query(
+      collection(db, "loginLogs"),
+      orderBy("createdAt", "desc"),
+      firestoreLimit(Math.max(1, Math.min(Number(maxCount) || 250, 500)))
+    );
+    const snapshot = await getDocs(logsQuery);
+    return snapshot.docs.map(loginLogFromSnapshot);
   },
   listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();

@@ -329,7 +329,8 @@
   .sidebar .nav-tab[data-view="analysis"],
   .sidebar .nav-tab[data-view="teacherAnalytics"],
   .sidebar .nav-tab[data-view="teacherAssessment"],
-  .sidebar .nav-tab[data-view="entryAccess"] {
+  .sidebar .nav-tab[data-view="entryAccess"],
+  .sidebar .nav-tab[data-view="loginLogs"] {
     font-size: 0.86rem;
   }
 
@@ -339,7 +340,8 @@
   .mobile-nav-drawer [data-mobile-view="analysis"],
   .mobile-nav-drawer [data-mobile-view="teacherAnalytics"],
   .mobile-nav-drawer [data-mobile-view="teacherAssessment"],
-  .mobile-nav-drawer [data-mobile-view="entryAccess"] {
+  .mobile-nav-drawer [data-mobile-view="entryAccess"],
+  .mobile-nav-drawer [data-mobile-view="loginLogs"] {
     font-size: 0.86rem;
   }
 }
@@ -10169,6 +10171,202 @@ body.attendance-active #attendanceView > .table-wrap thead th {
   body.print-teacher-analysis .teacher-fairness-note {
     break-inside: avoid;
     box-shadow: none;
+  }
+}
+
+/* Admin-only Login Logs */
+.login-log-head {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.login-log-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.login-log-summary article {
+  display: grid;
+  gap: 6px;
+  min-height: 84px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.44), rgba(212, 234, 255, 0.22));
+  box-shadow:
+    0 14px 30px rgba(21, 35, 58, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -1px 0 rgba(78, 119, 172, 0.08);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.login-log-summary span {
+  color: #2d528f;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.login-log-summary strong {
+  color: #06245a;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.login-log-filters {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(220px, 1.5fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.38), rgba(229, 242, 255, 0.18));
+  box-shadow:
+    0 12px 26px rgba(20, 37, 63, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(18px) saturate(155%);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+}
+
+.login-log-filters label {
+  display: grid;
+  gap: 6px;
+  color: #294b82;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.login-log-filters select,
+.login-log-filters input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.46);
+  color: #092a63;
+  padding: 10px 12px;
+  box-shadow:
+    inset 0 1px 2px rgba(42, 63, 97, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px) saturate(145%);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+}
+
+.login-log-status {
+  margin: 0 0 10px;
+  color: #5d78a8;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.login-log-table-wrap {
+  overflow: auto;
+  max-height: min(62vh, 620px);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), rgba(237, 246, 255, 0.16));
+  box-shadow:
+    0 18px 38px rgba(28, 42, 68, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(155%);
+  -webkit-backdrop-filter: blur(20px) saturate(155%);
+}
+
+.login-log-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+  color: #082963;
+}
+
+.login-log-table th,
+.login-log-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(111, 132, 165, 0.14);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.login-log-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(245, 249, 255, 0.72);
+  color: #142438;
+  font-size: 0.77rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.login-log-table tbody tr:nth-child(even) {
+  background: rgba(242, 247, 255, 0.28);
+}
+
+.login-log-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.login-log-pill.action-login {
+  background: rgba(33, 150, 243, 0.14);
+  color: #0a5eb8;
+}
+
+.login-log-pill.action-logout {
+  background: rgba(103, 74, 197, 0.14);
+  color: #4a36a0;
+}
+
+.login-log-pill.action-login_failed,
+.login-log-pill.status-failure {
+  background: rgba(218, 70, 91, 0.14);
+  color: #b3233d;
+}
+
+.login-log-pill.status-success {
+  background: rgba(37, 170, 125, 0.14);
+  color: #127456;
+}
+
+@media (max-width: 900px) {
+  .login-log-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .login-log-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .login-log-table-wrap {
+    max-height: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .login-log-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .login-log-head .inline-actions {
+    width: 100%;
+  }
+
+  .login-log-head .inline-actions button {
+    flex: 1 1 140px;
   }
 }
 

@@ -91,6 +91,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /loginLogs/{logId} {
+      allow create: if approvedUser();
+      allow read: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     match /results/{rollNo} {
       allow read: if true;
       allow write: if isSchoolLeader();
