@@ -812,6 +812,7 @@ function normalizeHouseColour(value) {
 
 function normalizeStudentProfile(profile = {}) {
   const studentId = String(profile.studentId || "").trim();
+  const photoURL = String(profile.photoURL || profile.photoUrl || profile.photo || "").trim();
   return {
     studentId,
     studentName: String(profile.studentName || profile.name || "").trim(),
@@ -842,7 +843,7 @@ function normalizeStudentProfile(profile = {}) {
     bplAay: String(profile.bplAay || "").trim(),
     admissionNo: String(profile.admissionNo || "").trim(),
     dateOfAdmission: formatDateForInput(profile.dateOfAdmission || ""),
-    photoURL: String(profile.photoURL || "").trim(),
+    photoURL,
     createdAt: profile.createdAt || "",
     createdBy: profile.createdBy || "",
     updatedAt: profile.updatedAt || "",
@@ -2240,7 +2241,15 @@ function isAdmin() {
 }
 
 function isPrincipalUser() {
-  return currentUser?.username === "principal" || currentUser?.staffRole === "principal";
+  return currentUser?.username === "principal" || currentUser?.role === "principal" || currentUser?.staffRole === "principal";
+}
+
+function isHeadmasterUser() {
+  return currentUser?.username === "headmaster" || currentUser?.role === "headmaster" || currentUser?.staffRole === "headmaster";
+}
+
+function canAccessStudentProfiles() {
+  return isAdmin() || isPrincipalUser() || isHeadmasterUser();
 }
 
 function canPreviewUnpublished() {
@@ -2624,8 +2633,9 @@ function renderAuth() {
   els.userBadge.textContent = roleLabel;
   els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
+  document.querySelectorAll("[data-student-profiles-access]").forEach((element) => element.classList.toggle("hidden", !canAccessStudentProfiles()));
   if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
-  if (!isAdmin() && activeView === "studentProfiles") activeView = "dashboard";
+  if (!canAccessStudentProfiles() && activeView === "studentProfiles") activeView = "dashboard";
   if (!isAdmin() && activeView === "loginLogs") activeView = "dashboard";
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
@@ -3835,8 +3845,8 @@ function switchView(view) {
     showToast("Only admin can open Entry Access Control.");
     view = "dashboard";
   }
-  if (view === "studentProfiles" && !isAdmin()) {
-    showToast("Only admin can open Student Profiles.");
+  if (view === "studentProfiles" && !canAccessStudentProfiles()) {
+    showToast("Only Admin, Principal, or Headmaster can open Student Profiles.");
     view = "dashboard";
   }
   if (view === "loginLogs" && !isAdmin()) {
@@ -10516,15 +10526,29 @@ function studentProfileIdFromLegacy(className, student) {
   return `student-${slugifyTeacherName(idSeed)}`;
 }
 
-function findStoredProfileForLegacy(student) {
+function findStoredProfileForLegacy(className, student) {
   const profiles = Object.values(state.studentProfiles || {});
+  const legacyStudentId = studentProfileIdFromLegacy(className, student);
   const schoolId = String(student?.idNo || "").trim().toLowerCase();
   const pen = String(student?.pen || "").trim().toLowerCase();
   const aadhaar = String(student?.aadhaarNo || "").trim();
+  const roll = String(student?.roll || "").trim();
+  const name = normalizeProfileSearchText(student?.name || "");
   return profiles.find((profile) =>
-    (schoolId && String(profile.schoolIdNo || "").trim().toLowerCase() === schoolId)
+    String(profile.studentId || "").trim() === legacyStudentId
+    || (schoolId && String(profile.schoolIdNo || "").trim().toLowerCase() === schoolId)
     || (pen && String(profile.pen || "").trim().toLowerCase() === pen)
     || (aadhaar && String(profile.aadhaarNo || "").trim() === aadhaar)
+    || (
+      roll
+      && name
+      && normalizeProfileSearchText(profile.studentName || "") === name
+      && Object.values(state.studentEnrolments?.[currentSessionKey(state.academicSession)] || {}).some((enrolment) =>
+        String(enrolment.studentId || "") === String(profile.studentId || "")
+        && String(enrolment.className || "") === className
+        && String(enrolment.rollNumber || "").trim() === roll
+      )
+    )
   );
 }
 
@@ -10537,7 +10561,7 @@ function getStudentProfileRecords(options = {}) {
 
   classNames.forEach((className) => {
     (state.classes?.[className] || []).forEach((student) => {
-      const matchedProfile = findStoredProfileForLegacy(student);
+      const matchedProfile = findStoredProfileForLegacy(className, student);
       const studentId = String(matchedProfile?.studentId || studentProfileIdFromLegacy(className, student));
       const profile = normalizeStudentProfile({
         ...(matchedProfile || {}),
@@ -10612,10 +10636,6 @@ function canEditStudentProfileRecord(record) {
   return currentUser?.role === "user" && isAssignedTeacherForClass(record.className) && isStudentProfileEntryAccessOpen(record.className);
 }
 
-function isHeadmasterUser() {
-  return currentUser?.username === "headmaster" || currentUser?.role === "headmaster";
-}
-
 function isAssignedTeacherForClass(className) {
   if (!currentUser) return false;
   const assignments = normalizeTeacherAssignments(state.teacherAssignments || []);
@@ -10686,11 +10706,11 @@ function sortStudentProfileRecords(records) {
 
 function renderStudentProfiles() {
   if (!els.studentProfileSummary) return;
-  if (!isAdmin()) {
+  if (!canAccessStudentProfiles()) {
     if (activeView === "studentProfiles") {
       activeView = "dashboard";
       renderActiveViewChrome();
-      showToast("Only admin can open Student Profiles.");
+      showToast("Only Admin, Principal, or Headmaster can open Student Profiles.");
     }
     return;
   }
@@ -10698,7 +10718,7 @@ function renderStudentProfiles() {
   const allRecords = getStudentProfileRecords();
   const records = visibleStudentProfileRecords();
   renderStudentProfileSummary(allRecords);
-  renderStudentProfileAgeReport(records);
+  renderStudentProfileAgeReport(records.filter((record) => record.studentStatus === "Active"));
   renderStudentProfileList(records);
 }
 
@@ -10932,10 +10952,10 @@ function studentProfileCardHtml(record) {
 }
 
 function studentProfileAvatarHtml(record) {
-  if (record.photoURL) {
-    return `<span class="student-profile-avatar"><img src="${escapeAttr(record.photoURL)}" alt=""></span>`;
-  }
   const initials = userInitials(record.studentName) || "?";
+  if (record.photoURL) {
+    return `<span class="student-profile-avatar" aria-label="${escapeAttr(record.studentName || "Student")} photo"><img src="${escapeAttr(record.photoURL)}" alt="" onerror="this.closest('.student-profile-avatar').textContent='${escapeAttr(initials)}';"></span>`;
+  }
   return `<span class="student-profile-avatar" aria-hidden="true">${escapeHtml(initials)}</span>`;
 }
 
@@ -11119,7 +11139,7 @@ function fillStudentProfileForm(record = {}) {
   set(els.profileInstructorInput, record.instructor || "");
   if (els.profilePhotoPreview) {
     els.profilePhotoPreview.innerHTML = record.photoURL
-      ? `<img src="${escapeAttr(record.photoURL)}" alt="">`
+      ? `<img src="${escapeAttr(record.photoURL)}" alt="" onerror="this.replaceWith(document.createTextNode('${escapeAttr(userInitials(record.studentName) || "?")}'));">`
       : `<span>${escapeHtml(userInitials(record.studentName) || "?")}</span>`;
   }
 }

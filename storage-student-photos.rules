@@ -42,8 +42,17 @@ service firebase.storage {
           : "";
     }
 
+    function approvedStaffRole() {
+      return approvedByEmail()
+        ? firestore.get(/databases/(default)/documents/approvedUsers/$(emailKey())).data.staffRole
+        : approvedByPhone()
+          ? firestore.get(/databases/(default)/documents/approvedUsers/$(phoneKey())).data.staffRole
+          : "";
+    }
+
     function canManageStudentPhotos() {
-      return approvedRole() in ["admin", "principal", "headmaster"];
+      return approvedRole() in ["admin", "principal", "headmaster"]
+        || approvedStaffRole() in ["admin", "principal", "headmaster"];
     }
 
     match /studentPhotos/{studentId}/profile.webp {
@@ -52,7 +61,7 @@ service firebase.storage {
         && request.resource != null
         && request.resource.size < 300 * 1024
         && request.resource.contentType.matches("image/(jpeg|png|webp)");
-      allow delete: if approvedRole() == "admin";
+      allow delete: if approvedRole() == "admin" || approvedStaffRole() == "admin";
     }
   }
 }
