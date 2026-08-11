@@ -7,6 +7,14 @@
   if (!canRegister) return;
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js", { scope: "./" }).catch(() => {});
+    navigator.serviceWorker.register("./service-worker.js", {
+      scope: "./",
+      updateViaCache: "none"
+    }).then((registration) => {
+      registration.update().catch(() => {});
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      }
+    }).catch(() => {});
   });
 })();
