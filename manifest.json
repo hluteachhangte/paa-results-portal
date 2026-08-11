@@ -1,0 +1,46 @@
+{
+  "name": "Pinehill Adventist Academy Results Portal",
+  "short_name": "PAA Portal",
+  "description": "Installable school results and student management portal for Pinehill Adventist Academy.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7fb",
+  "theme_color": "#3a4660",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "./pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "./index.html#view=dashboard",
+      "icons": [{ "src": "./pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "100% Attendance",
+      "short_name": "Attendance",
+      "url": "./attendance.html",
+      "icons": [{ "src": "./pwa-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
