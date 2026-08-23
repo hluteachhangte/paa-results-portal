@@ -98,6 +98,30 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /behaviourAssessments/{assessmentId} {
+      allow read: if canViewSchoolData();
+      allow create, update: if approvedUser();
+      allow delete: if isAdmin();
+    }
+
+    match /behaviourObservations/{observationId} {
+      allow read: if canViewSchoolData();
+      allow create, update: if approvedUser();
+      allow delete: if isAdmin();
+    }
+
+    match /behaviourInterventions/{interventionId} {
+      allow read: if canViewSchoolData();
+      allow create, update: if approvedUser();
+      allow delete: if isAdmin();
+    }
+
+    match /behaviourRecognitions/{recognitionId} {
+      allow read: if canViewSchoolData();
+      allow create, update: if isSchoolLeader();
+      allow delete: if isAdmin();
+    }
+
     match /results/{rollNo} {
       allow read: if true;
       allow write: if isSchoolLeader();

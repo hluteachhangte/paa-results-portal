@@ -36,6 +36,7 @@ const portalViews = [
   "marksheet",
   "students",
   "studentProfiles",
+  "behaviour",
   "analysis",
   "teacherAnalytics",
   "teacherAssessment",
@@ -68,6 +69,49 @@ const profileSkillProgrammeOptions = [
   "Futsal",
   "Other"
 ];
+
+const behaviourCriteria = [
+  {
+    key: "respect",
+    label: "Respect",
+    guide: "Shows courtesy, listens, and accepts correction respectfully."
+  },
+  {
+    key: "responsibility",
+    label: "Responsibility",
+    guide: "Completes duties, owns choices, and follows through."
+  },
+  {
+    key: "selfDiscipline",
+    label: "Self-Discipline",
+    guide: "Manages conduct, attention, and classroom routines."
+  },
+  {
+    key: "kindnessCooperation",
+    label: "Kindness & Cooperation",
+    guide: "Works well with others and shows helpfulness."
+  },
+  {
+    key: "positiveAttitude",
+    label: "Positive Attitude & Improvement",
+    guide: "Shows effort, openness, and steady growth."
+  }
+];
+
+const behaviourRatingDescriptions = {
+  5: "Excellent - consistently demonstrates the behaviour without reminders.",
+  4: "Very Good - usually demonstrates the behaviour; occasional reminder required.",
+  3: "Good - generally acceptable; sometimes needs reminders.",
+  2: "Needs Improvement - frequently needs reminders or correction.",
+  1: "Concern - repeated difficulty despite support/intervention."
+};
+
+const behaviourEmptyData = () => ({
+  assessments: {},
+  observations: {},
+  interventions: {},
+  recognitions: {}
+});
 
 const analysisExamAll = "All Exams";
 const performanceChangeTolerance = 5;
@@ -256,6 +300,13 @@ let selectedTeacherAssessmentId = "";
 let activeTeacherAssessmentTab = "overview";
 let editingTeacherAssessmentRecord = null;
 let teacherAssessmentCurrentData = null;
+let behaviourData = behaviourEmptyData();
+let behaviourActiveTab = "overview";
+let behaviourAssessmentIndex = 0;
+let behaviourCurrentDraft = null;
+let behaviourDirty = false;
+let firebaseBehaviourUnsubscribe = null;
+let firebaseBehaviourSessionKey = "";
 let publicationSaveInProgress = false;
 let loginLogs = [];
 let unsubscribeLoginLogs = null;
@@ -440,6 +491,13 @@ const els = {
   profileSkillProgrammeInput: document.querySelector("#profileSkillProgrammeInput"),
   profileSkillGroupInput: document.querySelector("#profileSkillGroupInput"),
   profileInstructorInput: document.querySelector("#profileInstructorInput"),
+  behaviourSessionSelect: document.querySelector("#behaviourSessionSelect"),
+  behaviourPeriodTypeSelect: document.querySelector("#behaviourPeriodTypeSelect"),
+  behaviourPeriodKeyInput: document.querySelector("#behaviourPeriodKeyInput"),
+  behaviourClassSelect: document.querySelector("#behaviourClassSelect"),
+  behaviourSectionInput: document.querySelector("#behaviourSectionInput"),
+  behaviourTabs: document.querySelector("#behaviourTabs"),
+  behaviourContent: document.querySelector("#behaviourContent"),
   resultsHead: document.querySelector("#resultsHead"),
   resultsBody: document.querySelector("#resultsBody"),
   resultsTable: document.querySelector(".results-table"),
@@ -1788,9 +1846,12 @@ function flushFirebaseStateSave(force = false) {
 function stopFirebaseStateSync() {
   if (typeof firebaseStateUnsubscribe === "function") firebaseStateUnsubscribe();
   if (typeof firebaseSplitSessionUnsubscribe === "function") firebaseSplitSessionUnsubscribe();
+  if (typeof firebaseBehaviourUnsubscribe === "function") firebaseBehaviourUnsubscribe();
   firebaseStateUnsubscribe = null;
   firebaseSplitSessionUnsubscribe = null;
+  firebaseBehaviourUnsubscribe = null;
   firebaseSplitSessionKey = "";
+  firebaseBehaviourSessionKey = "";
   firebaseStateSyncStarted = false;
 }
 
@@ -1805,6 +1866,35 @@ function ensureSplitSessionListener(session = state.academicSession) {
     (error) => {
       console.error("[Firestore] Split session listener failed", error);
       showToast("Split session live updates are not available.");
+    }
+  );
+}
+
+function ensureBehaviourListener(session = state.academicSession) {
+  const sessionKey = currentSessionKey(session);
+  if (!canAccessBehaviourModule()) return;
+  if (!window.MarkHubFirebase?.auth?.currentUser) return;
+  if (!window.MarkHubFirebase?.listenBehaviourRecords || firebaseBehaviourSessionKey === sessionKey) return;
+  if (typeof firebaseBehaviourUnsubscribe === "function") firebaseBehaviourUnsubscribe();
+  firebaseBehaviourSessionKey = sessionKey;
+  firebaseBehaviourUnsubscribe = window.MarkHubFirebase.listenBehaviourRecords(
+    sessionKey,
+    (patch) => {
+      behaviourData = {
+        assessments: patch.assessments || {},
+        observations: patch.observations || {},
+        interventions: patch.interventions || {},
+        recognitions: patch.recognitions || {}
+      };
+      if (activeView === "behaviour" || activeView === "studentProfiles") {
+        renderActiveViewOnly();
+      }
+    },
+    (error) => {
+      console.error("[Firestore] Behaviour listener failed", error);
+      if (activeView === "behaviour" || activeView === "studentProfiles") {
+        showToast("Behaviour live updates are not available. Check Firebase rules for behaviour collections.");
+      }
     }
   );
 }
@@ -2014,6 +2104,7 @@ function startFirebaseStateSync(attempt = 0) {
 
   firebaseStateSyncStarted = true;
   ensureSplitSessionListener(state.academicSession);
+  ensureBehaviourListener(behaviourFilters().academicSessionId);
   firebaseStateUnsubscribe = window.MarkHubFirebase.listenAppState((remoteState) => {
     console.log("[Firestore] MarkHub UI received appState update.");
     if (publicationSaveInProgress) {
@@ -2050,6 +2141,7 @@ function startFirebaseStateSync(attempt = 0) {
     applyingRemoteState = true;
     state = preserveLocalClassesIfRemoteMissing(remoteState, state);
     ensureSplitSessionListener(state.academicSession);
+    ensureBehaviourListener(state.academicSession);
     applyCachedSplitSessionPatch(currentSessionKey(state.academicSession));
     seedSplitSessionData(state.academicSession);
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
@@ -2172,6 +2264,8 @@ function renderActiveViewOnly() {
     renderStudents();
   } else if (activeView === "studentProfiles") {
     renderStudentProfiles();
+  } else if (activeView === "behaviour") {
+    renderBehaviourCharacter();
   } else if (activeView === "analysis") {
     renderAcademicAnalysis();
   } else if (activeView === "teacherAnalytics") {
@@ -2250,6 +2344,16 @@ function isHeadmasterUser() {
 
 function canAccessStudentProfiles() {
   return isAdmin() || isPrincipalUser() || isHeadmasterUser();
+}
+
+function canAccessBehaviourModule() {
+  return Boolean(currentUser) && (
+    isAdmin()
+    || isPrincipalUser()
+    || isHeadmasterUser()
+    || currentUser?.role === "user"
+    || currentUser?.role === "teacher"
+  );
 }
 
 function canPreviewUnpublished() {
@@ -2634,8 +2738,10 @@ function renderAuth() {
   els.userBadge.dataset.shortLabel = roleLabel;
   document.querySelectorAll("[data-admin-only]").forEach((element) => element.classList.toggle("hidden", !isAdmin()));
   document.querySelectorAll("[data-student-profiles-access]").forEach((element) => element.classList.toggle("hidden", !canAccessStudentProfiles()));
+  document.querySelectorAll("[data-behaviour-access]").forEach((element) => element.classList.toggle("hidden", !canAccessBehaviourModule()));
   if (!isAdmin() && activeView === "entryAccess") activeView = "entry";
   if (!canAccessStudentProfiles() && activeView === "studentProfiles") activeView = "dashboard";
+  if (!canAccessBehaviourModule() && activeView === "behaviour") activeView = "dashboard";
   if (!isAdmin() && activeView === "loginLogs") activeView = "dashboard";
   els.publishBtn.classList.toggle("hidden", !isAdmin());
   els.unpublishBtn.classList.toggle("hidden", !isAdmin());
@@ -3427,6 +3533,7 @@ function init() {
   els.dashboardSearchInput?.addEventListener("search", handleDashboardSearch);
   setupDashboardResultTooltip();
   setupStudentProfileEvents();
+  setupBehaviourEvents();
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -3847,6 +3954,10 @@ function switchView(view) {
   }
   if (view === "studentProfiles" && !canAccessStudentProfiles()) {
     showToast("Only Admin, Principal, or Headmaster can open Student Profiles.");
+    view = "dashboard";
+  }
+  if (view === "behaviour" && !canAccessBehaviourModule()) {
+    showToast("You are not authorized to open Behaviour & Character.");
     view = "dashboard";
   }
   if (view === "loginLogs" && !isAdmin()) {
@@ -4449,6 +4560,7 @@ function renderActiveViewChrome() {
   document.body.classList.toggle("results-active", activeView === "results");
   document.body.classList.toggle("students-active", activeView === "students");
   document.body.classList.toggle("student-profiles-active", activeView === "studentProfiles");
+  document.body.classList.toggle("behaviour-active", activeView === "behaviour");
   document.body.classList.toggle("marksheet-active", activeView === "marksheet");
   document.body.classList.toggle("analysis-active", activeView === "analysis");
   document.body.classList.toggle("teacher-analytics-active", activeView === "teacherAnalytics");
@@ -4466,6 +4578,7 @@ function renderActiveViewChrome() {
     marksheet: "Marksheets",
     students: "Students",
     studentProfiles: "Student Profiles",
+    behaviour: "Behaviour & Character",
     analysis: "Academic Analysis",
     teacherAnalytics: "Teacher Performance Analytics",
     teacherAssessment: "Teacher Assessment",
@@ -4486,6 +4599,7 @@ function render() {
   renderMarksheets();
   renderStudents();
   renderStudentProfiles();
+  renderBehaviourCharacter();
   renderAcademicAnalysis();
   renderTeacherAnalytics();
   renderTeacherAssessment();
@@ -4496,7 +4610,7 @@ function render() {
 function renderViewFilters() {
   renderActiveViewChrome();
   syncStudentsClassSelect();
-  const showMainFilters = !["dashboard", "attendance", "students", "studentProfiles", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess", "loginLogs"].includes(activeView);
+  const showMainFilters = !["dashboard", "attendance", "students", "studentProfiles", "behaviour", "analysis", "teacherAnalytics", "teacherAssessment", "entryAccess", "loginLogs"].includes(activeView);
   els.mainFilters.classList.toggle("hidden", !showMainFilters);
   els.classField.classList.toggle("hidden", !showMainFilters);
   els.examField.classList.toggle("hidden", activeView === "students" || !showMainFilters);
@@ -11042,6 +11156,7 @@ function openStudentProfilePanel(record) {
       ${studentProfileDetail("Student Status", record.studentStatus)}
       ${studentProfileDetail("Skill Development Programme", record.skillDevelopmentProgramme)}
     </div>
+    ${studentProfileBehaviourHtml(record)}
   `;
   els.studentProfilePanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -11059,6 +11174,739 @@ function maskIdentifier(value) {
   const text = String(value || "").trim();
   if (text.length <= 4) return text ? "****" : "";
   return `${"*".repeat(Math.max(4, text.length - 4))}${text.slice(-4)}`;
+}
+
+function setupBehaviourEvents() {
+  const rerender = () => {
+    behaviourAssessmentIndex = 0;
+    behaviourDirty = false;
+    behaviourCurrentDraft = null;
+    renderBehaviourCharacter();
+  };
+  const resetPeriodAndRender = () => {
+    if (els.behaviourPeriodKeyInput) els.behaviourPeriodKeyInput.value = defaultBehaviourPeriodKey();
+    rerender();
+  };
+  [els.behaviourSessionSelect, els.behaviourPeriodTypeSelect].forEach((control) => {
+    control?.addEventListener("change", resetPeriodAndRender);
+  });
+  [els.behaviourPeriodKeyInput, els.behaviourClassSelect, els.behaviourSectionInput]
+    .forEach((control) => control?.addEventListener("change", rerender));
+  els.behaviourPeriodKeyInput?.addEventListener("input", () => renderBehaviourCharacter());
+  els.behaviourTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-behaviour-tab]");
+    if (!button) return;
+    if (behaviourDirty && !confirm("You have unsaved behaviour assessment changes. Leave this assessment?")) return;
+    behaviourDirty = false;
+    behaviourActiveTab = button.dataset.behaviourTab || "overview";
+    renderBehaviourCharacter();
+  });
+  els.behaviourContent?.addEventListener("click", handleBehaviourContentClick);
+  els.behaviourContent?.addEventListener("submit", handleBehaviourFormSubmit);
+  els.behaviourContent?.addEventListener("input", (event) => {
+    if (event.target.matches("[data-behaviour-evidence], [data-behaviour-field]")) behaviourDirty = true;
+  });
+}
+
+function initializeBehaviourControls() {
+  if (!els.behaviourSessionSelect) return;
+  const sessionValue = els.behaviourSessionSelect.value || currentSessionKey(state.academicSession);
+  const classValue = els.behaviourClassSelect?.value || selectedClass();
+  const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})].map(currentSessionKey))].filter(Boolean);
+  populateSelect(els.behaviourSessionSelect, sessions.length ? sessions : [currentSessionKey(state.academicSession)]);
+  setSelectValueIfAvailable(els.behaviourSessionSelect, sessionValue);
+  if (!els.behaviourPeriodKeyInput.value) els.behaviourPeriodKeyInput.value = defaultBehaviourPeriodKey();
+  populateSelect(els.behaviourClassSelect, ["All Classes", ...classNames]);
+  setSelectValueIfAvailable(els.behaviourClassSelect, classValue);
+}
+
+function defaultBehaviourPeriodKey(date = new Date()) {
+  const type = els.behaviourPeriodTypeSelect?.value || "Weekly";
+  const session = currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession);
+  const sessionStartYear = Number.parseInt(session.match(/\d{4}/)?.[0] || "", 10);
+  const academicStartYear = Number.isFinite(sessionStartYear)
+    ? sessionStartYear
+    : date.getMonth() >= 3
+      ? date.getFullYear()
+      : date.getFullYear() - 1;
+  if (type === "Monthly") return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  const academicStart = new Date(academicStartYear, 3, 1);
+  const days = Math.max(0, Math.floor((date - academicStart) / 86400000));
+  const week = Math.floor(days / 7) + 1;
+  return `${academicStartYear}-W${String(week).padStart(2, "0")}`;
+}
+
+function behaviourFilters() {
+  return {
+    academicSessionId: currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession),
+    periodType: els.behaviourPeriodTypeSelect?.value || "Weekly",
+    periodKey: String(els.behaviourPeriodKeyInput?.value || defaultBehaviourPeriodKey()).trim(),
+    className: els.behaviourClassSelect?.value || "All Classes",
+    section: String(els.behaviourSectionInput?.value || "").trim()
+  };
+}
+
+function teacherIdentity() {
+  const name = String(currentUser?.name || currentUser?.username || "Teacher").trim();
+  return {
+    teacherId: String(currentUser?.username || slugifyTeacherName(name) || "teacher").trim(),
+    teacherName: name
+  };
+}
+
+function behaviourStudents(includeInactive = false) {
+  const filters = behaviourFilters();
+  return getStudentProfileRecords()
+    .filter((record) => includeInactive || record.studentStatus === "Active")
+    .filter((record) => filters.className === "All Classes" || record.className === filters.className)
+    .filter((record) => !filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
+    .filter((record) => isAdmin() || isPrincipalUser() || isHeadmasterUser() || isAssignedTeacherForClass(record.className));
+}
+
+function behaviourAssessmentRecords(filters = behaviourFilters()) {
+  return Object.values(behaviourData.assessments || {}).filter((record) =>
+    record.academicSessionId === filters.academicSessionId
+    && record.periodType === filters.periodType
+    && record.periodKey === filters.periodKey
+    && (filters.className === "All Classes" || record.className === filters.className)
+    && (!filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
+  );
+}
+
+function behaviourObservationRecords(filters = behaviourFilters()) {
+  return Object.values(behaviourData.observations || {}).filter((record) =>
+    record.academicSessionId === filters.academicSessionId
+    && (filters.className === "All Classes" || record.className === filters.className)
+    && (!filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
+  );
+}
+
+function behaviourInterventionRecords(filters = behaviourFilters()) {
+  return Object.values(behaviourData.interventions || {}).filter((record) =>
+    record.academicSessionId === filters.academicSessionId
+    && (filters.className === "All Classes" || record.className === filters.className)
+    && (!filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
+  );
+}
+
+function behaviourRecognitionRecords(filters = behaviourFilters()) {
+  return Object.values(behaviourData.recognitions || {}).filter((record) =>
+    record.academicSessionId === filters.academicSessionId
+    && (filters.className === "All Classes" || record.className === filters.className)
+  );
+}
+
+function behaviourAssessmentId(filters, studentId, teacherId) {
+  return [
+    filters.academicSessionId,
+    filters.periodType,
+    filters.periodKey,
+    teacherId,
+    studentId
+  ].map((part) => String(part || "").replace(/[^a-zA-Z0-9]+/g, "_")).join("__");
+}
+
+function behaviourAggregateForStudent(studentId, filters = behaviourFilters()) {
+  const rows = behaviourAssessmentRecords(filters).filter((record) => record.studentId === studentId);
+  const uniqueTeachers = new Set(rows.map((record) => record.teacherId).filter(Boolean));
+  const criteria = Object.fromEntries(behaviourCriteria.map((criterion) => {
+    const values = rows.map((record) => Number(record[criterion.key])).filter((value) => Number.isFinite(value) && value > 0);
+    return [criterion.key, values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0];
+  }));
+  const overallValues = Object.values(criteria).filter((value) => value > 0);
+  return {
+    studentId,
+    criteria,
+    overall: overallValues.length ? overallValues.reduce((sum, value) => sum + value, 0) / overallValues.length : 0,
+    teachersSubmitted: uniqueTeachers.size,
+    evidenceCount: rows.filter((record) => String(record.evidence || "").trim()).length,
+    rows
+  };
+}
+
+function eligibleBehaviourTeacherCount(className) {
+  const assignments = normalizeTeacherAssignments(state.teacherAssignments || [])
+    .filter((assignment) => assignment.className === className || assignment.className === "All Classes");
+  const unique = new Set(assignments.map((assignment) => assignment.teacherId || slugifyTeacherName(assignment.teacherName)).filter(Boolean));
+  return Math.max(1, unique.size || 1);
+}
+
+function coverageLabel(percentage) {
+  if (percentage >= 80) return "High Coverage";
+  if (percentage >= 60) return "Moderate Coverage";
+  return "Limited Coverage";
+}
+
+function behaviourRatingBand(value) {
+  if (value >= 4.5) return "Excellent";
+  if (value >= 3.75) return "Very Good";
+  if (value >= 3) return "Good";
+  if (value >= 2) return "Needs Improvement";
+  return value > 0 ? "Concern" : "Not assessed";
+}
+
+function renderBehaviourCharacter() {
+  if (!els.behaviourContent) return;
+  if (!canAccessBehaviourModule()) {
+    if (activeView === "behaviour") {
+      activeView = "dashboard";
+      renderActiveViewChrome();
+      showToast("You are not authorized to open Behaviour & Character.");
+    }
+    return;
+  }
+  initializeBehaviourControls();
+  ensureBehaviourListener(state.academicSession);
+  els.behaviourTabs?.querySelectorAll("[data-behaviour-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.behaviourTab === behaviourActiveTab);
+  });
+  const renderers = {
+    overview: renderBehaviourOverview,
+    assessment: renderBehaviourAssessment,
+    classAnalysis: renderBehaviourClassAnalysis,
+    observations: renderBehaviourObservations,
+    support: renderBehaviourSupport,
+    recognition: renderBehaviourRecognition
+  };
+  els.behaviourContent.innerHTML = (renderers[behaviourActiveTab] || renderBehaviourOverview)();
+}
+
+function behaviourOverviewMetrics(filters = behaviourFilters()) {
+  const students = behaviourStudents();
+  const assessments = behaviourAssessmentRecords(filters);
+  const assessedStudents = new Set(assessments.map((record) => record.studentId));
+  const teachers = new Set(assessments.map((record) => record.teacherId).filter(Boolean));
+  const observations = behaviourObservationRecords(filters);
+  const positives = observations.filter((record) => record.type === "Positive Observation");
+  const support = behaviourInterventionRecords(filters).filter((record) => !["Improved", "Closed"].includes(record.status));
+  const aggregates = students.map((student) => ({ student, aggregate: behaviourAggregateForStudent(student.studentId, filters) }));
+  const improving = aggregates.filter(({ aggregate }) => aggregate.overall >= 3.75 && aggregate.evidenceCount > 0).length;
+  const monitor = aggregates.filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3).length;
+  return {
+    students,
+    assessments,
+    assessedStudents,
+    teachers,
+    observations,
+    positives,
+    support,
+    aggregates,
+    coverage: students.length ? (assessedStudents.size / students.length) * 100 : 0,
+    improving,
+    monitor
+  };
+}
+
+function renderBehaviourOverview() {
+  const filters = behaviourFilters();
+  const metrics = behaviourOverviewMetrics(filters);
+  const cards = [
+    ["Total Students", metrics.students.length],
+    ["Students Assessed", metrics.assessedStudents.size],
+    ["Teachers Submitted", metrics.teachers.size],
+    ["Assessment Coverage", `${metrics.coverage.toFixed(1)}%`],
+    ["Positive Observations", metrics.positives.length],
+    ["Students Improving", metrics.improving],
+    ["Students to Monitor", metrics.monitor],
+    ["Support Recommended", metrics.support.length]
+  ];
+  const classSummary = behaviourClassSummary(metrics.aggregates);
+  return `
+    <section class="behaviour-overview">
+      <div class="behaviour-summary-grid">
+        ${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("")}
+      </div>
+      <div class="behaviour-two-column">
+        <article class="behaviour-card">
+          <span class="eyebrow">Behaviour Profile Summary</span>
+          <h4>${escapeHtml(behaviourRatingBand(classSummary.overall))}</h4>
+          <p>Class behaviour average: <strong>${classSummary.overall ? classSummary.overall.toFixed(2) : "0.00"} / 5</strong></p>
+          ${behaviourCriteriaBars(classSummary.criteria)}
+        </article>
+        <article class="behaviour-card">
+          <span class="eyebrow">Class Behaviour Strengths</span>
+          <h4>${escapeHtml(classSummary.strongest?.label || "No assessment yet")}</h4>
+          <p>Growth area: <strong>${escapeHtml(classSummary.growth?.label || "No assessment yet")}</strong></p>
+          <p>Coverage status: <strong>${coverageLabel(metrics.coverage)}</strong></p>
+        </article>
+      </div>
+      <div class="behaviour-three-column">
+        ${behaviourMiniList("Recent Positive Observations", metrics.positives.slice(-5).reverse(), "observation")}
+        ${behaviourMiniList("Recognition Candidates", recognitionCandidates(metrics.aggregates).slice(0, 5), "candidate")}
+        ${behaviourMiniList("Students Requiring Support", metrics.aggregates.filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3).slice(0, 5), "support")}
+      </div>
+    </section>
+  `;
+}
+
+function behaviourClassSummary(aggregateRows) {
+  const criteria = Object.fromEntries(behaviourCriteria.map((criterion) => {
+    const values = aggregateRows.map(({ aggregate }) => aggregate.criteria[criterion.key]).filter((value) => value > 0);
+    return [criterion.key, values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0];
+  }));
+  const overallValues = Object.values(criteria).filter((value) => value > 0);
+  const ranked = behaviourCriteria
+    .map((criterion) => ({ ...criterion, value: criteria[criterion.key] || 0 }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+  return {
+    criteria,
+    overall: overallValues.length ? overallValues.reduce((sum, value) => sum + value, 0) / overallValues.length : 0,
+    strongest: ranked[0] || null,
+    growth: ranked.at(-1) || null
+  };
+}
+
+function behaviourCriteriaBars(criteria = {}) {
+  return `<div class="behaviour-bars">${behaviourCriteria.map((criterion) => {
+    const value = Number(criteria[criterion.key]) || 0;
+    return `
+      <div>
+        <span>${escapeHtml(criterion.label)}</span>
+        <strong>${value ? value.toFixed(2) : "0.00"}</strong>
+        <i><b style="width: ${(value / 5 * 100).toFixed(1)}%"></b></i>
+      </div>
+    `;
+  }).join("")}</div>`;
+}
+
+function behaviourMiniList(title, rows, type) {
+  const html = rows.length ? rows.map((row) => {
+    if (type === "observation") {
+      const student = studentRecordById(row.studentId);
+      return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${escapeHtml(row.behaviourArea || "Observation")}</span></li>`;
+    }
+    const student = row.student || studentRecordById(row.studentId);
+    const aggregate = row.aggregate || behaviourAggregateForStudent(row.studentId);
+    return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${aggregate.overall ? aggregate.overall.toFixed(2) : "0.00"} / 5</span></li>`;
+  }).join("") : `<li><strong>No records yet</strong><span>Data will appear after assessments are saved.</span></li>`;
+  return `<article class="behaviour-card"><h4>${escapeHtml(title)}</h4><ul class="behaviour-mini-list">${html}</ul></article>`;
+}
+
+function recognitionCandidates(aggregateRows) {
+  return aggregateRows
+    .filter(({ aggregate, student }) => {
+      const eligibleTeachers = eligibleBehaviourTeacherCount(student.className);
+      const coverage = eligibleTeachers ? (aggregate.teachersSubmitted / eligibleTeachers) * 100 : 0;
+      return aggregate.overall >= 4 && aggregate.teachersSubmitted >= 1 && coverage >= 60;
+    })
+    .sort((a, b) => b.aggregate.overall - a.aggregate.overall);
+}
+
+function renderBehaviourAssessment() {
+  const filters = behaviourFilters();
+  const students = behaviourStudents();
+  if (!students.length) {
+    return `<article class="behaviour-card"><h4>No students available</h4><p>Select a class assigned to you or check Student Profiles for active students.</p></article>`;
+  }
+  behaviourAssessmentIndex = Math.min(Math.max(behaviourAssessmentIndex, 0), students.length - 1);
+  const student = students[behaviourAssessmentIndex];
+  const { teacherId } = teacherIdentity();
+  const existing = behaviourAssessmentRecords(filters).find((record) => record.studentId === student.studentId && record.teacherId === teacherId);
+  const draft = behaviourCurrentDraft?.studentId === student.studentId ? behaviourCurrentDraft : existing || {};
+  const assessedCount = students.filter((item) => behaviourAssessmentRecords(filters).some((record) => record.studentId === item.studentId && record.teacherId === teacherId)).length;
+  const total = behaviourCriteria.reduce((sum, criterion) => sum + (Number(draft[criterion.key]) || 0), 0);
+  return `
+    <section class="behaviour-assessment">
+      <article class="behaviour-student-card">
+        <div class="behaviour-student-head">
+          ${studentProfileAvatarHtml(student)}
+          <div>
+            <span class="eyebrow">${behaviourAssessmentIndex + 1} of ${students.length} Students</span>
+            <h4>${escapeHtml(student.studentName || "-")}</h4>
+            <p>${escapeHtml(student.className || "-")} | Roll No. ${escapeHtml(student.rollNumber || "-")} | ${existing ? "Saved" : "Not saved"}</p>
+          </div>
+          <strong>${assessedCount} of ${students.length} assessed</strong>
+        </div>
+        <div class="behaviour-rating-guide">
+          ${Object.entries(behaviourRatingDescriptions).reverse().map(([rating, text]) => `<span title="${escapeAttr(text)}">${rating} - ${escapeHtml(text.split(" - ")[0])}</span>`).join("")}
+        </div>
+        <div class="behaviour-rating-list">
+          ${behaviourCriteria.map((criterion) => behaviourRatingRow(criterion, Number(draft[criterion.key]) || 0)).join("")}
+        </div>
+        <label class="behaviour-evidence">Evidence / Observation
+          <textarea data-behaviour-evidence rows="4" placeholder="Required when any rating is 1 or 2. Positive examples are encouraged for rating 5.">${escapeHtml(draft.evidence || "")}</textarea>
+        </label>
+        <div class="behaviour-assessment-foot">
+          <strong>Total: ${total} / 25</strong>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" data-behaviour-action="prev-student">Previous Student</button>
+            <button class="ghost-button" type="button" data-behaviour-action="next-student">Next Student</button>
+            <button class="primary-button" type="button" data-behaviour-action="save-assessment">Save</button>
+            <button class="primary-button" type="button" data-behaviour-action="save-next-assessment">Save &amp; Next</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  `;
+}
+
+function behaviourRatingRow(criterion, value) {
+  return `
+    <div class="behaviour-rating-row">
+      <div>
+        <strong>${escapeHtml(criterion.label)}</strong>
+        <span>${escapeHtml(criterion.guide)}</span>
+      </div>
+      <div class="behaviour-rating-buttons" role="group" aria-label="${escapeAttr(criterion.label)} rating">
+        ${[1, 2, 3, 4, 5].map((rating) => `
+          <button type="button" class="${rating === value ? "selected" : ""}" data-behaviour-rating="${rating}" data-behaviour-criterion="${escapeAttr(criterion.key)}" title="${escapeAttr(behaviourRatingDescriptions[rating])}">${rating}</button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function handleBehaviourContentClick(event) {
+  const ratingButton = event.target.closest("[data-behaviour-rating]");
+  if (ratingButton) {
+    updateBehaviourDraft(ratingButton.dataset.behaviourCriterion, Number(ratingButton.dataset.behaviourRating));
+    return;
+  }
+  const actionButton = event.target.closest("[data-behaviour-action]");
+  if (!actionButton) return;
+  const action = actionButton.dataset.behaviourAction;
+  if (action === "prev-student") {
+    if (behaviourDirty && !confirm("Move to the previous student without saving?")) return;
+    behaviourAssessmentIndex = Math.max(0, behaviourAssessmentIndex - 1);
+    behaviourDirty = false;
+    behaviourCurrentDraft = null;
+    renderBehaviourCharacter();
+  } else if (action === "next-student") {
+    if (behaviourDirty && !confirm("Move to the next student without saving?")) return;
+    behaviourAssessmentIndex = behaviourAssessmentIndex + 1;
+    behaviourDirty = false;
+    behaviourCurrentDraft = null;
+    renderBehaviourCharacter();
+  } else if (action === "save-assessment") {
+    saveBehaviourAssessment(false);
+  } else if (action === "save-next-assessment") {
+    saveBehaviourAssessment(true);
+  }
+}
+
+function updateBehaviourDraft(key, rating) {
+  const students = behaviourStudents();
+  const student = students[behaviourAssessmentIndex];
+  if (!student) return;
+  if (!behaviourCurrentDraft || behaviourCurrentDraft.studentId !== student.studentId) {
+    const { teacherId } = teacherIdentity();
+    const existing = behaviourAssessmentRecords().find((record) => record.studentId === student.studentId && record.teacherId === teacherId) || {};
+    behaviourCurrentDraft = { ...existing, studentId: student.studentId };
+  }
+  behaviourCurrentDraft[key] = rating;
+  behaviourDirty = true;
+  renderBehaviourCharacter();
+}
+
+async function saveBehaviourAssessment(moveNext = false) {
+  const filters = behaviourFilters();
+  const students = behaviourStudents();
+  const student = students[behaviourAssessmentIndex];
+  if (!student) return;
+  const { teacherId, teacherName } = teacherIdentity();
+  const existing = behaviourAssessmentRecords(filters).find((record) => record.studentId === student.studentId && record.teacherId === teacherId) || {};
+  const evidence = String(els.behaviourContent?.querySelector("[data-behaviour-evidence]")?.value || "").trim();
+  const draft = { ...existing, ...(behaviourCurrentDraft || {}), evidence };
+  const missing = behaviourCriteria.filter((criterion) => !Number(draft[criterion.key]));
+  if (missing.length) {
+    showToast(`Select ratings for ${missing.map((item) => item.label).join(", ")}.`);
+    return;
+  }
+  const concern = behaviourCriteria.some((criterion) => Number(draft[criterion.key]) <= 2);
+  if (concern && !evidence) {
+    showToast("Evidence / Observation is required when any rating is 1 or 2.");
+    return;
+  }
+  const total = behaviourCriteria.reduce((sum, criterion) => sum + Number(draft[criterion.key] || 0), 0);
+  const now = new Date().toISOString();
+  const assessmentId = behaviourAssessmentId(filters, student.studentId, teacherId);
+  const record = {
+    assessmentId,
+    studentId: student.studentId,
+    teacherId,
+    teacherName,
+    academicSessionId: filters.academicSessionId,
+    className: student.className,
+    section: student.section || "",
+    periodType: filters.periodType,
+    periodKey: filters.periodKey,
+    respect: Number(draft.respect),
+    responsibility: Number(draft.responsibility),
+    selfDiscipline: Number(draft.selfDiscipline),
+    kindnessCooperation: Number(draft.kindnessCooperation),
+    positiveAttitude: Number(draft.positiveAttitude),
+    total,
+    evidence,
+    submittedAt: existing.submittedAt || now,
+    updatedAt: now
+  };
+  behaviourData.assessments[assessmentId] = record;
+  behaviourDirty = false;
+  behaviourCurrentDraft = null;
+  try {
+    await window.MarkHubFirebase?.saveBehaviourAssessment?.(record);
+    showToast("Behaviour assessment saved successfully.");
+  } catch (error) {
+    console.error(error);
+    showToast("Saved on this screen, but Firestore could not save behaviour assessment.");
+  }
+  if (moveNext) behaviourAssessmentIndex = Math.min(students.length - 1, behaviourAssessmentIndex + 1);
+  renderBehaviourCharacter();
+}
+
+function renderBehaviourClassAnalysis() {
+  const filters = behaviourFilters();
+  const metrics = behaviourOverviewMetrics(filters);
+  const summary = behaviourClassSummary(metrics.aggregates);
+  return `
+    <section class="behaviour-two-column">
+      <article class="behaviour-card">
+        <span class="eyebrow">Class Analysis</span>
+        <h4>${filters.className === "All Classes" ? "All Classes" : escapeHtml(filters.className)}</h4>
+        <div class="behaviour-summary-grid compact">
+          <article><span>Students</span><strong>${metrics.students.length}</strong></article>
+          <article><span>Assessed</span><strong>${metrics.assessedStudents.size}</strong></article>
+          <article><span>Teachers</span><strong>${metrics.teachers.size}</strong></article>
+          <article><span>Coverage</span><strong>${metrics.coverage.toFixed(1)}%</strong></article>
+        </div>
+      </article>
+      <article class="behaviour-card">
+        <span class="eyebrow">Average by Behaviour Area</span>
+        <h4>${summary.overall ? `${summary.overall.toFixed(2)} / 5` : "No assessment yet"}</h4>
+        ${behaviourCriteriaBars(summary.criteria)}
+      </article>
+    </section>
+  `;
+}
+
+function renderBehaviourObservations() {
+  const students = behaviourStudents();
+  const observations = behaviourObservationRecords().slice().reverse();
+  return `
+    <section class="behaviour-two-column">
+      <form class="behaviour-card behaviour-form" data-behaviour-form="observation">
+        <span class="eyebrow">Observation</span>
+        <h4>Add Behaviour Observation</h4>
+        <label>Type<select name="type" data-behaviour-field><option>Positive Observation</option><option>Growth Observation</option></select></label>
+        <label>Student<select name="studentId" data-behaviour-field>${students.map((student) => `<option value="${escapeAttr(student.studentId)}">${escapeHtml(student.studentName)} - ${escapeHtml(student.className)}</option>`).join("")}</select></label>
+        <label>Date<input name="date" data-behaviour-field type="date" value="${new Date().toISOString().slice(0, 10)}"></label>
+        <label>Behaviour Area<select name="behaviourArea" data-behaviour-field>${behaviourCriteria.map((criterion) => `<option>${escapeHtml(criterion.label)}</option>`).join("")}</select></label>
+        <label>Observation<textarea name="observation" data-behaviour-field rows="4" required></textarea></label>
+        <button class="primary-button" type="submit">Save Observation</button>
+      </form>
+      <article class="behaviour-card">
+        <h4>Recent Observations</h4>
+        <ul class="behaviour-feed">${observations.length ? observations.slice(0, 12).map((record) => {
+          const student = studentRecordById(record.studentId);
+          return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${escapeHtml(record.type)} | ${escapeHtml(record.behaviourArea)} | ${escapeHtml(formatDisplayDate(record.date) || record.date || "")}</span><p>${escapeHtml(record.observation || "")}</p></li>`;
+        }).join("") : "<li>No observations saved yet.</li>"}</ul>
+      </article>
+    </section>
+  `;
+}
+
+function renderBehaviourSupport() {
+  const students = behaviourStudents();
+  const interventions = behaviourInterventionRecords().slice().reverse();
+  return `
+    <section class="behaviour-two-column">
+      <form class="behaviour-card behaviour-form" data-behaviour-form="intervention">
+        <span class="eyebrow">Support & Intervention</span>
+        <h4>Create Support Record</h4>
+        <label>Student<select name="studentId" data-behaviour-field>${students.map((student) => `<option value="${escapeAttr(student.studentId)}">${escapeHtml(student.studentName)} - ${escapeHtml(student.className)}</option>`).join("")}</select></label>
+        <label>Behaviour Area<select name="behaviourArea" data-behaviour-field>${behaviourCriteria.map((criterion) => `<option>${escapeHtml(criterion.label)}</option>`).join("")}</select></label>
+        <label>Concern<textarea name="concern" data-behaviour-field rows="3" required></textarea></label>
+        <label>Action Taken<select name="actionTaken" data-behaviour-field>
+          <option>Teacher conference</option><option>Student reflection</option><option>Parent communication</option><option>Class Teacher intervention</option><option>Guidance referral</option><option>Behaviour improvement plan</option><option>Counselling/referral</option><option>Follow-up meeting</option>
+        </select></label>
+        <label>Responsible Person<input name="responsiblePerson" data-behaviour-field type="text" value="${escapeAttr(currentUser?.name || "")}"></label>
+        <label>Date<input name="date" data-behaviour-field type="date" value="${new Date().toISOString().slice(0, 10)}"></label>
+        <label>Follow-Up Date<input name="followUpDate" data-behaviour-field type="date"></label>
+        <label>Outcome<textarea name="outcome" data-behaviour-field rows="3"></textarea></label>
+        <label>Status<select name="status" data-behaviour-field><option>Open</option><option>In Progress</option><option>Improved</option><option>Closed</option></select></label>
+        <button class="primary-button" type="submit">Save Intervention</button>
+      </form>
+      <article class="behaviour-card">
+        <h4>Support Records</h4>
+        <ul class="behaviour-feed">${interventions.length ? interventions.slice(0, 12).map((record) => {
+          const student = studentRecordById(record.studentId);
+          return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${escapeHtml(record.status)} | ${escapeHtml(record.behaviourArea)}</span><p>${escapeHtml(record.concern || "")}</p></li>`;
+        }).join("") : "<li>No support records saved yet.</li>"}</ul>
+      </article>
+    </section>
+  `;
+}
+
+function renderBehaviourRecognition() {
+  const filters = behaviourFilters();
+  const metrics = behaviourOverviewMetrics(filters);
+  const candidates = recognitionCandidates(metrics.aggregates);
+  return `
+    <section class="behaviour-two-column">
+      <form class="behaviour-card behaviour-form" data-behaviour-form="recognition">
+        <span class="eyebrow">Recognition</span>
+        <h4>Confirm Positive Recognition</h4>
+        <label>Recognition Type<select name="recognitionType" data-behaviour-field><option>Student of the Week</option><option>Most Improved Student</option><option>Student of the Month</option></select></label>
+        <label>Student<select name="studentId" data-behaviour-field>${candidates.map(({ student, aggregate }) => `<option value="${escapeAttr(student.studentId)}">${escapeHtml(student.studentName)} - ${aggregate.overall.toFixed(2)} / 5</option>`).join("")}</select></label>
+        <label>Reason<textarea name="reason" data-behaviour-field rows="4" required></textarea></label>
+        <button class="primary-button" type="submit">Save Recognition</button>
+      </form>
+      <article class="behaviour-card">
+        <h4>Suggested Candidates</h4>
+        <ul class="behaviour-feed">${candidates.length ? candidates.slice(0, 12).map(({ student, aggregate }) => `<li><strong>${escapeHtml(student.studentName)}</strong><span>${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher(s)</span></li>`).join("") : "<li>No candidates yet. Recognition needs enough teacher coverage.</li>"}</ul>
+      </article>
+    </section>
+  `;
+}
+
+function handleBehaviourFormSubmit(event) {
+  const form = event.target.closest("[data-behaviour-form]");
+  if (!form) return;
+  event.preventDefault();
+  const formData = new FormData(form);
+  const type = form.dataset.behaviourForm;
+  if (type === "observation") saveBehaviourObservation(Object.fromEntries(formData.entries()));
+  if (type === "intervention") saveBehaviourIntervention(Object.fromEntries(formData.entries()));
+  if (type === "recognition") saveBehaviourRecognition(Object.fromEntries(formData.entries()));
+}
+
+async function saveBehaviourObservation(data) {
+  const student = studentRecordById(data.studentId);
+  if (!student || !String(data.observation || "").trim()) {
+    showToast("Select student and write the observation.");
+    return;
+  }
+  const filters = behaviourFilters();
+  const { teacherId, teacherName } = teacherIdentity();
+  const id = `obs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const record = {
+    observationId: id,
+    ...data,
+    teacherId,
+    teacherName,
+    academicSessionId: filters.academicSessionId,
+    className: student.className,
+    section: student.section || "",
+    createdAt: new Date().toISOString()
+  };
+  behaviourData.observations[id] = record;
+  try {
+    await window.MarkHubFirebase?.saveBehaviourObservation?.(record);
+    showToast("Behaviour observation saved.");
+  } catch (error) {
+    console.error(error);
+    showToast("Saved on this screen, but Firestore could not save observation.");
+  }
+  renderBehaviourCharacter();
+}
+
+async function saveBehaviourIntervention(data) {
+  const student = studentRecordById(data.studentId);
+  if (!student || !String(data.concern || "").trim()) {
+    showToast("Select student and write the concern.");
+    return;
+  }
+  const filters = behaviourFilters();
+  const { teacherId, teacherName } = teacherIdentity();
+  const id = `int-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const record = {
+    interventionId: id,
+    ...data,
+    teacherId,
+    teacherName,
+    academicSessionId: filters.academicSessionId,
+    className: student.className,
+    section: student.section || "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  behaviourData.interventions[id] = record;
+  try {
+    await window.MarkHubFirebase?.saveBehaviourIntervention?.(record);
+    showToast("Support record saved.");
+  } catch (error) {
+    console.error(error);
+    showToast("Saved on this screen, but Firestore could not save support record.");
+  }
+  renderBehaviourCharacter();
+}
+
+async function saveBehaviourRecognition(data) {
+  const student = studentRecordById(data.studentId);
+  if (!student || !String(data.reason || "").trim()) {
+    showToast("Select student and write the recognition reason.");
+    return;
+  }
+  const filters = behaviourFilters();
+  const { teacherId, teacherName } = teacherIdentity();
+  const id = `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const record = {
+    recognitionId: id,
+    ...data,
+    confirmedBy: teacherId,
+    confirmedByName: teacherName,
+    academicSessionId: filters.academicSessionId,
+    className: student.className,
+    section: student.section || "",
+    periodType: filters.periodType,
+    periodKey: filters.periodKey,
+    createdAt: new Date().toISOString()
+  };
+  behaviourData.recognitions[id] = record;
+  try {
+    await window.MarkHubFirebase?.saveBehaviourRecognition?.(record);
+    showToast("Recognition saved.");
+  } catch (error) {
+    console.error(error);
+    showToast("Saved on this screen, but Firestore could not save recognition.");
+  }
+  renderBehaviourCharacter();
+}
+
+function studentRecordById(studentId) {
+  return getStudentProfileRecords({ includeUnauthorized: true }).find((record) => record.studentId === studentId);
+}
+
+function studentProfileBehaviourHtml(record) {
+  const filters = behaviourFilters();
+  const aggregate = behaviourAggregateForStudent(record.studentId, filters);
+  const strongest = behaviourCriteria
+    .map((criterion) => ({ ...criterion, value: aggregate.criteria[criterion.key] || 0 }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const observations = Object.values(behaviourData.observations || {})
+    .filter((item) => item.studentId === record.studentId && item.academicSessionId === filters.academicSessionId)
+    .slice(-4)
+    .reverse();
+  const interventions = Object.values(behaviourData.interventions || {})
+    .filter((item) => item.studentId === record.studentId && item.academicSessionId === filters.academicSessionId)
+    .slice(-4)
+    .reverse();
+  return `
+    <section class="student-profile-behaviour">
+      <div class="student-profile-behaviour-head">
+        <span class="eyebrow">Behaviour &amp; Character</span>
+        <strong>${aggregate.overall ? `${aggregate.overall.toFixed(2)} / 5` : "Not assessed"}</strong>
+        <span>${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"} submitted</span>
+      </div>
+      <div class="behaviour-two-column">
+        <article class="behaviour-card">
+          <p>Strongest area: <strong>${escapeHtml(strongest[0]?.label || "-")}</strong></p>
+          <p>Area for growth: <strong>${escapeHtml(strongest.at(-1)?.label || "-")}</strong></p>
+          ${behaviourCriteriaBars(aggregate.criteria)}
+        </article>
+        <article class="behaviour-card">
+          <h4>Observations and Support</h4>
+          <ul class="behaviour-feed">
+            ${observations.map((item) => `<li><strong>${escapeHtml(item.type)}</strong><span>${escapeHtml(item.behaviourArea || "")}</span><p>${escapeHtml(item.observation || "")}</p></li>`).join("")}
+            ${interventions.map((item) => `<li><strong>${escapeHtml(item.status || "Support")}</strong><span>${escapeHtml(item.behaviourArea || "")}</span><p>${escapeHtml(item.concern || "")}</p></li>`).join("")}
+            ${!observations.length && !interventions.length ? "<li>No behaviour records yet.</li>" : ""}
+          </ul>
+        </article>
+      </div>
+    </section>
+  `;
 }
 
 function openNewStudentProfileForm() {

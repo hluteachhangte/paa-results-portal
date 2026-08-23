@@ -420,6 +420,30 @@ function loginLogFromSnapshot(docSnapshot) {
   };
 }
 
+function behaviourDocPayload(record = {}, idField = "id") {
+  const fallbackId = String(record[idField] || record.assessmentId || record.observationId || record.interventionId || record.recognitionId || "").trim();
+  return sanitizeFirestoreValue({
+    ...record,
+    [idField]: fallbackId,
+    academicSessionId: String(record.academicSessionId || "2026 - 2027").trim() || "2026 - 2027",
+    studentId: String(record.studentId || "").trim(),
+    className: String(record.className || "").trim(),
+    section: String(record.section || "").trim(),
+    updatedAt: record.updatedAt || record.createdAt || new Date().toISOString()
+  }, ["behaviour", idField]);
+}
+
+function behaviourSnapshotMap(snapshot, idField, session) {
+  return Object.fromEntries(snapshot.docs
+    .map((docSnapshot) => {
+      const data = docSnapshot.data() || {};
+      if (String(data.academicSessionId || "") !== String(session || "")) return null;
+      const id = String(data[idField] || docSnapshot.id);
+      return [id, { ...data, [idField]: id }];
+    })
+    .filter(Boolean));
+}
+
 window.MarkHubFirebase = {
   app,
   db,
@@ -519,6 +543,57 @@ window.MarkHubFirebase = {
     );
     const snapshot = await getDocs(logsQuery);
     return snapshot.docs.map(loginLogFromSnapshot);
+  },
+  async saveBehaviourAssessment(record = {}) {
+    const payload = behaviourDocPayload(record, "assessmentId");
+    if (!payload.assessmentId) throw new Error("Behaviour assessment is missing assessmentId.");
+    await setDoc(doc(db, "behaviourAssessments", splitDocId(payload.assessmentId)), payload, { merge: true });
+    return payload;
+  },
+  async saveBehaviourObservation(record = {}) {
+    const payload = behaviourDocPayload(record, "observationId");
+    if (!payload.observationId) throw new Error("Behaviour observation is missing observationId.");
+    await setDoc(doc(db, "behaviourObservations", splitDocId(payload.observationId)), payload, { merge: true });
+    return payload;
+  },
+  async saveBehaviourIntervention(record = {}) {
+    const payload = behaviourDocPayload(record, "interventionId");
+    if (!payload.interventionId) throw new Error("Behaviour intervention is missing interventionId.");
+    await setDoc(doc(db, "behaviourInterventions", splitDocId(payload.interventionId)), payload, { merge: true });
+    return payload;
+  },
+  async saveBehaviourRecognition(record = {}) {
+    const payload = behaviourDocPayload(record, "recognitionId");
+    if (!payload.recognitionId) throw new Error("Behaviour recognition is missing recognitionId.");
+    await setDoc(doc(db, "behaviourRecognitions", splitDocId(payload.recognitionId)), payload, { merge: true });
+    return payload;
+  },
+  listenBehaviourRecords(session, onPatch, onError) {
+    const patch = {
+      assessments: {},
+      observations: {},
+      interventions: {},
+      recognitions: {}
+    };
+    const unsubs = [
+      onSnapshot(collection(db, "behaviourAssessments"), (snapshot) => {
+        patch.assessments = behaviourSnapshotMap(snapshot, "assessmentId", session);
+        onPatch({ ...patch });
+      }, onError),
+      onSnapshot(collection(db, "behaviourObservations"), (snapshot) => {
+        patch.observations = behaviourSnapshotMap(snapshot, "observationId", session);
+        onPatch({ ...patch });
+      }, onError),
+      onSnapshot(collection(db, "behaviourInterventions"), (snapshot) => {
+        patch.interventions = behaviourSnapshotMap(snapshot, "interventionId", session);
+        onPatch({ ...patch });
+      }, onError),
+      onSnapshot(collection(db, "behaviourRecognitions"), (snapshot) => {
+        patch.recognitions = behaviourSnapshotMap(snapshot, "recognitionId", session);
+        onPatch({ ...patch });
+      }, onError)
+    ];
+    return () => unsubs.forEach((unsubscribe) => unsubscribe());
   },
   listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();

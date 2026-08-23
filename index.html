@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=login-logs-glass-clear-20260804">
+    <link rel="stylesheet" href="./styles.css?v=behaviour-character-20260823">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-label="Login">
@@ -97,6 +97,10 @@
           <span class="mobile-nav-icon" aria-hidden="true">&#10003;</span>
           <span>100% Attendance</span>
         </a>
+        <button type="button" data-mobile-view="behaviour" data-behaviour-access="true">
+          <span class="mobile-nav-icon" aria-hidden="true">&#9829;</span>
+          <span>Behaviour &amp; Character</span>
+        </button>
       </div>
       <div class="mobile-menu-group">
         <span>Results</span>
@@ -179,6 +183,10 @@
           <span aria-hidden="true">&#10003;</span>
           100% Attendance
         </a>
+        <button class="nav-tab" data-view="behaviour" data-behaviour-access="true" type="button" title="Behaviour and character">
+          <span aria-hidden="true">&#9829;</span>
+          Behaviour &amp; Character
+        </button>
         <button class="nav-tab" data-view="analysis" type="button" title="Academic analysis dashboard">
           <span aria-hidden="true">&#9636;</span>
           Academic Analysis
@@ -1114,6 +1122,37 @@
         </form>
       </section>
 
+      <section id="behaviourView" class="view" aria-label="Behaviour and character">
+        <div class="section-head behaviour-head">
+          <div>
+            <h3>Behaviour &amp; Character</h3>
+            <p>Teacher observations, character assessment, support, and positive recognition.</p>
+          </div>
+        </div>
+
+        <section class="behaviour-filters" aria-label="Behaviour and character filters">
+          <label>Academic Session<select id="behaviourSessionSelect"></select></label>
+          <label>Assessment Period<select id="behaviourPeriodTypeSelect">
+            <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
+          </select></label>
+          <label>Period<input id="behaviourPeriodKeyInput" type="text" placeholder="2026-W34 or 2026-08"></label>
+          <label>Class<select id="behaviourClassSelect"></select></label>
+          <label>Section<input id="behaviourSectionInput" type="text" placeholder="All sections"></label>
+        </section>
+
+        <div id="behaviourTabs" class="behaviour-tabs" role="tablist" aria-label="Behaviour module tabs">
+          <button class="active" type="button" data-behaviour-tab="overview">Overview</button>
+          <button type="button" data-behaviour-tab="assessment">Assessment</button>
+          <button type="button" data-behaviour-tab="classAnalysis">Class Analysis</button>
+          <button type="button" data-behaviour-tab="observations">Observations</button>
+          <button type="button" data-behaviour-tab="support">Support &amp; Intervention</button>
+          <button type="button" data-behaviour-tab="recognition">Recognition</button>
+        </div>
+
+        <div id="behaviourContent" class="behaviour-content" aria-live="polite"></div>
+      </section>
+
       <section id="loginLogsView" class="view" aria-label="Login logs">
         <div class="section-head login-log-head">
           <div>
@@ -1169,10 +1208,10 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="./firebase.js?v=login-logs-20260804"></script>
+  <script type="module" src="./firebase.js?v=behaviour-character-20260823"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=student-age-active-only-20260806"></script>
+  <script src="./app.js?v=behaviour-character-20260823"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
   <script src="./pwa-register.js?v=pwa-cache-refresh-20260811"></script>
 </body>
