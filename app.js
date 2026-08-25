@@ -95,6 +95,11 @@ const behaviourCriteria = [
     key: "positiveAttitude",
     label: "Positive Attitude & Improvement",
     guide: "Shows effort, openness, and steady growth."
+  },
+  {
+    key: "englishCommunication",
+    label: "English Communication",
+    guide: "Uses English confidently, clearly, and appropriately in the school campus."
   }
 ];
 
@@ -4599,7 +4604,7 @@ function render() {
   renderMarksheets();
   renderStudents();
   renderStudentProfiles();
-  renderBehaviourCharacter();
+  if (activeView === "behaviour") renderBehaviourCharacter();
   renderAcademicAnalysis();
   renderTeacherAnalytics();
   renderTeacherAssessment();
@@ -11204,12 +11209,18 @@ function setupBehaviourEvents() {
   els.behaviourContent?.addEventListener("click", handleBehaviourContentClick);
   els.behaviourContent?.addEventListener("submit", handleBehaviourFormSubmit);
   els.behaviourContent?.addEventListener("input", (event) => {
-    if (event.target.matches("[data-behaviour-evidence], [data-behaviour-field]")) behaviourDirty = true;
+    if (event.target.matches("[data-behaviour-field]")) behaviourDirty = true;
   });
 }
 
 function initializeBehaviourControls() {
-  if (!els.behaviourSessionSelect) return;
+  if (
+    !els.behaviourSessionSelect
+    || !els.behaviourPeriodTypeSelect
+    || !els.behaviourPeriodKeyInput
+    || !els.behaviourClassSelect
+    || !els.behaviourSectionInput
+  ) return;
   const sessionValue = els.behaviourSessionSelect.value || currentSessionKey(state.academicSession);
   const classValue = els.behaviourClassSelect?.value || selectedClass();
   const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})].map(currentSessionKey))].filter(Boolean);
@@ -11380,7 +11391,7 @@ function behaviourOverviewMetrics(filters = behaviourFilters()) {
   const positives = observations.filter((record) => record.type === "Positive Observation");
   const support = behaviourInterventionRecords(filters).filter((record) => !["Improved", "Closed"].includes(record.status));
   const aggregates = students.map((student) => ({ student, aggregate: behaviourAggregateForStudent(student.studentId, filters) }));
-  const improving = aggregates.filter(({ aggregate }) => aggregate.overall >= 3.75 && aggregate.evidenceCount > 0).length;
+  const improving = aggregates.filter(({ aggregate }) => aggregate.overall >= 3.75).length;
   const monitor = aggregates.filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3).length;
   return {
     students,
@@ -11524,11 +11535,8 @@ function renderBehaviourAssessment() {
         <div class="behaviour-rating-list">
           ${behaviourCriteria.map((criterion) => behaviourRatingRow(criterion, Number(draft[criterion.key]) || 0)).join("")}
         </div>
-        <label class="behaviour-evidence">Evidence / Observation
-          <textarea data-behaviour-evidence rows="4" placeholder="Required when any rating is 1 or 2. Positive examples are encouraged for rating 5.">${escapeHtml(draft.evidence || "")}</textarea>
-        </label>
         <div class="behaviour-assessment-foot">
-          <strong>Total: ${total} / 25</strong>
+          <strong>Total: ${total} / ${behaviourCriteria.length * 5}</strong>
           <div class="inline-actions">
             <button class="ghost-button" type="button" data-behaviour-action="prev-student">Previous Student</button>
             <button class="ghost-button" type="button" data-behaviour-action="next-student">Next Student</button>
@@ -11606,19 +11614,17 @@ async function saveBehaviourAssessment(moveNext = false) {
   if (!student) return;
   const { teacherId, teacherName } = teacherIdentity();
   const existing = behaviourAssessmentRecords(filters).find((record) => record.studentId === student.studentId && record.teacherId === teacherId) || {};
-  const evidence = String(els.behaviourContent?.querySelector("[data-behaviour-evidence]")?.value || "").trim();
+  const evidence = String(existing.evidence || "").trim();
   const draft = { ...existing, ...(behaviourCurrentDraft || {}), evidence };
   const missing = behaviourCriteria.filter((criterion) => !Number(draft[criterion.key]));
   if (missing.length) {
     showToast(`Select ratings for ${missing.map((item) => item.label).join(", ")}.`);
     return;
   }
-  const concern = behaviourCriteria.some((criterion) => Number(draft[criterion.key]) <= 2);
-  if (concern && !evidence) {
-    showToast("Evidence / Observation is required when any rating is 1 or 2.");
-    return;
-  }
   const total = behaviourCriteria.reduce((sum, criterion) => sum + Number(draft[criterion.key] || 0), 0);
+  const criterionScores = Object.fromEntries(
+    behaviourCriteria.map((criterion) => [criterion.key, Number(draft[criterion.key])])
+  );
   const now = new Date().toISOString();
   const assessmentId = behaviourAssessmentId(filters, student.studentId, teacherId);
   const record = {
@@ -11631,11 +11637,7 @@ async function saveBehaviourAssessment(moveNext = false) {
     section: student.section || "",
     periodType: filters.periodType,
     periodKey: filters.periodKey,
-    respect: Number(draft.respect),
-    responsibility: Number(draft.responsibility),
-    selfDiscipline: Number(draft.selfDiscipline),
-    kindnessCooperation: Number(draft.kindnessCooperation),
-    positiveAttitude: Number(draft.positiveAttitude),
+    ...criterionScores,
     total,
     evidence,
     submittedAt: existing.submittedAt || now,
