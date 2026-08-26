@@ -244,6 +244,8 @@ const defaultState = {
     houseColours: profileHouseOptions,
     skillDevelopmentProgrammes: profileSkillProgrammeOptions
   },
+  behaviourPeriodType: "Weekly",
+  behaviourPeriodKey: "",
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -2359,6 +2361,10 @@ function canAccessBehaviourModule() {
     || currentUser?.role === "user"
     || currentUser?.role === "teacher"
   );
+}
+
+function canEditBehaviourPeriod() {
+  return isAdmin();
 }
 
 function canPreviewUnpublished() {
@@ -11188,16 +11194,22 @@ function setupBehaviourEvents() {
     behaviourCurrentDraft = null;
     renderBehaviourCharacter();
   };
-  const resetPeriodAndRender = () => {
-    if (els.behaviourPeriodKeyInput) els.behaviourPeriodKeyInput.value = defaultBehaviourPeriodKey();
+  const saveAdminPeriodAndRender = () => {
+    if (!canEditBehaviourPeriod()) {
+      initializeBehaviourControls();
+      rerender();
+      return;
+    }
+    state.behaviourPeriodType = els.behaviourPeriodTypeSelect?.value || state.behaviourPeriodType || "Weekly";
+    state.behaviourPeriodKey = String(els.behaviourPeriodKeyInput?.value || "").trim();
+    saveState();
     rerender();
   };
-  [els.behaviourSessionSelect, els.behaviourPeriodTypeSelect].forEach((control) => {
-    control?.addEventListener("change", resetPeriodAndRender);
-  });
-  [els.behaviourPeriodKeyInput, els.behaviourClassSelect, els.behaviourSectionInput]
+  els.behaviourSessionSelect?.addEventListener("change", rerender);
+  els.behaviourPeriodTypeSelect?.addEventListener("change", saveAdminPeriodAndRender);
+  els.behaviourPeriodKeyInput?.addEventListener("change", saveAdminPeriodAndRender);
+  [els.behaviourClassSelect, els.behaviourSectionInput]
     .forEach((control) => control?.addEventListener("change", rerender));
-  els.behaviourPeriodKeyInput?.addEventListener("input", () => renderBehaviourCharacter());
   els.behaviourTabs?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-behaviour-tab]");
     if (!button) return;
@@ -11223,10 +11235,29 @@ function initializeBehaviourControls() {
   ) return;
   const sessionValue = els.behaviourSessionSelect.value || currentSessionKey(state.academicSession);
   const classValue = els.behaviourClassSelect?.value || selectedClass();
+  const savedPeriodType = state.behaviourPeriodType || els.behaviourPeriodTypeSelect.value || "Weekly";
+  const savedPeriodKey = String(state.behaviourPeriodKey || "").trim();
   const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})].map(currentSessionKey))].filter(Boolean);
   populateSelect(els.behaviourSessionSelect, sessions.length ? sessions : [currentSessionKey(state.academicSession)]);
   setSelectValueIfAvailable(els.behaviourSessionSelect, sessionValue);
-  if (!els.behaviourPeriodKeyInput.value) els.behaviourPeriodKeyInput.value = defaultBehaviourPeriodKey();
+  setSelectValueIfAvailable(els.behaviourPeriodTypeSelect, savedPeriodType);
+  const periodInputIsFocused = document.activeElement === els.behaviourPeriodKeyInput;
+  if (!periodInputIsFocused && (savedPeriodKey || !els.behaviourPeriodKeyInput.value)) {
+    els.behaviourPeriodKeyInput.value = savedPeriodKey || defaultBehaviourPeriodKey();
+  }
+  const canEditPeriod = canEditBehaviourPeriod();
+  els.behaviourPeriodTypeSelect.disabled = !canEditPeriod;
+  els.behaviourPeriodKeyInput.readOnly = !canEditPeriod;
+  els.behaviourPeriodTypeSelect.setAttribute("aria-disabled", String(!canEditPeriod));
+  els.behaviourPeriodKeyInput.setAttribute("aria-readonly", String(!canEditPeriod));
+  els.behaviourPeriodKeyInput.setAttribute(
+    "title",
+    canEditPeriod ? "Admin can change the behaviour assessment period." : "Only Admin can change the behaviour assessment period."
+  );
+  els.behaviourPeriodTypeSelect.setAttribute(
+    "title",
+    canEditPeriod ? "Admin can change the assessment period type." : "Only Admin can change the assessment period type."
+  );
   populateSelect(els.behaviourClassSelect, ["All Classes", ...classNames]);
   setSelectValueIfAvailable(els.behaviourClassSelect, classValue);
 }
@@ -11248,10 +11279,11 @@ function defaultBehaviourPeriodKey(date = new Date()) {
 }
 
 function behaviourFilters() {
+  const periodKey = String(els.behaviourPeriodKeyInput?.value || state.behaviourPeriodKey || defaultBehaviourPeriodKey()).trim();
   return {
     academicSessionId: currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession),
-    periodType: els.behaviourPeriodTypeSelect?.value || "Weekly",
-    periodKey: String(els.behaviourPeriodKeyInput?.value || defaultBehaviourPeriodKey()).trim(),
+    periodType: els.behaviourPeriodTypeSelect?.value || state.behaviourPeriodType || "Weekly",
+    periodKey,
     className: els.behaviourClassSelect?.value || "All Classes",
     section: String(els.behaviourSectionInput?.value || "").trim()
   };
@@ -11276,7 +11308,8 @@ function behaviourStudents(includeInactive = false) {
 
 function behaviourAssessmentRecords(filters = behaviourFilters()) {
   return Object.values(behaviourData.assessments || {}).filter((record) =>
-    record.academicSessionId === filters.academicSessionId
+    record && typeof record === "object"
+    && record.academicSessionId === filters.academicSessionId
     && record.periodType === filters.periodType
     && record.periodKey === filters.periodKey
     && (filters.className === "All Classes" || record.className === filters.className)
@@ -11286,7 +11319,8 @@ function behaviourAssessmentRecords(filters = behaviourFilters()) {
 
 function behaviourObservationRecords(filters = behaviourFilters()) {
   return Object.values(behaviourData.observations || {}).filter((record) =>
-    record.academicSessionId === filters.academicSessionId
+    record && typeof record === "object"
+    && record.academicSessionId === filters.academicSessionId
     && (filters.className === "All Classes" || record.className === filters.className)
     && (!filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
   );
@@ -11294,7 +11328,8 @@ function behaviourObservationRecords(filters = behaviourFilters()) {
 
 function behaviourInterventionRecords(filters = behaviourFilters()) {
   return Object.values(behaviourData.interventions || {}).filter((record) =>
-    record.academicSessionId === filters.academicSessionId
+    record && typeof record === "object"
+    && record.academicSessionId === filters.academicSessionId
     && (filters.className === "All Classes" || record.className === filters.className)
     && (!filters.section || String(record.section || "").trim().toLowerCase() === filters.section.toLowerCase())
   );
@@ -11302,7 +11337,8 @@ function behaviourInterventionRecords(filters = behaviourFilters()) {
 
 function behaviourRecognitionRecords(filters = behaviourFilters()) {
   return Object.values(behaviourData.recognitions || {}).filter((record) =>
-    record.academicSessionId === filters.academicSessionId
+    record && typeof record === "object"
+    && record.academicSessionId === filters.academicSessionId
     && (filters.className === "All Classes" || record.className === filters.className)
   );
 }
@@ -11540,6 +11576,7 @@ function renderBehaviourAssessment() {
           <div class="inline-actions">
             <button class="ghost-button" type="button" data-behaviour-action="prev-student">Previous Student</button>
             <button class="ghost-button" type="button" data-behaviour-action="next-student">Next Student</button>
+            ${existing ? `<button class="ghost-button danger" type="button" data-behaviour-action="delete-assessment">Delete</button>` : ""}
             <button class="primary-button" type="button" data-behaviour-action="save-assessment">Save</button>
             <button class="primary-button" type="button" data-behaviour-action="save-next-assessment">Save &amp; Next</button>
           </div>
@@ -11590,6 +11627,10 @@ function handleBehaviourContentClick(event) {
     saveBehaviourAssessment(false);
   } else if (action === "save-next-assessment") {
     saveBehaviourAssessment(true);
+  } else if (action === "delete-assessment") {
+    deleteBehaviourAssessmentForCurrentStudent();
+  } else if (action === "delete-observation") {
+    deleteBehaviourObservation(actionButton.dataset.observationId);
   }
 }
 
@@ -11657,6 +11698,35 @@ async function saveBehaviourAssessment(moveNext = false) {
   renderBehaviourCharacter();
 }
 
+async function deleteBehaviourAssessmentForCurrentStudent() {
+  const filters = behaviourFilters();
+  const students = behaviourStudents();
+  const student = students[behaviourAssessmentIndex];
+  if (!student) return;
+  const { teacherId } = teacherIdentity();
+  const existing = behaviourAssessmentRecords(filters)
+    .find((record) => record.studentId === student.studentId && record.teacherId === teacherId);
+  if (!existing) {
+    showToast("No saved assessment found for this student.");
+    return;
+  }
+  if (!confirm(`Delete behaviour assessment for ${student.studentName || "this student"}?`)) return;
+  const assessmentId = existing.assessmentId || behaviourAssessmentId(filters, student.studentId, teacherId);
+  try {
+    if (window.MarkHubFirebase?.deleteBehaviourAssessment) {
+      await window.MarkHubFirebase.deleteBehaviourAssessment(assessmentId);
+    }
+    delete behaviourData.assessments[assessmentId];
+    behaviourDirty = false;
+    behaviourCurrentDraft = null;
+    showToast("Behaviour assessment deleted.");
+    renderBehaviourCharacter();
+  } catch (error) {
+    console.error(error);
+    showToast("Could not delete behaviour assessment. Check Firebase rules.");
+  }
+}
+
 function renderBehaviourClassAnalysis() {
   const filters = behaviourFilters();
   const metrics = behaviourOverviewMetrics(filters);
@@ -11701,7 +11771,14 @@ function renderBehaviourObservations() {
         <h4>Recent Observations</h4>
         <ul class="behaviour-feed">${observations.length ? observations.slice(0, 12).map((record) => {
           const student = studentRecordById(record.studentId);
-          return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${escapeHtml(record.type)} | ${escapeHtml(record.behaviourArea)} | ${escapeHtml(formatDisplayDate(record.date) || record.date || "")}</span><p>${escapeHtml(record.observation || "")}</p></li>`;
+          return `<li>
+            <div class="behaviour-feed-head">
+              <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+              <button class="ghost-button danger compact-button" type="button" data-behaviour-action="delete-observation" data-observation-id="${escapeAttr(record.observationId || "")}">Delete</button>
+            </div>
+            <span>${escapeHtml(record.type)} | ${escapeHtml(record.behaviourArea)} | ${escapeHtml(formatDisplayDate(record.date) || record.date || "")}</span>
+            <p>${escapeHtml(record.observation || "")}</p>
+          </li>`;
         }).join("") : "<li>No observations saved yet.</li>"}</ul>
       </article>
     </section>
@@ -11801,6 +11878,27 @@ async function saveBehaviourObservation(data) {
     showToast("Saved on this screen, but Firestore could not save observation.");
   }
   renderBehaviourCharacter();
+}
+
+async function deleteBehaviourObservation(observationId) {
+  if (!observationId) {
+    showToast("Observation record was not found.");
+    return;
+  }
+  const record = behaviourData.observations?.[observationId];
+  const student = studentRecordById(record?.studentId);
+  if (!confirm(`Delete observation for ${student?.studentName || "this student"}?`)) return;
+  try {
+    if (window.MarkHubFirebase?.deleteBehaviourObservation) {
+      await window.MarkHubFirebase.deleteBehaviourObservation(observationId);
+    }
+    delete behaviourData.observations[observationId];
+    showToast("Behaviour observation deleted.");
+    renderBehaviourCharacter();
+  } catch (error) {
+    console.error(error);
+    showToast("Could not delete observation. Check Firebase rules.");
+  }
 }
 
 async function saveBehaviourIntervention(data) {

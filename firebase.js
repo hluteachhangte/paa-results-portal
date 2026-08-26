@@ -550,11 +550,19 @@ window.MarkHubFirebase = {
     await setDoc(doc(db, "behaviourAssessments", splitDocId(payload.assessmentId)), payload, { merge: true });
     return payload;
   },
+  async deleteBehaviourAssessment(assessmentId) {
+    if (!assessmentId) throw new Error("Behaviour assessment is missing assessmentId.");
+    await deleteDoc(doc(db, "behaviourAssessments", splitDocId(assessmentId)));
+  },
   async saveBehaviourObservation(record = {}) {
     const payload = behaviourDocPayload(record, "observationId");
     if (!payload.observationId) throw new Error("Behaviour observation is missing observationId.");
     await setDoc(doc(db, "behaviourObservations", splitDocId(payload.observationId)), payload, { merge: true });
     return payload;
+  },
+  async deleteBehaviourObservation(observationId) {
+    if (!observationId) throw new Error("Behaviour observation is missing observationId.");
+    await deleteDoc(doc(db, "behaviourObservations", splitDocId(observationId)));
   },
   async saveBehaviourIntervention(record = {}) {
     const payload = behaviourDocPayload(record, "interventionId");

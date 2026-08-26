@@ -101,13 +101,13 @@ service cloud.firestore {
     match /behaviourAssessments/{assessmentId} {
       allow read: if canViewSchoolData();
       allow create, update: if approvedUser();
-      allow delete: if isAdmin();
+      allow delete: if approvedUser();
     }
 
     match /behaviourObservations/{observationId} {
       allow read: if canViewSchoolData();
       allow create, update: if approvedUser();
-      allow delete: if isAdmin();
+      allow delete: if approvedUser();
     }
 
     match /behaviourInterventions/{interventionId} {
