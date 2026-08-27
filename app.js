@@ -4,6 +4,7 @@ const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
 const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1";
 const loginLogLocalKey = "markhub-local-login-logs-v1";
+const behaviourPeriodSettingsKey = "markhub-behaviour-period-settings-v1";
 
 const classNames = [
   "LKG",
@@ -244,8 +245,6 @@ const defaultState = {
     houseColours: profileHouseOptions,
     skillDevelopmentProgrammes: profileSkillProgrammeOptions
   },
-  behaviourPeriodType: "Weekly",
-  behaviourPeriodKey: "",
   ...createEmptySessionData(),
   sessions: {}
 };
@@ -674,6 +673,26 @@ function loadState() {
   }
 }
 
+function loadBehaviourPeriodSettings() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(behaviourPeriodSettingsKey) || "{}");
+    return {
+      periodType: parsed.periodType === "Monthly" ? "Monthly" : "Weekly",
+      periodKey: String(parsed.periodKey || "").trim()
+    };
+  } catch {
+    return { periodType: "Weekly", periodKey: "" };
+  }
+}
+
+function saveBehaviourPeriodSettingsLocal() {
+  if (!canEditBehaviourPeriod()) return;
+  localStorage.setItem(behaviourPeriodSettingsKey, JSON.stringify({
+    periodType: els.behaviourPeriodTypeSelect?.value || "Weekly",
+    periodKey: String(els.behaviourPeriodKeyInput?.value || "").trim()
+  }));
+}
+
 function normalizeState(existingState = {}) {
   const parsed = { ...structuredClone(defaultState), ...(existingState || {}) };
   parsed.academicSession = currentSessionKey(parsed.academicSession);
@@ -688,6 +707,8 @@ function normalizeState(existingState = {}) {
   parsed.studentEnrolments = normalizeStudentEnrolments(existingState.studentEnrolments || parsed.studentEnrolments);
   parsed.studentProfileAudit = Array.isArray(existingState.studentProfileAudit) ? existingState.studentProfileAudit : [];
   parsed.studentProfileSettings = normalizeStudentProfileSettings(existingState.studentProfileSettings || parsed.studentProfileSettings);
+  delete parsed.behaviourPeriodType;
+  delete parsed.behaviourPeriodKey;
   parsed.sessions = normalizeSessions(parsed.sessions);
 
   const migratedActiveData = normalizeSessionData({
@@ -7272,18 +7293,7 @@ function analysisHistogram(items) {
 
 function buildAnalysisTrend(session, classes, subjectFilter, status) {
   const availableExams = new Set(classes.flatMap((className) => currentExams(className)));
-  const trendExamOrder = [
-    "FT Unit Test 1",
-    "FT Unit Test 2",
-    "CT1",
-    "CT2",
-    "First Term",
-    "ST Unit Test 1",
-    "ST Unit Test 2",
-    "Second Term",
-    "Third Term"
-  ];
-  const exams = trendExamOrder.filter((exam) => availableExams.has(exam));
+  const exams = examNames.filter((exam) => availableExams.has(exam));
   return exams.map((exam) => {
     const records = buildAcademicAnalysisRecords(session, classes, exam)
       .map((record) => filteredAnalysisRecord(record, subjectFilter))
@@ -11200,9 +11210,7 @@ function setupBehaviourEvents() {
       rerender();
       return;
     }
-    state.behaviourPeriodType = els.behaviourPeriodTypeSelect?.value || state.behaviourPeriodType || "Weekly";
-    state.behaviourPeriodKey = String(els.behaviourPeriodKeyInput?.value || "").trim();
-    saveState();
+    saveBehaviourPeriodSettingsLocal();
     rerender();
   };
   els.behaviourSessionSelect?.addEventListener("change", rerender);
@@ -11235,8 +11243,9 @@ function initializeBehaviourControls() {
   ) return;
   const sessionValue = els.behaviourSessionSelect.value || currentSessionKey(state.academicSession);
   const classValue = els.behaviourClassSelect?.value || selectedClass();
-  const savedPeriodType = state.behaviourPeriodType || els.behaviourPeriodTypeSelect.value || "Weekly";
-  const savedPeriodKey = String(state.behaviourPeriodKey || "").trim();
+  const localPeriodSettings = loadBehaviourPeriodSettings();
+  const savedPeriodType = localPeriodSettings.periodType || els.behaviourPeriodTypeSelect.value || "Weekly";
+  const savedPeriodKey = localPeriodSettings.periodKey;
   const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})].map(currentSessionKey))].filter(Boolean);
   populateSelect(els.behaviourSessionSelect, sessions.length ? sessions : [currentSessionKey(state.academicSession)]);
   setSelectValueIfAvailable(els.behaviourSessionSelect, sessionValue);
@@ -11279,10 +11288,11 @@ function defaultBehaviourPeriodKey(date = new Date()) {
 }
 
 function behaviourFilters() {
-  const periodKey = String(els.behaviourPeriodKeyInput?.value || state.behaviourPeriodKey || defaultBehaviourPeriodKey()).trim();
+  const localPeriodSettings = loadBehaviourPeriodSettings();
+  const periodKey = String(els.behaviourPeriodKeyInput?.value || localPeriodSettings.periodKey || defaultBehaviourPeriodKey()).trim();
   return {
     academicSessionId: currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession),
-    periodType: els.behaviourPeriodTypeSelect?.value || state.behaviourPeriodType || "Weekly",
+    periodType: els.behaviourPeriodTypeSelect?.value || localPeriodSettings.periodType || "Weekly",
     periodKey,
     className: els.behaviourClassSelect?.value || "All Classes",
     section: String(els.behaviourSectionInput?.value || "").trim()
