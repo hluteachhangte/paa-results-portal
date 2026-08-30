@@ -7204,7 +7204,7 @@ function analysisPieChart(items, ariaLabel) {
   </div>`;
 }
 
-function analysisLineChart(items) {
+function analysisLineChart(items, ariaLabel = "Average percentage result trend") {
   if (!items.length) return '<p class="analysis-empty">No trend data available.</p>';
   const width = Math.max(420, ((items.length - 1) * 92) + 130);
   const height = 250;
@@ -7217,9 +7217,10 @@ function analysisLineChart(items) {
   const step = items.length > 1 ? (width - padLeft - padRight) / (items.length - 1) : 0;
   const yPosition = (value) => plotBottom - ((Math.max(0, Math.min(100, value)) / 100) * plotHeight);
   const points = items.map((item, index) => {
+    const value = Number.isFinite(Number(item.value)) ? Number(item.value) : Number(item.average) || 0;
     const x = items.length > 1 ? padLeft + (index * step) : width / 2;
-    const y = yPosition(item.average);
-    return { ...item, x, y };
+    const y = yPosition(value);
+    return { ...item, value, x, y };
   });
   const guideValues = [0, 25, 50, 75, 100];
   const areaPoints = points.length
@@ -7227,17 +7228,17 @@ function analysisLineChart(items) {
     : "";
   const areaGradientId = `analysisTrendArea${Math.random().toString(36).slice(2, 8)}`;
   const trendSegmentClass = (start, end) => {
-    const change = end.average - start.average;
+    const change = end.value - start.value;
     if (Math.abs(change) < 0.005) return "is-flat";
     return change > 0 ? "is-progress" : "is-decline";
   };
   const trendSegments = points.slice(1).map((point, index) => {
     const previous = points[index];
-    const change = point.average - previous.average;
+    const change = point.value - previous.value;
     const changeText = `${change >= 0 ? "+" : ""}${change.toFixed(2)} percentage points`;
     return { previous, point, className: trendSegmentClass(previous, point), changeText };
   });
-  return `<div class="analysis-line-chart"><svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Average percentage result trend">
+  return `<div class="analysis-line-chart"><svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttr(ariaLabel)}">
     <defs>
       <linearGradient id="${areaGradientId}" x1="0" y1="${padTop}" x2="0" y2="${plotBottom}" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stop-color="#6f8cff" stop-opacity="0.30"/>
@@ -7257,10 +7258,10 @@ function analysisLineChart(items) {
       <line x1="${segment.previous.x}" y1="${segment.previous.y}" x2="${segment.point.x}" y2="${segment.point.y}" class="chart-line"/>
     </g>`).join("")}
     ${points.map((point) => `<g class="chart-data-point">
-      <title>${escapeHtml(point.label)}: ${point.average.toFixed(2)}%</title>
+      <title>${escapeHtml(point.label)}: ${point.value.toFixed(2)}%</title>
       <circle cx="${point.x}" cy="${point.y}" r="5" class="chart-point"/>
       <rect x="${point.x - 24}" y="${point.y - 27}" width="48" height="17" rx="4" class="chart-value-bg"/>
-      <text x="${point.x}" y="${point.y - 15}" class="chart-value">${point.average.toFixed(1)}%</text>
+      <text x="${point.x}" y="${point.y - 15}" class="chart-value">${point.value.toFixed(1)}%</text>
       <line x1="${point.x}" y1="${plotBottom}" x2="${point.x}" y2="${plotBottom + 5}" class="chart-tick"/>
       <text x="${point.x}" y="${height - 12}" class="chart-label">${escapeHtml(point.label)}</text>
     </g>`).join("")}
@@ -7300,10 +7301,20 @@ function buildAnalysisTrend(session, classes, subjectFilter, status) {
       .filter((record) => !record.excluded)
       .filter((record) => status === "all"
         || (status === "present" && record.appeared)
-        || (status === "absent" && !record.appeared))
-      .filter((record) => record.appeared);
-    return { label: exam.replace(" Unit Test ", " UT "), average: average(records.map((record) => record.percentage)) };
-  }).filter((item) => item.average > 0);
+        || (status === "absent" && !record.appeared));
+    const appeared = records.filter((record) => record.appeared);
+    const passed = appeared.filter((record) => record.result !== "Fail").length;
+    const summary = calculateClassPassSummary(records.length, appeared.length, passed);
+    return {
+      label: exam.replace(" Unit Test ", " UT "),
+      value: summary.passPercentage,
+      average: summary.passPercentage,
+      total: records.length,
+      appeared: appeared.length,
+      passed,
+      failed: summary.failed
+    };
+  }).filter((item) => item.total > 0);
 }
 
 function buildAnalysisStudentProgress(session, classes, subjectFilter, status, threshold, fromExam, toExam) {
@@ -8158,7 +8169,7 @@ function renderAcademicAnalysis() {
       ? `Best: ${bestClass.className} (${bestClass.passPercentage.toFixed(2)}%) | Needs focus: ${weakClass.className} (${weakClass.passPercentage.toFixed(2)}%)`
       : `${bestClass.className}: ${bestClass.passPercentage.toFixed(2)}% pass | ${bestClass.average.toFixed(2)}% average`
     : "No class data";
-  els.analysisTrendChart.innerHTML = analysisLineChart(trend);
+  els.analysisTrendChart.innerHTML = analysisLineChart(trend, "Pass percentage result trend");
   els.analysisSubjectChart.innerHTML = `<div class="analysis-subject-column-scroll">${analysisColumnChart(subjectMetrics, "average", "name")}</div>
     <h5 class="analysis-subchart-title">Subject Pass Percentage</h5>
     <div class="analysis-subject-pass-scroll">${analysisBarChart(subjectMetrics, "passPercentage", "name")}</div>`;
