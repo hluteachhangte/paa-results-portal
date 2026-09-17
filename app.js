@@ -318,6 +318,7 @@ let behaviourActiveTab = "overview";
 let behaviourAssessmentIndex = 0;
 let behaviourCurrentDraft = null;
 let behaviourDirty = false;
+let behaviourTeacherListVisible = false;
 let firebaseBehaviourUnsubscribe = null;
 let firebaseBehaviourSessionKey = "";
 let publicationSaveInProgress = false;
@@ -11418,6 +11419,12 @@ function setupBehaviourEvents() {
     renderBehaviourCharacter();
   });
   els.behaviourContent?.addEventListener("click", handleBehaviourContentClick);
+  els.behaviourContent?.addEventListener("keydown", (event) => {
+    const actionTarget = event.target.closest("[data-behaviour-action]");
+    if (!actionTarget || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    actionTarget.click();
+  });
   els.behaviourContent?.addEventListener("submit", handleBehaviourFormSubmit);
   els.behaviourContent?.addEventListener("input", (event) => {
     if (event.target.matches("[data-behaviour-field]")) behaviourDirty = true;
@@ -11651,7 +11658,7 @@ function renderBehaviourOverview() {
   const cards = [
     ["Total Students", metrics.students.length],
     ["Students Assessed", metrics.assessedStudents.size],
-    ["Teachers Submitted", metrics.teachers.size],
+    ["Teachers Submitted", metrics.teachers.size, "toggle-teacher-list"],
     ["Assessment Coverage", `${metrics.coverage.toFixed(1)}%`],
     ["Positive Observations", metrics.positives.length],
     ["Students Improving", metrics.improving],
@@ -11662,7 +11669,7 @@ function renderBehaviourOverview() {
   return `
     <section class="behaviour-overview">
       <div class="behaviour-summary-grid">
-        ${cards.map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("")}
+        ${cards.map(([label, value, action]) => `<article${action ? ` class="behaviour-summary-action" role="button" tabindex="0" data-behaviour-action="${escapeAttr(action)}" aria-expanded="${behaviourTeacherListVisible}"` : ""}><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("")}
       </div>
       <div class="behaviour-two-column">
         <article class="behaviour-card">
@@ -11683,7 +11690,51 @@ function renderBehaviourOverview() {
         ${behaviourMiniList("Recognition Candidates", recognitionCandidates(metrics.aggregates).slice(0, 5), "candidate")}
         ${behaviourMiniList("Students Requiring Support", metrics.aggregates.filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3).slice(0, 5), "support")}
       </div>
+      ${behaviourTeacherListVisible ? behaviourTeacherListCard(metrics) : ""}
     </section>
+  `;
+}
+
+function behaviourTeacherListCard(metrics) {
+  const teacherRows = [...metrics.assessments.reduce((map, record) => {
+    const teacherId = String(record.teacherId || "").trim();
+    if (!teacherId) return map;
+    const teacherName = String(record.teacherName || teacherId).trim();
+    const current = map.get(teacherId) || {
+      teacherId,
+      teacherName,
+      submissions: 0,
+      students: new Set(),
+      latest: ""
+    };
+    current.submissions += 1;
+    if (record.studentId) current.students.add(record.studentId);
+    const updatedAt = String(record.updatedAt || record.createdAt || "").trim();
+    if (updatedAt && (!current.latest || updatedAt > current.latest)) current.latest = updatedAt;
+    map.set(teacherId, current);
+    return map;
+  }, new Map()).values()].sort((a, b) => a.teacherName.localeCompare(b.teacherName));
+
+  const list = teacherRows.length
+    ? teacherRows.map((teacher) => `
+      <li>
+        <strong>${escapeHtml(teacher.teacherName)}</strong>
+        <span>${teacher.students.size} student${teacher.students.size === 1 ? "" : "s"} assessed | ${teacher.submissions} saved submission${teacher.submissions === 1 ? "" : "s"}</span>
+      </li>
+    `).join("")
+    : `<li><strong>No teachers submitted yet</strong><span>Teacher names will appear here after assessments are saved.</span></li>`;
+
+  return `
+    <article id="behaviourTeacherListCard" class="behaviour-card behaviour-teacher-list-card">
+      <div class="behaviour-feed-head">
+        <div>
+          <span class="eyebrow">Teacher Submission List</span>
+          <h4>Teachers Submitted</h4>
+        </div>
+        <button class="ghost-button compact-button" type="button" data-behaviour-action="toggle-teacher-list">Hide</button>
+      </div>
+      <ul class="behaviour-mini-list behaviour-teacher-list">${list}</ul>
+    </article>
   `;
 }
 
@@ -11812,6 +11863,14 @@ function handleBehaviourContentClick(event) {
   const actionButton = event.target.closest("[data-behaviour-action]");
   if (!actionButton) return;
   const action = actionButton.dataset.behaviourAction;
+  if (action === "toggle-teacher-list") {
+    behaviourTeacherListVisible = !behaviourTeacherListVisible;
+    renderBehaviourCharacter();
+    if (behaviourTeacherListVisible) {
+      requestAnimationFrame(() => document.querySelector("#behaviourTeacherListCard")?.scrollIntoView({ block: "nearest" }));
+    }
+    return;
+  }
   if (action === "prev-student") {
     if (behaviourDirty && !confirm("Move to the previous student without saving?")) return;
     behaviourAssessmentIndex = Math.max(0, behaviourAssessmentIndex - 1);

@@ -7337,6 +7337,25 @@ body.behaviour-active #behaviourView.view.active {
   margin: 3px 0 0;
 }
 
+.behaviour-summary-action {
+  cursor: pointer;
+}
+
+.behaviour-summary-action:hover,
+.behaviour-summary-action:focus-visible {
+  border-color: #2563eb !important;
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.behaviour-teacher-list-card {
+  margin-top: 14px;
+}
+
+.behaviour-teacher-list {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .behaviour-student-card {
   border-radius: 24px;
   padding: 18px;
