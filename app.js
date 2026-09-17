@@ -2276,6 +2276,7 @@ function setSelectValueIfAvailable(select, value) {
 
 function renderActiveViewOnly() {
   renderPublishStatus();
+  renderMarksheetPublishStatus();
   if (activeView === "dashboard") {
     renderDashboard();
   } else if (activeView === "entry") {
@@ -2356,6 +2357,16 @@ function saveCurrentUser(user) {
 
 function isMobileView() {
   return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function isLowPowerDevice() {
+  const memory = Number(navigator.deviceMemory || 8);
+  const cores = Number(navigator.hardwareConcurrency || 8);
+  return isMobileView() || memory <= 4 || cores <= 4;
+}
+
+function applyPerformanceProfile() {
+  document.documentElement.classList.add("low-power-device");
 }
 
 function isAdmin() {
@@ -3520,9 +3531,18 @@ function populateSelect(select, options) {
     .join("");
 }
 
+function debounce(fn, delay = 180) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function init() {
   const savedUiState = loadSavedUiState();
   activeView = savedUiState.activeView || activeView;
+  applyPerformanceProfile();
 
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
@@ -3566,6 +3586,7 @@ function init() {
   setupDashboardResultTooltip();
   setupStudentProfileEvents();
   setupBehaviourEvents();
+  window.addEventListener("resize", applyPerformanceProfile);
 
   els.classSelect.addEventListener("change", () => {
     syncStudentsClassSelect();
@@ -3612,6 +3633,8 @@ function init() {
   });
   els.saveAttendanceBtn?.addEventListener("click", saveAttendanceData);
   els.clearAttendanceBtn.addEventListener("click", clearAttendanceData);
+  setupEntryTableEvents();
+  setupAttendanceTableEvents();
 
   els.academicSessionInput.addEventListener("change", () => {
     if (!isAdmin()) return;
@@ -3657,7 +3680,7 @@ function init() {
   els.lockAllEntryAccessBtn?.addEventListener("click", () => setAllEntryAccess(false));
   els.loginLogActionFilter?.addEventListener("change", renderLoginLogs);
   els.loginLogRoleFilter?.addEventListener("change", renderLoginLogs);
-  els.loginLogSearchInput?.addEventListener("input", renderLoginLogs);
+  els.loginLogSearchInput?.addEventListener("input", debounce(renderLoginLogs));
   els.refreshLoginLogsBtn?.addEventListener("click", refreshLoginLogs);
   els.exportLoginLogsBtn?.addEventListener("click", exportLoginLogsCsv);
   document.querySelector("#studentForm").addEventListener("submit", addStudent);
@@ -3797,10 +3820,10 @@ function init() {
     toggleAnalysisStudentList(els.toggleAnalysisSupportListBtn, els.analysisSupportTableWrap));
   els.firebaseResultSearch?.addEventListener("submit", searchFirebaseResult);
   els.clearFirebaseResultBtn?.addEventListener("click", clearFirebaseResultSearch);
-  els.marksheetNameSearchInput?.addEventListener("input", () => {
+  els.marksheetNameSearchInput?.addEventListener("input", debounce(() => {
     saveUiState();
     renderMarksheets();
-  });
+  }, 220));
   els.marksheetZoomInput.addEventListener("input", updateMarksheetZoom);
   els.zoomOutMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(-10));
   els.zoomInMarksheetBtn.addEventListener("click", () => stepMarksheetZoom(10));
@@ -4622,21 +4645,7 @@ function renderActiveViewChrome() {
 
 function render() {
   renderViewFilters();
-  renderPublishStatus();
-  renderMarksheetPublishStatus();
-  renderDashboard();
-  renderEntry();
-  renderAttendance();
-  renderResults();
-  renderMarksheets();
-  renderStudents();
-  renderStudentProfiles();
-  if (activeView === "behaviour") renderBehaviourCharacter();
-  renderAcademicAnalysis();
-  renderTeacherAnalytics();
-  renderTeacherAssessment();
-  renderEntryAccessControl();
-  renderLoginLogs();
+  renderActiveViewOnly();
 }
 
 function renderViewFilters() {
@@ -4772,27 +4781,18 @@ function renderEntry() {
   els.lowestMarks.textContent = gradeSubject ? "-" : scored ? `${lowest}/${maxMarks}` : "0";
   refreshMarksSaveControls();
   applyMarksEntryAccessState();
+}
 
-  document.querySelectorAll("[data-roll]").forEach((input) => {
-    input.addEventListener("input", () => saveEntryInputInPlace(input));
-    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
-  });
-
-  document.querySelectorAll("[data-project-roll]").forEach((input) => {
-    input.addEventListener("input", () => saveEntryInputInPlace(input));
-    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
-  });
-
-  document.querySelectorAll("[data-part-roll]").forEach((input) => {
-    input.addEventListener("input", () => saveEntryInputInPlace(input));
-    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
-  });
-
-  document.querySelectorAll("[data-grade-roll]").forEach((input) => {
-    input.addEventListener("input", () => saveEntryInputInPlace(input));
-    input.addEventListener("change", () => saveEntryInputInPlace(input, { showWarning: true }));
-  });
-
+function setupEntryTableEvents() {
+  if (!els.marksBody || setupEntryTableEvents.bound) return;
+  setupEntryTableEvents.bound = true;
+  const handleEntryChange = (event, options = {}) => {
+    const input = event.target;
+    if (!isEntryMarkInput(input)) return;
+    saveEntryInputInPlace(input, options);
+  };
+  els.marksBody.addEventListener("input", (event) => handleEntryChange(event));
+  els.marksBody.addEventListener("change", (event) => handleEntryChange(event, { showWarning: true }));
 }
 
 function applyMarksEntryAccessState() {
@@ -5087,6 +5087,25 @@ function renderAttendance() {
 
   refreshAttendanceSaveControls();
   applyAttendanceEntryAccessState();
+}
+
+function setupAttendanceTableEvents() {
+  if (!els.attendanceBody || setupAttendanceTableEvents.bound) return;
+  setupAttendanceTableEvents.bound = true;
+  const handleAttendanceChange = (event, options = {}) => {
+    const input = event.target;
+    if (!isAttendanceEntryInput(input)) return;
+    if (input.dataset.attendanceRoll !== undefined) {
+      saveAttendanceInputInPlace(input, options);
+      return;
+    }
+    saveMeasurementInputInPlace(input, {
+      ...options,
+      section: input.dataset.heightRoll !== undefined ? "height" : "weight"
+    });
+  };
+  els.attendanceBody.addEventListener("input", (event) => handleAttendanceChange(event));
+  els.attendanceBody.addEventListener("change", (event) => handleAttendanceChange(event, { showWarning: true }));
 }
 
 function saveAttendanceInputInPlace(input, options = {}) {
@@ -10650,11 +10669,11 @@ function setupStudentProfileEvents() {
     });
   });
 
-  els.profileSearchInput?.addEventListener("input", () => {
+  els.profileSearchInput?.addEventListener("input", debounce(() => {
     studentProfilePage = 1;
     saveUiState();
     renderStudentProfiles();
-  });
+  }, 220));
 
   const handleAction = (event) => {
     const button = event.target.closest("[data-profile-action]");
@@ -14347,4 +14366,4 @@ window.TeacherAssessmentApp = {
   getCurrentUser: () => currentUser
 };
 
-init();
+  init();

@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20260811-2";
+const CACHE_NAME = "paa-results-portal-v20260917-mobile-performance";
 const APP_SHELL = [
   "./",
   "./index.html",
