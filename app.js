@@ -5,6 +5,7 @@ const uiKey = "markhub-ui-state-v1";
 const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1";
 const loginLogLocalKey = "markhub-local-login-logs-v1";
 const behaviourPeriodSettingsKey = "markhub-behaviour-period-settings-v1";
+const minimalUxEnabled = false;
 
 const classNames = [
   "LKG",
@@ -285,6 +286,12 @@ let firebaseStateWriteInFlight = false;
 let pendingFirebaseStateJson = "";
 let lastSyncedFirebaseStateJson = "";
 const firebaseStateSaveDelay = 900;
+let appDataVersion = 0;
+let dashboardCache = null;
+let dashboardActivityCache = null;
+let splitPatchRefreshTimer = null;
+let uiStateSaveTimer = null;
+let pendingUiStateJson = "";
 const splitSessionDataSeededSessions = new Set();
 const unsavedMarkChanges = new Map();
 let marksSaveInProgress = false;
@@ -321,6 +328,12 @@ const firebaseResultListeners = {
   app: null,
   public: null
 };
+
+function markDataChanged() {
+  appDataVersion += 1;
+  dashboardCache = null;
+  dashboardActivityCache = null;
+}
 
 const els = {
   loginScreen: document.querySelector("#loginScreen"),
@@ -1120,6 +1133,7 @@ function activityExamSubjects(subjects, finalSubject) {
 
 function saveState() {
   syncActiveSessionData();
+  markDataChanged();
   localStorage.setItem(storageKey, JSON.stringify(state));
   if (hasUnsavedLocalChanges()) {
     deferredFullStateSaveAfterMarks = true;
@@ -1131,11 +1145,13 @@ function saveState() {
 
 function saveStateLocalOnly() {
   syncActiveSessionData();
+  markDataChanged();
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
 async function saveClassStudents(className = selectedClass()) {
   syncActiveSessionData();
+  markDataChanged();
   localStorage.setItem(storageKey, JSON.stringify(state));
   const students = normalizeClasses({ [className]: state.classes?.[className] || [] })[className] || [];
   const session = currentSessionKey(state.academicSession);
@@ -1468,6 +1484,7 @@ async function saveAttendanceData() {
       return updateKey;
     });
     syncActiveSessionData();
+    markDataChanged();
     const fieldUpdates = [
       ...changedSections.flatMap((section) =>
         buildAttendanceSectionFieldUpdates(section, className, term)),
@@ -1670,6 +1687,7 @@ async function saveAllMarks() {
       };
     });
     syncActiveSessionData();
+    markDataChanged();
     const stateJson = JSON.stringify(state);
     const fieldUpdates = [
       ...buildUnsavedMarkFieldUpdates(currentContextChanges),
@@ -1758,7 +1776,7 @@ function viewFromLocationHash() {
 
 function saveUiState() {
   if (!els.classSelect) return;
-  localStorage.setItem(uiKey, JSON.stringify({
+  pendingUiStateJson = JSON.stringify({
     activeView,
     className: selectedClass(),
     exam: selectedExam(),
@@ -1813,7 +1831,19 @@ function saveUiState() {
     teacherAnalyticsTeacher: els.teacherAnalyticsTeacherSelect?.value || "All Teachers",
     teacherAnalyticsClass: els.teacherAnalyticsClassSelect?.value || "All Classes",
     teacherAnalyticsSubject: els.teacherAnalyticsSubjectSelect?.value || "All Subjects"
-  }));
+  });
+  clearTimeout(uiStateSaveTimer);
+  uiStateSaveTimer = setTimeout(flushUiStateSave, isLowPowerDevice() ? 450 : 180);
+}
+
+function flushUiStateSave() {
+  if (!pendingUiStateJson) return;
+  try {
+    localStorage.setItem(uiKey, pendingUiStateJson);
+  } catch (error) {
+    console.warn("[Storage] Could not save UI state.", error);
+  }
+  pendingUiStateJson = "";
 }
 
 function queueFirebaseStateSave() {
@@ -2115,9 +2145,21 @@ function applySplitSessionPatch(patch = {}) {
     return;
   }
   applyCachedSplitSessionPatch(sessionKey);
-  const stateJson = JSON.stringify(state);
-  localStorage.setItem(storageKey, stateJson);
-  if (!applyingRemoteState) renderActiveViewOnly();
+  markDataChanged();
+  scheduleSplitPatchRefresh();
+}
+
+function scheduleSplitPatchRefresh() {
+  clearTimeout(splitPatchRefreshTimer);
+  splitPatchRefreshTimer = setTimeout(() => {
+    const stateJson = JSON.stringify(state);
+    try {
+      localStorage.setItem(storageKey, stateJson);
+    } catch (error) {
+      console.warn("[Storage] Could not cache split session state.", error);
+    }
+    if (!applyingRemoteState) renderActiveViewOnly();
+  }, isLowPowerDevice() ? 500 : 160);
 }
 
 function startFirebaseStateSync(attempt = 0) {
@@ -2145,6 +2187,7 @@ function startFirebaseStateSync(attempt = 0) {
         state.entryAccess = remoteEntryAccess;
         entryAccessDraft = normalizeEntryAccess(remoteEntryAccess);
         entryAccessDirty = false;
+        markDataChanged();
         localStorage.setItem(storageKey, JSON.stringify(state));
         refreshEntryAccessUiOnly();
       }
@@ -2153,6 +2196,7 @@ function startFirebaseStateSync(attempt = 0) {
         state.attendanceAccess = remoteAttendanceAccess;
         attendanceAccessDraft = normalizeAttendanceAccess(remoteAttendanceAccess);
         entryAccessDirty = false;
+        markDataChanged();
         localStorage.setItem(storageKey, JSON.stringify(state));
         refreshEntryAccessUiOnly();
       }
@@ -2172,6 +2216,7 @@ function startFirebaseStateSync(attempt = 0) {
     ensureBehaviourListener(state.academicSession);
     applyCachedSplitSessionPatch(currentSessionKey(state.academicSession));
     seedSplitSessionData(state.academicSession);
+    markDataChanged();
     entryAccessDraft = normalizeEntryAccess(state.entryAccess);
     attendanceAccessDraft = normalizeAttendanceAccess(state.attendanceAccess);
     entryAccessDirty = false;
@@ -2304,6 +2349,7 @@ function renderActiveViewOnly() {
   } else {
     render();
   }
+  applySelectLightTheme();
 }
 
 function refreshStateControls() {
@@ -2365,8 +2411,13 @@ function isLowPowerDevice() {
   return isMobileView() || memory <= 4 || cores <= 4;
 }
 
+function isMinimalUx() {
+  return minimalUxEnabled;
+}
+
 function applyPerformanceProfile() {
   document.documentElement.classList.add("low-power-device");
+  document.documentElement.classList.toggle("minimal-ux", isMinimalUx());
 }
 
 function isAdmin() {
@@ -3527,8 +3578,25 @@ function canViewMarksheet() {
 
 function populateSelect(select, options) {
   select.innerHTML = options
-    .map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`)
+    .map((option) => `<option value="${escapeAttr(option)}" style="background-color:#ffffff;color:#0b2b63;">${escapeHtml(option)}</option>`)
     .join("");
+  applySelectLightTheme(select);
+}
+
+function applySelectLightTheme(root = document) {
+  const selects = root instanceof HTMLSelectElement
+    ? [root]
+    : [...(root.querySelectorAll?.("select") || [])];
+  selects.forEach((select) => {
+    select.style.colorScheme = "only light";
+    select.style.backgroundColor = "#ffffff";
+    select.style.color = "#0b2b63";
+    select.style.boxShadow = "none";
+    [...select.options].forEach((option) => {
+      option.style.backgroundColor = "#ffffff";
+      option.style.color = "#0b2b63";
+    });
+  });
 }
 
 function debounce(fn, delay = 180) {
@@ -3543,6 +3611,7 @@ function init() {
   const savedUiState = loadSavedUiState();
   activeView = savedUiState.activeView || activeView;
   applyPerformanceProfile();
+  applySelectLightTheme();
 
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
@@ -3578,8 +3647,10 @@ function init() {
   els.dashboardNotificationBtn?.addEventListener("click", focusDashboardActivities);
   els.dashboardFullReportBtn?.addEventListener("click", () => switchView("results"));
   els.dashboardAttendanceBtn?.addEventListener("click", () => switchView("attendance"));
-  document.querySelectorAll("[data-dashboard-view]").forEach((button) => {
-    button.addEventListener("click", () => switchView(button.dataset.dashboardView));
+  document.querySelector("#dashboardView")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-dashboard-view]");
+    if (!button) return;
+    switchView(button.dataset.dashboardView);
   });
   els.dashboardSearchInput?.addEventListener("keydown", handleDashboardSearch);
   els.dashboardSearchInput?.addEventListener("search", handleDashboardSearch);
@@ -3839,6 +3910,7 @@ function init() {
   window.addEventListener("resize", scheduleResultTableLayout, { passive: true });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
+      flushUiStateSave();
       flushFirebaseStateSave(true);
       stopFirebaseStateSync();
     } else if (currentUser) {
@@ -3846,6 +3918,7 @@ function init() {
     }
   });
   window.addEventListener("beforeunload", (event) => {
+    flushUiStateSave();
     if (hasUnsavedLocalChanges()) {
       event.preventDefault();
       event.returnValue = "";
@@ -4094,8 +4167,6 @@ function renderDashboard() {
   }
   const exam = els.dashboardExamSelect?.value || currentDashboardExam;
   const students = classes.flatMap((className) => state.classes[className] || []);
-  const records = buildAcademicAnalysisSelectionRecords(session, classes, exam);
-  const overview = analysisOverviewMetrics(records);
   const teacherNames = new Set([
     ...normalizeTeacherAssignments(state.teacherAssignments).map((assignment) => assignment.teacherName),
     ...(state.teacherAssessment?.profiles || []).map((profile) => profile.name)
@@ -4110,6 +4181,13 @@ function renderDashboard() {
   els.dashboardTotalStudents.textContent = String(students.length);
   els.dashboardTotalTeachers.textContent = String(teacherNames.size || normalizeTeacherAssignments(state.teacherAssignments).length);
   els.dashboardTotalClasses.textContent = String(classes.length);
+  if (isMinimalUx()) {
+    renderMinimalDashboard({ session, classes, students, exam });
+    return;
+  }
+
+  const dashboardData = getDashboardData(session, classes, exam);
+  const { records, overview } = dashboardData;
   els.dashboardOverallPass.textContent = `${overview.passPercentage.toFixed(2)}%`;
   const dashboardActivities = dashboardActivityItems();
   updateDashboardNotificationBadge(dashboardActivities);
@@ -4120,11 +4198,61 @@ function renderDashboard() {
   renderDashboardActivities(dashboardActivities);
 }
 
+function getDashboardData(session, classes, exam) {
+  const key = JSON.stringify({
+    version: appDataVersion,
+    session,
+    exam,
+    classes
+  });
+  if (dashboardCache?.key === key) return dashboardCache.data;
+  const records = buildAcademicAnalysisSelectionRecords(session, classes, exam);
+  const overview = analysisOverviewMetrics(records);
+  dashboardCache = {
+    key,
+    data: { records, overview }
+  };
+  return dashboardCache.data;
+}
+
+function renderMinimalDashboard({ session, classes, students, exam }) {
+  const term = els.dashboardMonthSelect?.value || "First Term";
+  const workingDays = Number(state.workingDays?.[term]) || 0;
+  els.dashboardOverallPass.textContent = "Report";
+  els.dashboardResultMeta.textContent = `${exam} | ${session} | open full report for result analysis`;
+  els.dashboardResultDonut.innerHTML = `
+    <div class="minimal-dashboard-panel">
+      <strong>Fast Mode</strong>
+      <span>Dashboard analytics are minimized for weak phones.</span>
+      <button class="ghost-button" type="button" data-dashboard-view="results">Open Results</button>
+    </div>
+  `;
+  els.dashboardResultLegend.innerHTML = "";
+  if (els.dashboardClassPerformance) {
+    els.dashboardClassPerformance.innerHTML = classes.length ? classes.map((className) => `
+      <article class="minimal-class-row">
+        <strong>${escapeHtml(className)}</strong>
+        <span>${(state.classes?.[className] || []).length} students</span>
+      </article>
+    `).join("") : '<p class="dashboard-muted">No classes loaded yet.</p>';
+  }
+  if (els.dashboardAttendanceStudents) els.dashboardAttendanceStudents.textContent = String(students.length);
+  if (els.dashboardAttendanceAverage) els.dashboardAttendanceAverage.textContent = "Open";
+  if (els.dashboardAttendanceWorkingDays) els.dashboardAttendanceWorkingDays.textContent = workingDays ? String(workingDays) : "0";
+  if (els.dashboardAttendanceLowCount) els.dashboardAttendanceLowCount.textContent = "-";
+  if (els.dashboardAttendanceClassChart) els.dashboardAttendanceClassChart.innerHTML = "";
+  if (els.dashboardAttendanceRiskList) els.dashboardAttendanceRiskList.innerHTML = '<p class="dashboard-muted">Open Attendance for full details.</p>';
+  if (els.dashboardAttendanceMeta) els.dashboardAttendanceMeta.textContent = `Minimal dashboard active for smoother mobile use.`;
+  if (els.dashboardRecentActivities) els.dashboardRecentActivities.innerHTML = '<p class="dashboard-muted">Recent activity is hidden in minimal mode.</p>';
+  updateDashboardNotificationBadge([]);
+}
+
 function renderDashboardResultOverview(exam, overview, records) {
   const summary = dashboardResultClassificationSummary(records);
   const classLabel = "All Classes";
   els.dashboardResultMeta.textContent = `${classLabel} | ${exam} | ${currentSessionKey(state.academicSession)} | ${overview.present} appeared of ${overview.total} students`;
-  els.dashboardResultDonut.innerHTML = dashboardResultRadialSvg(summary);
+  els.dashboardResultDonut.innerHTML = "";
+  els.dashboardResultDonut.hidden = true;
   els.dashboardResultLegend.innerHTML = dashboardResultSummaryHtml(summary);
 }
 
@@ -4225,6 +4353,26 @@ function dashboardResultRadialSvg(summary) {
       ${arcs}
       ${summary.total ? "" : '<text class="result-radial-empty" x="430" y="205" text-anchor="middle">No result data available for the selected filters.</text>'}
     </svg>
+  `;
+}
+
+function dashboardResultLiteHtml(summary) {
+  const maxCount = summary.maxCount || 1;
+  return `
+    <div class="result-lite-chart" role="img" aria-label="Result classification summary">
+      ${summary.categories.map((category) => {
+        const percent = formatCategoryPercent(category.percentage);
+        const width = category.count ? Math.max(4, (category.count / maxCount) * 100) : 0;
+        return `
+          <article class="result-lite-row">
+            <span><i style="background:${category.color}" aria-hidden="true"></i>${escapeHtml(category.fullLabel)}</span>
+            <div class="result-lite-track"><b style="width:${width}%"></b></div>
+            <strong>${category.count}</strong>
+            <small>${percent}</small>
+          </article>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
@@ -4496,7 +4644,8 @@ function renderDashboardAttendance() {
 }
 
 function renderDashboardActivities(items = dashboardActivityItems()) {
-  els.dashboardRecentActivities.innerHTML = items.length ? items.slice(0, 20).map((item) => `
+  const visibleItems = items.slice(0, isLowPowerDevice() ? 8 : 20);
+  els.dashboardRecentActivities.innerHTML = visibleItems.length ? visibleItems.map((item) => `
     <article>
       <span class="${item.typeClass}" aria-hidden="true">${item.icon}</span>
       <div class="dashboard-activity-copy">
@@ -4564,6 +4713,7 @@ function markDashboardNotificationsSeen() {
 }
 
 function dashboardActivityItems() {
+  if (dashboardActivityCache?.version === appDataVersion) return dashboardActivityCache.items;
   const updates = Object.entries(state.dataEntryUpdates || {}).map(([key, value]) => {
     const [type, className, exam, subject] = key.split("::");
     const updatedAt = value?.updatedAt ? new Date(value.updatedAt) : null;
@@ -4583,9 +4733,12 @@ function dashboardActivityItems() {
       typeClass: type === "marks" ? "activity-marks" : type === "attendance" ? "activity-attendance" : "activity-measurement"
     };
   }).sort((a, b) => b.sortTime - a.sortTime);
-  if (updates.length) return updates;
+  if (updates.length) {
+    dashboardActivityCache = { version: appDataVersion, items: updates };
+    return updates;
+  }
   const studentTotal = classNames.reduce((sum, className) => sum + (state.classes?.[className]?.length || 0), 0);
-  return studentTotal ? [{
+  const fallback = studentTotal ? [{
     title: "Student records ready",
     meta: `${studentTotal} students across ${classNames.length} classes`,
     time: "Current",
@@ -4593,6 +4746,8 @@ function dashboardActivityItems() {
     icon: "S",
     typeClass: "activity-students"
   }] : [];
+  dashboardActivityCache = { version: appDataVersion, items: fallback };
+  return fallback;
 }
 
 function dashboardConicGradient(items) {
@@ -6234,7 +6389,10 @@ function clearMarksheetSearch() {
 
 function renderMarksheets({ ignoreSearch = false } = {}) {
   const allStudents = sortedStudents();
-  const students = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
+  const filteredStudents = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
+  const query = (els.marksheetNameSearchInput?.value || "").trim();
+  const previewLimit = isLowPowerDevice() && !ignoreSearch && !query ? 3 : Infinity;
+  const students = filteredStudents.slice(0, previewLimit);
   const subjects = currentSubjects();
   const subjectsForMarks = markSubjects();
   const structuredTerm = isStructuredMarksheet();
@@ -6257,7 +6415,6 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
   }
 
   if (!students.length) {
-    const query = (els.marksheetNameSearchInput?.value || "").trim();
     const message = allStudents.length && query
       ? `No marksheets match "${escapeHtml(query)}" in ${escapeHtml(selectedClass())}. Clear the search to show all students.`
       : `No students loaded for ${escapeHtml(selectedClass())}. Please check the Students page and refresh after sync.`;
@@ -6271,7 +6428,11 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     return;
   }
 
-  els.marksheetBody.innerHTML = students.map((student) => {
+  const limitedPreviewNotice = Number.isFinite(previewLimit) && filteredStudents.length > students.length
+    ? `<div class="marksheet-preview-note">Showing ${students.length} of ${filteredStudents.length} marksheets for smoother preview. Search a student name or use Print / PDF for the full class.</div>`
+    : "";
+
+  els.marksheetBody.innerHTML = limitedPreviewNotice + students.map((student) => {
     const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);

@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --ink: #17202a;
   --muted: #5e6b7a;
   --line: #d8dee8;
@@ -1467,6 +1468,20 @@ select,
 textarea {
   font: inherit;
   max-width: 100%;
+}
+
+select {
+  color-scheme: light;
+}
+
+select option,
+select optgroup {
+  background: #ffffff;
+  color: #0b2b63;
+}
+
+select:disabled option {
+  color: #5e6b7a;
 }
 
 button {
@@ -17332,4 +17347,791 @@ body.print-student-profiles .student-profile-head .inline-actions {
 .app-shell > .main-content > .topbar .academic-session span,
 .app-shell > .main-content > .topbar .user-badge {
   color: #ffffff !important;
+}
+
+@media screen {
+  @supports (content-visibility: auto) {
+    .view.active > .section-head,
+    .view.active > .filters,
+    .view.active > .attendance-filters,
+    .view.active > .student-form,
+    .view.active > .publish-panel,
+    .view.active > .result-summary,
+    .view.active > .entry-access-dashboard,
+    .view.active > .entry-access-panel,
+    .view.active > .analysis-page-head,
+    .view.active > .analysis-filters,
+    .view.active > .teacher-analytics-filters,
+    .view.active > .teacher-assessment-filters,
+    .view.active > .table-wrap,
+    .view.active .analysis-panel,
+    .view.active .teacher-analytics-panel,
+    .view.active .teacher-assessment-card,
+    .view.active .teacher-assignment-panel,
+    .view.active .teacher-assessment-entry-panel,
+    .view.active .entry-access-table-wrap,
+    .view.active .analysis-table-wrap,
+    .view.active .teacher-assignment-table-wrap,
+    .view.active .teacher-assessment-records-wrap,
+    .dashboard-card,
+    .dashboard-stat-card,
+    .student-profile-summary,
+    .student-profile-filters,
+    .student-profile-age-report,
+    .student-profile-form,
+    .student-profile-panel,
+    .student-profile-list-tools,
+    .student-profile-table-wrap,
+    .behaviour-card,
+    .behaviour-student-card {
+      content-visibility: auto;
+      contain-intrinsic-size: 420px;
+    }
+  }
+}
+
+html.low-power-device body,
+html.low-power-device .app-shell,
+html.low-power-device .main-content {
+  scroll-behavior: auto !important;
+}
+
+html.low-power-device *,
+html.low-power-device *::before,
+html.low-power-device *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+  text-shadow: none !important;
+}
+
+html.low-power-device .app-shell * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.low-power-device .main-content,
+html.low-power-device .view.active,
+html.low-power-device .dashboard-shell,
+html.low-power-device .student-profile-summary-chart,
+html.low-power-device .analysis-line-chart {
+  background-image: none !important;
+}
+
+html.low-power-device .topbar,
+html.low-power-device .mobile-header,
+html.low-power-device .mobile-nav-drawer,
+html.low-power-device .login-card,
+html.low-power-device .view.active > .section-head,
+html.low-power-device .view.active > .filters,
+html.low-power-device .view.active > .attendance-filters,
+html.low-power-device .view.active > .student-form,
+html.low-power-device .view.active > .publish-panel,
+html.low-power-device .view.active > .result-summary,
+html.low-power-device .view.active > .entry-access-dashboard,
+html.low-power-device .view.active > .entry-access-panel,
+html.low-power-device .view.active > .analysis-page-head,
+html.low-power-device .view.active > .analysis-filters,
+html.low-power-device .view.active > .teacher-analytics-filters,
+html.low-power-device .view.active > .teacher-assessment-filters,
+html.low-power-device .view.active > .table-wrap,
+html.low-power-device .view.active .analysis-panel,
+html.low-power-device .view.active .teacher-analytics-panel,
+html.low-power-device .view.active .teacher-assessment-card,
+html.low-power-device .view.active .teacher-assignment-panel,
+html.low-power-device .view.active .teacher-assessment-entry-panel,
+html.low-power-device .view.active .entry-access-table-wrap,
+html.low-power-device .view.active .analysis-table-wrap,
+html.low-power-device .view.active .teacher-assignment-table-wrap,
+html.low-power-device .view.active .teacher-assessment-records-wrap,
+html.low-power-device .dashboard-card,
+html.low-power-device .dashboard-stat-card,
+html.low-power-device .student-profile-summary,
+html.low-power-device .student-profile-filters,
+html.low-power-device .student-profile-age-report,
+html.low-power-device .student-profile-form,
+html.low-power-device .student-profile-panel,
+html.low-power-device .student-profile-list-tools,
+html.low-power-device .student-profile-table-wrap,
+html.low-power-device .student-profile-cards article,
+html.low-power-device .behaviour-card,
+html.low-power-device .behaviour-student-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 2px 10px rgba(16, 31, 58, 0.12) !important;
+}
+
+html.low-power-device .app-shell > .sidebar,
+html.low-power-device .app-shell > .main-content > .topbar {
+  background: #3a4660 !important;
+  box-shadow: 0 2px 12px rgba(16, 31, 58, 0.18) !important;
+}
+
+html.low-power-device .app-shell > .main-content {
+  background: #d3c0ae !important;
+}
+
+html.low-power-device input,
+html.low-power-device select,
+html.low-power-device textarea,
+html.low-power-device button,
+html.low-power-device .nav-tab,
+html.low-power-device .primary-button,
+html.low-power-device .ghost-button {
+  box-shadow: 0 1px 4px rgba(16, 31, 58, 0.12) !important;
+}
+
+html.low-power-device .analysis-line-chart svg,
+html.low-power-device .chart-line-glow,
+html.low-power-device .student-profile-cylinder-card,
+html.low-power-device .student-profile-cylinder,
+html.low-power-device .student-profile-cylinder-badge,
+html.low-power-device .student-profile-cylinder-liquid,
+html.low-power-device .student-profile-cylinder-tooltip {
+  filter: none !important;
+}
+
+html.low-power-device .student-profile-cylinder-card:hover,
+html.low-power-device .student-profile-cylinder-card:focus-visible,
+html.low-power-device .dashboard-stat-card:hover,
+html.low-power-device .dashboard-card:hover {
+  transform: none !important;
+}
+
+html.low-power-device .student-profile-cylinder,
+html.low-power-device .student-profile-cylinder-label,
+html.low-power-device .student-profile-summary-chart {
+  box-shadow: 0 2px 8px rgba(16, 31, 58, 0.1) !important;
+}
+
+html.low-power-device body.marksheet-active .marksheet::before,
+html.low-power-device body.marksheet-active .marksheet::after {
+  opacity: 0.08 !important;
+}
+
+html.low-power-device .dashboard-card,
+html.low-power-device .dashboard-stat-card,
+html.low-power-device .view.active > .table-wrap,
+html.low-power-device .student-profile-table-wrap,
+html.low-power-device .analysis-table-wrap,
+html.low-power-device .marksheet,
+html.low-power-device .marksheet .table-wrap,
+html.low-power-device .student-profile-summary,
+html.low-power-device .student-profile-filters {
+  box-shadow: none !important;
+}
+
+html.low-power-device .dashboard-card::before,
+html.low-power-device .dashboard-card::after,
+html.low-power-device .dashboard-stat-card::before,
+html.low-power-device .dashboard-stat-card::after,
+html.low-power-device .marksheet::before,
+html.low-power-device .marksheet::after {
+  display: none !important;
+}
+
+.result-lite-chart {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.result-lite-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1.15fr) minmax(72px, 2fr) 38px 52px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(23, 32, 42, 0.08);
+}
+
+.result-lite-row span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.result-lite-row span i {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+.result-lite-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 32, 42, 0.1);
+}
+
+.result-lite-track b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #146c63;
+}
+
+.result-lite-row strong,
+.result-lite-row small {
+  text-align: right;
+  font-size: 0.78rem;
+}
+
+.marksheet-preview-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(20, 108, 99, 0.22);
+  border-radius: 10px;
+  background: rgba(20, 108, 99, 0.08);
+  color: #0c4f49;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+html.minimal-ux .main-content,
+html.minimal-ux .view.active,
+html.minimal-ux .dashboard-shell {
+  background: #f4f7fb !important;
+}
+
+html.minimal-ux .dashboard-hero,
+html.minimal-ux .dashboard-card,
+html.minimal-ux .dashboard-stat-card,
+html.minimal-ux .topbar,
+html.minimal-ux .view.active > .section-head,
+html.minimal-ux .view.active > .filters,
+html.minimal-ux .view.active > .attendance-filters,
+html.minimal-ux .view.active > .table-wrap,
+html.minimal-ux .student-profile-table-wrap,
+html.minimal-ux .student-profile-filters,
+html.minimal-ux .student-profile-summary,
+html.minimal-ux .analysis-panel {
+  border: 1px solid #d8dee8 !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+html.minimal-ux .dashboard-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+html.minimal-ux .dashboard-stats {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+html.minimal-ux .dashboard-stat-card {
+  min-height: 0 !important;
+  padding: 10px !important;
+}
+
+html.minimal-ux .dashboard-stat-icon {
+  display: none !important;
+}
+
+html.minimal-ux .dashboard-card {
+  padding: 12px !important;
+}
+
+html.minimal-ux .dashboard-card-head {
+  margin-bottom: 8px !important;
+}
+
+html.minimal-ux .dashboard-card-head h4 {
+  font-size: 0.95rem !important;
+}
+
+html.minimal-ux .dashboard-activity-card {
+  display: none !important;
+}
+
+html.minimal-ux .dashboard-result-layout {
+  display: block !important;
+}
+
+.minimal-dashboard-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.minimal-dashboard-panel strong {
+  color: #17202a;
+  font-size: 0.98rem;
+}
+
+.minimal-dashboard-panel span {
+  color: #5e6b7a;
+  font-size: 0.84rem;
+}
+
+.minimal-class-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e6ebf2;
+  font-size: 0.86rem;
+}
+
+.minimal-class-row:last-child {
+  border-bottom: 0;
+}
+
+html.minimal-ux .dashboard-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+html.minimal-ux .dashboard-actions button {
+  min-height: 42px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+html.minimal-ux .result-radial-summary,
+html.minimal-ux .dashboard-attendance-class-chart {
+  display: none !important;
+}
+
+@media screen and (max-width: 760px) {
+  html.minimal-ux .dashboard-stats,
+  html.minimal-ux .dashboard-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  html.minimal-ux .dashboard-hero {
+    padding: 10px !important;
+  }
+
+  html.minimal-ux .dashboard-profile,
+  html.minimal-ux .dashboard-notification {
+    display: none !important;
+  }
+}
+
+/* Final select popup guard: keep native dropdown menus light on mobile/slow devices. */
+html,
+body,
+select,
+select:focus,
+select:focus-visible,
+select:active,
+select option,
+select optgroup {
+  color-scheme: light !important;
+}
+
+select,
+.dashboard-card select,
+.dashboard-card-head select,
+.filters select,
+.attendance-filters select,
+.analysis-filters select,
+.teacher-analytics-filters select,
+.teacher-assessment-filters select,
+.student-profile-filters select,
+.login-log-filters select,
+#dashboardExamSelect,
+#dashboardMonthSelect {
+  background-color: #ffffff !important;
+  color: #0b2b63 !important;
+}
+
+select option,
+select optgroup,
+#dashboardExamSelect option,
+#dashboardMonthSelect option {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0b2b63 !important;
+}
+
+select option:checked,
+select option:hover,
+select option:focus {
+  background-color: #e8f4ff !important;
+  background: #e8f4ff !important;
+  color: #0b2b63 !important;
+}
+
+select:-internal-list-box,
+select option:-internal-list-box {
+  background-color: #ffffff !important;
+  color: #0b2b63 !important;
+}
+
+/* Basic UI theme: remove frosted glass, blur, and heavy shadows for a Pinehill Pay-like feel. */
+@media screen {
+  :root {
+    --page: #f4f7fb;
+    --panel: #ffffff;
+    --line: #d8dee8;
+    --shadow: none;
+  }
+
+  html,
+  body {
+    background: #f4f7fb !important;
+  }
+
+  body::before,
+  .main-content::before,
+  .dashboard-card::before,
+  .dashboard-card::after,
+  .dashboard-stat-card::before,
+  .dashboard-stat-card::after,
+  .marksheet::before,
+  .marksheet::after {
+    display: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    text-shadow: none !important;
+  }
+
+  .app-shell,
+  .main-content,
+  .sidebar,
+  .topbar,
+  .mobile-nav-bar,
+  .mobile-nav-drawer,
+  .login-card,
+  .view.active,
+  .view.active > .section-head,
+  .view.active > .filters,
+  .view.active > .attendance-filters,
+  .view.active > .student-form,
+  .view.active > .publish-panel,
+  .view.active > .result-summary,
+  .view.active > .table-wrap,
+  .dashboard-hero,
+  .dashboard-card,
+  .dashboard-stat-card,
+  .analysis-panel,
+  .teacher-analytics-panel,
+  .teacher-assessment-card,
+  .teacher-assignment-panel,
+  .teacher-assessment-entry-panel,
+  .analysis-table-wrap,
+  .teacher-assignment-table-wrap,
+  .teacher-assessment-records-wrap,
+  .entry-access-dashboard,
+  .entry-access-panel,
+  .entry-access-table-wrap,
+  .student-profile-summary,
+  .student-profile-filters,
+  .student-profile-age-report,
+  .student-profile-form,
+  .student-profile-panel,
+  .student-profile-list-tools,
+  .student-profile-table-wrap,
+  .student-profile-cards article,
+  .behaviour-card,
+  .behaviour-student-card,
+  .marksheet,
+  .marksheet .table-wrap,
+  .glass-panel,
+  .glass-card,
+  .glass-card-strong,
+  .glass-control,
+  .glass-button,
+  .glass-input,
+  .glass-select,
+  .glass-modal,
+  .glass-toast,
+  .glass-badge,
+  .glass-tab,
+  .glass-switch {
+    background: #ffffff !important;
+    background-image: none !important;
+    border-color: #d8dee8 !important;
+    box-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .main-content,
+  .view.active {
+    background: #f4f7fb !important;
+  }
+
+  .sidebar,
+  .mobile-nav-bar,
+  .mobile-nav-drawer {
+    background: #ffffff !important;
+    color: #17202a !important;
+  }
+
+  .brand-block h1,
+  .brand-block p,
+  .mobile-nav-brand,
+  .mobile-nav-brand span,
+  .mobile-drawer-head *,
+  .nav-tab,
+  .nav-tab-link {
+    color: #17202a !important;
+  }
+
+  .nav-tab.active,
+  .mobile-nav-drawer .active {
+    background: #e8f4ff !important;
+    color: #0b2b63 !important;
+    border-color: #b8d8ff !important;
+  }
+
+  .dashboard-stat-icon,
+  .dashboard-avatar,
+  .class-badge,
+  .status-pill,
+  .mobile-menu-button,
+  .primary-button {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  .ghost-button,
+  .primary-button,
+  .nav-tab,
+  .nav-tab-link {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  input,
+  select,
+  textarea {
+    background: #ffffff !important;
+    color: #17202a !important;
+    border: 1px solid #cfd8e3 !important;
+  }
+
+  table,
+  th,
+  td {
+    box-shadow: none !important;
+  }
+
+  thead th,
+  .view:not(#marksheetView) thead th,
+  .analysis-table thead th,
+  .teacher-assignment-table thead th,
+  .teacher-assessment-table thead th,
+  .attendance-honor-table thead th {
+    background: #eef3f8 !important;
+    color: #17202a !important;
+  }
+
+  tbody td,
+  .view:not(#marksheetView) tbody td,
+  .analysis-table tbody td,
+  .teacher-assignment-table tbody td,
+  .teacher-assessment-table tbody td,
+  .attendance-honor-table tbody td {
+    background: #ffffff !important;
+    color: #17202a !important;
+  }
+
+  tbody tr:nth-child(even) td,
+  .view:not(#marksheetView) tbody tr:nth-child(even) td,
+  .analysis-table tbody tr:nth-child(even) td {
+    background: #f8fafc !important;
+  }
+
+  #dashboardResultDonut {
+    display: none !important;
+  }
+
+  .dashboard-result-layout {
+    display: block !important;
+  }
+}
+
+/* Weak-device flat mode: avoid flicker from blur, glass, shadows, and animated paint effects. */
+@media screen {
+  :root,
+  html {
+    color-scheme: only light !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  html,
+  body,
+  .app-shell,
+  .main-content,
+  .view,
+  .view.active,
+  .dashboard-main,
+  .dashboard-view,
+  .login-view {
+    background: #f4f7fb !important;
+    background-image: none !important;
+  }
+
+  .topbar,
+  .mobile-nav-bar,
+  .mobile-nav-drawer,
+  .sidebar,
+  .login-card,
+  .section-head,
+  .filters,
+  .attendance-filters,
+  .student-form,
+  .publish-panel,
+  .result-summary,
+  .table-wrap,
+  .dashboard-hero,
+  .dashboard-card,
+  .dashboard-stat-card,
+  .dashboard-panel,
+  .analysis-panel,
+  .teacher-analytics-panel,
+  .teacher-assessment-card,
+  .teacher-assignment-panel,
+  .teacher-assessment-entry-panel,
+  .entry-access-dashboard,
+  .entry-access-panel,
+  .student-profile-summary,
+  .student-profile-filters,
+  .student-profile-form,
+  .student-profile-panel,
+  .behaviour-card,
+  .behaviour-student-card,
+  .marksheet,
+  .modal,
+  .modal-card,
+  dialog,
+  fieldset {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid #d8dee8 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  button,
+  .primary-button,
+  .ghost-button,
+  .mobile-menu-button,
+  .nav-tab,
+  .nav-tab-link,
+  .dashboard-action,
+  .dashboard-chip,
+  input,
+  select,
+  textarea {
+    background-image: none !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  .primary-button,
+  button[type="submit"],
+  .mobile-menu-button {
+    background: #0f766e !important;
+    border: 1px solid #0f766e !important;
+    color: #ffffff !important;
+  }
+
+  .ghost-button,
+  .nav-tab,
+  .nav-tab-link,
+  .dashboard-action,
+  .dashboard-chip {
+    background: #ffffff !important;
+    border: 1px solid #d8dee8 !important;
+    color: #17202a !important;
+  }
+
+  .nav-tab.active,
+  .nav-tab-link.active,
+  .dashboard-action.active,
+  .dashboard-chip.active,
+  .mobile-nav-drawer .active {
+    background: #e8f4ff !important;
+    border-color: #8fc5ff !important;
+    color: #0b2b63 !important;
+  }
+
+  input,
+  select,
+  textarea {
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    background: #ffffff !important;
+    border: 1px solid #cfd8e3 !important;
+    color: #0b2b63 !important;
+    color-scheme: only light !important;
+    forced-color-adjust: none !important;
+  }
+
+  select {
+    -webkit-appearance: menulist !important;
+  }
+
+  select,
+  select:focus,
+  select:active,
+  select option,
+  select optgroup,
+  datalist,
+  option {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0b2b63 !important;
+    color-scheme: only light !important;
+    forced-color-adjust: none !important;
+  }
+
+  select option:checked,
+  select option:hover,
+  option:checked,
+  option:hover {
+    background: #e8f4ff !important;
+    background-color: #e8f4ff !important;
+    color: #0b2b63 !important;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    background-image: none !important;
+    box-shadow: none !important;
+  }
 }
