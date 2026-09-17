@@ -18070,7 +18070,8 @@ select option:-internal-list-box {
   .nav-tab,
   .nav-tab-link,
   .dashboard-action,
-  .dashboard-chip {
+  .dashboard-chip,
+  .behaviour-tabs button {
     background: #ffffff !important;
     border: 1px solid #d8dee8 !important;
     color: #17202a !important;
@@ -18080,10 +18081,13 @@ select option:-internal-list-box {
   .nav-tab-link.active,
   .dashboard-action.active,
   .dashboard-chip.active,
+  .behaviour-tabs button.active,
+  .behaviour-tabs button[aria-selected="true"],
   .mobile-nav-drawer .active {
-    background: #e8f4ff !important;
-    border-color: #8fc5ff !important;
-    color: #0b2b63 !important;
+    background: #1d4ed8 !important;
+    background-image: none !important;
+    border-color: #1d4ed8 !important;
+    color: #ffffff !important;
   }
 
   input,
@@ -18133,5 +18137,34 @@ select option:-internal-list-box {
   td {
     background-image: none !important;
     box-shadow: none !important;
+  }
+}
+
+/* Behaviour ratings: selected values use distinct flat colors. */
+@media screen {
+  .behaviour-rating-buttons button.selected {
+    color: #ffffff !important;
+    background-image: none !important;
+    border-color: transparent !important;
+  }
+
+  .behaviour-rating-buttons button.selected[data-behaviour-rating="1"] {
+    background: #dc2626 !important;
+  }
+
+  .behaviour-rating-buttons button.selected[data-behaviour-rating="2"] {
+    background: #ea580c !important;
+  }
+
+  .behaviour-rating-buttons button.selected[data-behaviour-rating="3"] {
+    background: #ca8a04 !important;
+  }
+
+  .behaviour-rating-buttons button.selected[data-behaviour-rating="4"] {
+    background: #2563eb !important;
+  }
+
+  .behaviour-rating-buttons button.selected[data-behaviour-rating="5"] {
+    background: #16a34a !important;
   }
 }
