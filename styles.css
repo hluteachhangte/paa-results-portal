@@ -7356,6 +7356,48 @@ body.behaviour-active #behaviourView.view.active {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.behaviour-expandable-student {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.behaviour-expandable-student > button {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 0;
+  background: transparent !important;
+  color: inherit;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.behaviour-expandable-student > button strong,
+.behaviour-expandable-student > button span {
+  display: block;
+}
+
+.behaviour-student-score-detail {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.behaviour-student-score-detail div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  color: #24406f;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.behaviour-student-score-detail strong {
+  white-space: nowrap;
+}
+
 .behaviour-student-card {
   border-radius: 24px;
   padding: 18px;

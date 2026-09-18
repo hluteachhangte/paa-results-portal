@@ -319,6 +319,7 @@ let behaviourAssessmentIndex = 0;
 let behaviourCurrentDraft = null;
 let behaviourDirty = false;
 let behaviourOverviewDetail = "";
+let behaviourExpandedStudentId = "";
 let firebaseBehaviourUnsubscribe = null;
 let firebaseBehaviourSessionKey = "";
 let publicationSaveInProgress = false;
@@ -11706,12 +11707,7 @@ function behaviourOverviewDetailCard(metrics) {
       "Students Assessed",
       "All assessed students with behaviour score",
       rows,
-      ({ student, aggregate }) => `
-        <li>
-          <strong>${escapeHtml(student?.studentName || "Student")}</strong>
-          <span>${escapeHtml(student?.className || "-")} | ${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}</span>
-        </li>
-      `,
+      ({ student, aggregate }) => behaviourAssessedStudentRow(student, aggregate),
       "No students assessed yet",
       "Assessed students and their scores will appear here."
     );
@@ -11810,6 +11806,33 @@ function behaviourOverviewListCard(title, eyebrow, rows, rowRenderer, emptyTitle
       </div>
       <ul class="behaviour-mini-list behaviour-teacher-list">${list}</ul>
     </article>
+  `;
+}
+
+function behaviourAssessedStudentRow(student, aggregate) {
+  const studentId = String(student?.studentId || aggregate.studentId || "").trim();
+  const expanded = studentId && behaviourExpandedStudentId === studentId;
+  const detail = expanded ? `
+    <div class="behaviour-student-score-detail">
+      ${behaviourCriteria.map((criterion) => {
+        const value = Number(aggregate.criteria?.[criterion.key]) || 0;
+        return `
+          <div>
+            <span>${escapeHtml(criterion.label)}</span>
+            <strong>${value ? value.toFixed(2) : "0.00"} / 5</strong>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  ` : "";
+  return `
+    <li class="behaviour-expandable-student${expanded ? " expanded" : ""}">
+      <button type="button" data-behaviour-action="toggle-student-score-detail" data-student-id="${escapeAttr(studentId)}" aria-expanded="${expanded}">
+        <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+        <span>${escapeHtml(student?.className || "-")} | ${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}</span>
+      </button>
+      ${detail}
+    </li>
   `;
 }
 
@@ -11992,7 +12015,14 @@ function handleBehaviourContentClick(event) {
   if (!actionButton) return;
   const action = actionButton.dataset.behaviourAction;
   if (action.startsWith("toggle-")) {
+    if (action === "toggle-student-score-detail") {
+      const studentId = String(actionButton.dataset.studentId || "").trim();
+      behaviourExpandedStudentId = behaviourExpandedStudentId === studentId ? "" : studentId;
+      renderBehaviourCharacter();
+      return;
+    }
     behaviourOverviewDetail = behaviourOverviewDetail === action ? "" : action;
+    behaviourExpandedStudentId = "";
     renderBehaviourCharacter();
     if (behaviourOverviewDetail) {
       requestAnimationFrame(() => document.querySelector("#behaviourOverviewDetailCard")?.scrollIntoView({ block: "nearest" }));
@@ -12001,6 +12031,7 @@ function handleBehaviourContentClick(event) {
   }
   if (action === "hide-overview-detail") {
     behaviourOverviewDetail = "";
+    behaviourExpandedStudentId = "";
     renderBehaviourCharacter();
     return;
   }
