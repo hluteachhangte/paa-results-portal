@@ -318,7 +318,7 @@ let behaviourActiveTab = "overview";
 let behaviourAssessmentIndex = 0;
 let behaviourCurrentDraft = null;
 let behaviourDirty = false;
-let behaviourTeacherListVisible = false;
+let behaviourOverviewDetail = "";
 let firebaseBehaviourUnsubscribe = null;
 let firebaseBehaviourSessionKey = "";
 let publicationSaveInProgress = false;
@@ -11660,16 +11660,16 @@ function renderBehaviourOverview() {
     ["Students Assessed", metrics.assessedStudents.size],
     ["Teachers Submitted", metrics.teachers.size, "toggle-teacher-list"],
     ["Assessment Coverage", `${metrics.coverage.toFixed(1)}%`],
-    ["Positive Observations", metrics.positives.length],
-    ["Students Improving", metrics.improving],
-    ["Students to Monitor", metrics.monitor],
-    ["Support Recommended", metrics.support.length]
+    ["Positive Observations", metrics.positives.length, "toggle-positive-observations"],
+    ["Students Improving", metrics.improving, "toggle-students-improving"],
+    ["Students to Monitor", metrics.monitor, "toggle-students-monitor"],
+    ["Support Recommended", metrics.support.length, "toggle-support-recommended"]
   ];
   const classSummary = behaviourClassSummary(metrics.aggregates);
   return `
     <section class="behaviour-overview">
       <div class="behaviour-summary-grid">
-        ${cards.map(([label, value, action]) => `<article${action ? ` class="behaviour-summary-action" role="button" tabindex="0" data-behaviour-action="${escapeAttr(action)}" aria-expanded="${behaviourTeacherListVisible}"` : ""}><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("")}
+        ${cards.map(([label, value, action]) => `<article${action ? ` class="behaviour-summary-action" role="button" tabindex="0" data-behaviour-action="${escapeAttr(action)}" aria-expanded="${behaviourOverviewDetail === action}"` : ""}><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("")}
       </div>
       <div class="behaviour-two-column">
         <article class="behaviour-card">
@@ -11688,10 +11688,110 @@ function renderBehaviourOverview() {
       <div class="behaviour-three-column">
         ${behaviourMiniList("Recent Positive Observations", metrics.positives.slice(-5).reverse(), "observation")}
         ${behaviourMiniList("Recognition Candidates", recognitionCandidates(metrics.aggregates).slice(0, 5), "candidate")}
+        ${behaviourMiniList("Top 3 Students", topBehaviourStudents(metrics.aggregates, 3), "top")}
         ${behaviourMiniList("Students Requiring Support", metrics.aggregates.filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3).slice(0, 5), "support")}
       </div>
-      ${behaviourTeacherListVisible ? behaviourTeacherListCard(metrics) : ""}
+      ${behaviourOverviewDetail ? behaviourOverviewDetailCard(metrics) : ""}
     </section>
+  `;
+}
+
+function behaviourOverviewDetailCard(metrics) {
+  if (behaviourOverviewDetail === "toggle-teacher-list") return behaviourTeacherListCard(metrics);
+  if (behaviourOverviewDetail === "toggle-positive-observations") {
+    const rows = metrics.positives.slice().reverse();
+    return behaviourOverviewListCard(
+      "Positive Observations",
+      "Saved positive behaviour notes",
+      rows,
+      (record) => {
+        const student = studentRecordById(record.studentId);
+        return `
+          <li>
+            <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+            <span>${escapeHtml(record.behaviourArea || "Observation")} | ${escapeHtml(formatDisplayDate(record.date) || record.date || "")}</span>
+            <p>${escapeHtml(record.observation || "")}</p>
+          </li>
+        `;
+      },
+      "No positive observations yet",
+      "Saved positive observations will appear here."
+    );
+  }
+  if (behaviourOverviewDetail === "toggle-students-improving") {
+    const rows = metrics.aggregates
+      .filter(({ aggregate }) => aggregate.overall >= 3.75)
+      .sort((a, b) => b.aggregate.overall - a.aggregate.overall);
+    return behaviourOverviewListCard(
+      "Students Improving",
+      "Students with strong behaviour ratings",
+      rows,
+      ({ student, aggregate }) => `
+        <li>
+          <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+          <span>${escapeHtml(student?.className || "-")} | ${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}</span>
+        </li>
+      `,
+      "No students improving yet",
+      "Students with an average of 3.75 or higher will appear here."
+    );
+  }
+  if (behaviourOverviewDetail === "toggle-students-monitor") {
+    const rows = metrics.aggregates
+      .filter(({ aggregate }) => aggregate.overall > 0 && aggregate.overall < 3)
+      .sort((a, b) => a.aggregate.overall - b.aggregate.overall);
+    return behaviourOverviewListCard(
+      "Students to Monitor",
+      "Students below the expected behaviour range",
+      rows,
+      ({ student, aggregate }) => `
+        <li>
+          <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+          <span>${escapeHtml(student?.className || "-")} | ${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}</span>
+        </li>
+      `,
+      "No students to monitor",
+      "Students with an average below 3.00 will appear here."
+    );
+  }
+  if (behaviourOverviewDetail === "toggle-support-recommended") {
+    const rows = metrics.support.slice().reverse();
+    return behaviourOverviewListCard(
+      "Support Recommended",
+      "Open and in-progress support records",
+      rows,
+      (record) => {
+        const student = studentRecordById(record.studentId);
+        return `
+          <li>
+            <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+            <span>${escapeHtml(record.status || "Open")} | ${escapeHtml(record.behaviourArea || "Support")} | ${escapeHtml(formatDisplayDate(record.date) || record.date || "")}</span>
+            <p>${escapeHtml(record.concern || "")}</p>
+          </li>
+        `;
+      },
+      "No support records open",
+      "Open support recommendations will appear here."
+    );
+  }
+  return "";
+}
+
+function behaviourOverviewListCard(title, eyebrow, rows, rowRenderer, emptyTitle, emptyText) {
+  const list = rows.length
+    ? rows.map(rowRenderer).join("")
+    : `<li><strong>${escapeHtml(emptyTitle)}</strong><span>${escapeHtml(emptyText)}</span></li>`;
+  return `
+    <article id="behaviourOverviewDetailCard" class="behaviour-card behaviour-teacher-list-card">
+      <div class="behaviour-feed-head">
+        <div>
+          <span class="eyebrow">${escapeHtml(eyebrow)}</span>
+          <h4>${escapeHtml(title)}</h4>
+        </div>
+        <button class="ghost-button compact-button" type="button" data-behaviour-action="hide-overview-detail">Hide</button>
+      </div>
+      <ul class="behaviour-mini-list behaviour-teacher-list">${list}</ul>
+    </article>
   `;
 }
 
@@ -11725,13 +11825,13 @@ function behaviourTeacherListCard(metrics) {
     : `<li><strong>No teachers submitted yet</strong><span>Teacher names will appear here after assessments are saved.</span></li>`;
 
   return `
-    <article id="behaviourTeacherListCard" class="behaviour-card behaviour-teacher-list-card">
+    <article id="behaviourOverviewDetailCard" class="behaviour-card behaviour-teacher-list-card">
       <div class="behaviour-feed-head">
         <div>
           <span class="eyebrow">Teacher Submission List</span>
           <h4>Teachers Submitted</h4>
         </div>
-        <button class="ghost-button compact-button" type="button" data-behaviour-action="toggle-teacher-list">Hide</button>
+        <button class="ghost-button compact-button" type="button" data-behaviour-action="hide-overview-detail">Hide</button>
       </div>
       <ul class="behaviour-mini-list behaviour-teacher-list">${list}</ul>
     </article>
@@ -11777,9 +11877,19 @@ function behaviourMiniList(title, rows, type) {
     }
     const student = row.student || studentRecordById(row.studentId);
     const aggregate = row.aggregate || behaviourAggregateForStudent(row.studentId);
-    return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${aggregate.overall ? aggregate.overall.toFixed(2) : "0.00"} / 5</span></li>`;
+    const teacherText = type === "top" && aggregate.teachersSubmitted
+      ? ` | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}`
+      : "";
+    return `<li><strong>${escapeHtml(student?.studentName || "Student")}</strong><span>${aggregate.overall ? aggregate.overall.toFixed(2) : "0.00"} / 5${teacherText}</span></li>`;
   }).join("") : `<li><strong>No records yet</strong><span>Data will appear after assessments are saved.</span></li>`;
   return `<article class="behaviour-card"><h4>${escapeHtml(title)}</h4><ul class="behaviour-mini-list">${html}</ul></article>`;
+}
+
+function topBehaviourStudents(aggregateRows, limit = 3) {
+  return aggregateRows
+    .filter(({ aggregate }) => aggregate.overall > 0)
+    .sort((a, b) => b.aggregate.overall - a.aggregate.overall)
+    .slice(0, limit);
 }
 
 function recognitionCandidates(aggregateRows) {
@@ -11863,12 +11973,17 @@ function handleBehaviourContentClick(event) {
   const actionButton = event.target.closest("[data-behaviour-action]");
   if (!actionButton) return;
   const action = actionButton.dataset.behaviourAction;
-  if (action === "toggle-teacher-list") {
-    behaviourTeacherListVisible = !behaviourTeacherListVisible;
+  if (action.startsWith("toggle-")) {
+    behaviourOverviewDetail = behaviourOverviewDetail === action ? "" : action;
     renderBehaviourCharacter();
-    if (behaviourTeacherListVisible) {
-      requestAnimationFrame(() => document.querySelector("#behaviourTeacherListCard")?.scrollIntoView({ block: "nearest" }));
+    if (behaviourOverviewDetail) {
+      requestAnimationFrame(() => document.querySelector("#behaviourOverviewDetailCard")?.scrollIntoView({ block: "nearest" }));
     }
+    return;
+  }
+  if (action === "hide-overview-detail") {
+    behaviourOverviewDetail = "";
+    renderBehaviourCharacter();
     return;
   }
   if (action === "prev-student") {

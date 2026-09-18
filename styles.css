@@ -7249,7 +7249,7 @@ body.behaviour-active #behaviourView.view.active {
 }
 
 .behaviour-three-column {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-top: 14px;
 }
 
