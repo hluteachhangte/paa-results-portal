@@ -11657,7 +11657,7 @@ function renderBehaviourOverview() {
   const metrics = behaviourOverviewMetrics(filters);
   const cards = [
     ["Total Students", metrics.students.length],
-    ["Students Assessed", metrics.assessedStudents.size],
+    ["Students Assessed", metrics.assessedStudents.size, "toggle-students-assessed"],
     ["Teachers Submitted", metrics.teachers.size, "toggle-teacher-list"],
     ["Assessment Coverage", `${metrics.coverage.toFixed(1)}%`],
     ["Positive Observations", metrics.positives.length, "toggle-positive-observations"],
@@ -11698,6 +11698,24 @@ function renderBehaviourOverview() {
 
 function behaviourOverviewDetailCard(metrics) {
   if (behaviourOverviewDetail === "toggle-teacher-list") return behaviourTeacherListCard(metrics);
+  if (behaviourOverviewDetail === "toggle-students-assessed") {
+    const rows = metrics.aggregates
+      .filter(({ aggregate }) => aggregate.overall > 0)
+      .sort((a, b) => b.aggregate.overall - a.aggregate.overall);
+    return behaviourOverviewListCard(
+      "Students Assessed",
+      "All assessed students with behaviour score",
+      rows,
+      ({ student, aggregate }) => `
+        <li>
+          <strong>${escapeHtml(student?.studentName || "Student")}</strong>
+          <span>${escapeHtml(student?.className || "-")} | ${aggregate.overall.toFixed(2)} / 5 | ${aggregate.teachersSubmitted} teacher${aggregate.teachersSubmitted === 1 ? "" : "s"}</span>
+        </li>
+      `,
+      "No students assessed yet",
+      "Assessed students and their scores will appear here."
+    );
+  }
   if (behaviourOverviewDetail === "toggle-positive-observations") {
     const rows = metrics.positives.slice().reverse();
     return behaviourOverviewListCard(

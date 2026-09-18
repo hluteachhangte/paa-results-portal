@@ -18187,3 +18187,30 @@ select option:-internal-list-box {
     background: #16a34a !important;
   }
 }
+
+/* Final visibility guard: never let broad theme/layout overrides expose hidden screens. */
+.hidden,
+[hidden],
+.app-shell.hidden,
+.login-screen.hidden,
+.view:not(.active),
+#phoneOtpPanel.hidden,
+#studentPhotoCropModal.hidden,
+#teacherAssessmentReport.hidden,
+#teacherAssessmentAccessDenied.hidden,
+#teacherAnalyticsAccessDenied.hidden,
+#teacherAnalyticsContent.hidden {
+  display: none !important;
+}
+
+.app-shell:not(.hidden) {
+  display: grid !important;
+}
+
+.login-screen:not(.hidden) {
+  display: grid !important;
+}
+
+.view.active {
+  display: block !important;
+}
