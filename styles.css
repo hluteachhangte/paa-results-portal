@@ -18256,3 +18256,23 @@ select option:-internal-list-box {
 .view.active {
   display: block !important;
 }
+
+/* Desktop marks entry: keep long student lists scrollable inside the table panel. */
+@media screen and (min-width: 769px) {
+  body.entry-active #entryView.active {
+    overflow: visible !important;
+  }
+
+  body.entry-active #entryView > .table-wrap {
+    max-height: clamp(220px, calc(100vh - 310px), 560px) !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  body.entry-active #entryView > .table-wrap thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 8 !important;
+  }
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20260918-student-score-detail";
+const CACHE_NAME = "paa-results-portal-v20260920-entry-table-scroll";
 const APP_SHELL = [
   "./",
   "./index.html",
