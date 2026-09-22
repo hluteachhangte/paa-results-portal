@@ -15,16 +15,83 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=entry-table-scroll-20260920">
+    
+  <style id="critical-open-styles">
+    *, *::before, *::after { box-sizing: border-box; }
+    html { min-width: 0; background: #f4f7fb; }
+    body {
+      margin: 0;
+      min-width: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background: #f4f7fb;
+      color: #0b2a5b;
+      font-family: Inter, "Noto Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .hidden, [hidden], .app-shell.hidden, .login-screen.hidden, .view:not(.active) { display: none !important; }
+    body.is-logged-out #appShell, body.is-logged-out .app-shell { display: none !important; }
+    body.is-logged-in #loginScreen, body.is-logged-in .login-screen { display: none !important; }
+    .login-screen:not(.hidden) {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #f4f7fb;
+    }
+    .login-stack {
+      width: min(380px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+    .login-card {
+      width: 100%;
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: none;
+    }
+    .login-logo, .brand-logo.login-logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 2px;
+      object-fit: contain;
+    }
+    .login-card h1, .login-card p { margin: 0; text-align: center; }
+    .login-card h1 { font-size: 1.18rem; line-height: 1.2; }
+    .login-card p, .login-card .eyebrow, .login-help { font-size: 0.78rem; line-height: 1.35; }
+    .login-card label { display: grid; gap: 6px; font-weight: 700; font-size: 0.82rem; }
+    .login-card input, .login-card button, .login-card select {
+      min-height: 38px;
+      width: 100%;
+      font: inherit;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #0b2a5b;
+    }
+    .login-card button { cursor: pointer; font-weight: 800; }
+    .login-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .primary-button { background: #0f766e !important; color: #ffffff !important; border-color: #0f766e !important; }
+    .ghost-button { background: #ffffff !important; color: #0b2a5b !important; }
+    .app-shell:not(.hidden) { display: grid; min-height: 100vh; }
+    @media (max-width: 480px) {
+      .login-screen:not(.hidden) { padding: 12px; place-items: start center; }
+      .login-actions { grid-template-columns: 1fr; }
+    }
+  </style><link rel="stylesheet" href="./styles.css?v=marksheets-scroll-20260922">
 </head>
-<body>
-  <section id="loginScreen" class="login-screen" aria-label="Login">
-    <div class="login-stack">
-      <form id="loginForm" class="login-card">
-        <img class="brand-logo login-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
+<body class="is-logged-out" style="margin:0;min-height:100vh;background:#f4f7fb;color:#0b2a5b;font-family:Inter,Noto Sans,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;overflow-x:hidden;">
+  <section id="loginScreen" class="login-screen" aria-label="Login" style="min-height:100vh;display:grid;place-items:center;padding:16px;background:#f4f7fb;box-sizing:border-box;">
+    <div class="login-stack" style="width:min(380px,100%);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;box-sizing:border-box;">
+      <form id="loginForm" class="login-card" style="width:100%;display:grid;gap:12px;padding:18px;border:1px solid #d8dee8;border-radius:8px;background:#fff;box-shadow:none;box-sizing:border-box;">
+        <img class="brand-logo login-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo" width="56" height="56" style="display:block;width:56px;height:56px;max-width:56px;max-height:56px;margin:0 auto 2px;object-fit:contain;filter:none;">
         <div>
-          <p class="eyebrow">RESULTS PUBLICATION</p>
-          <h1>Pinehill Adventist Academy</h1>
+          <p class="eyebrow" style="margin:0;text-align:center;font-size:.78rem;line-height:1.35;">RESULTS PUBLICATION</p>
+          <h1 style="margin:0;text-align:center;font-size:1.18rem;line-height:1.2;">Pinehill Adventist Academy</h1>
         </div>
         <label>
           Email
@@ -34,12 +101,12 @@
           Password
           <input id="passwordInput" type="password" autocomplete="current-password">
         </label>
-        <div class="login-actions">
+        <div class="login-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <button class="primary-button" type="submit">Login</button>
           <button id="registerApprovedBtn" class="ghost-button" type="button">Register</button>
         </div>
         <button id="forgotPasswordBtn" class="ghost-button login-wide-button" type="button">Forgot Password?</button>
-        <div id="phoneOtpPanel" class="phone-otp-panel hidden">
+        <div id="phoneOtpPanel" class="phone-otp-panel hidden" hidden>
           <label>
             Verification Code
             <input id="phoneCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit OTP">
@@ -51,7 +118,7 @@
     </div>
   </section>
 
-  <div id="appShell" class="app-shell hidden">
+  <div id="appShell" class="app-shell hidden" hidden>
     <header class="mobile-nav-bar" aria-label="Mobile navigation">
       <div class="mobile-nav-brand">
         <img src="./school-logo.png" alt="" aria-hidden="true">
@@ -145,7 +212,7 @@
       <div class="brand-block">
         <img class="brand-logo" src="./school-logo.png" alt="Pinehill Adventist Academy logo">
         <div>
-          <h1>Pinehill Adventist Academy</h1>
+          <h1 style="margin:0;text-align:center;font-size:1.18rem;line-height:1.2;">Pinehill Adventist Academy</h1>
           <p>RESULTS PUBLICATION</p>
         </div>
       </div>
@@ -1211,8 +1278,20 @@
   <script type="module" src="./firebase.js?v=dropdown-popup-fix-20260830"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="./app.js?v=entry-table-scroll-20260920"></script>
+  <script src="./app.js?v=marksheets-scroll-20260922"></script>
   <script src="./teacher-assessment.js?v=lesson-tracking-date-sync-20260718-105"></script>
-  <script src="./pwa-register.js?v=visibility-guard-20260918"></script>
+  <script src="./pwa-register.js?v=marksheets-scroll-20260922"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+

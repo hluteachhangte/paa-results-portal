@@ -18276,3 +18276,462 @@ select option:-internal-list-box {
     z-index: 8 !important;
   }
 }
+
+/* Compact desktop density: keep the app from feeling oversized in short browser windows. */
+@media screen and (min-width: 769px) and (max-height: 760px) {
+  .app-shell:not(.hidden) {
+    grid-template-columns: 284px minmax(0, 1fr) !important;
+  }
+
+  .sidebar {
+    padding: 20px 22px !important;
+    gap: 16px !important;
+  }
+
+  .brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .brand-block h1 {
+    font-size: 1.12rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .nav-tabs {
+    gap: 8px !important;
+  }
+
+  .nav-tab,
+  .nav-tab-link {
+    min-height: 42px !important;
+    padding: 8px 14px !important;
+    font-size: 0.92rem !important;
+  }
+
+  .main-content {
+    padding: 18px 22px !important;
+  }
+
+  .topbar {
+    padding: 12px 16px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .topbar h2 {
+    font-size: 1.28rem !important;
+  }
+
+  .topbar p,
+  .academic-session,
+  .topbar .user-badge,
+  .topbar .ghost-button {
+    font-size: 0.78rem !important;
+  }
+
+  .academic-session input,
+  input,
+  select,
+  button,
+  .primary-button,
+  .ghost-button {
+    min-height: 34px !important;
+  }
+
+  .filters,
+  .section-head,
+  .attendance-filters,
+  .student-form,
+  .publish-panel,
+  .result-summary {
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .metric-card {
+    min-height: 54px !important;
+    padding: 8px 10px !important;
+  }
+
+  .metric-card span {
+    font-size: 0.66rem !important;
+  }
+
+  .metric-card strong {
+    font-size: 1rem !important;
+  }
+
+  th,
+  td,
+  #entryView th,
+  #entryView td {
+    padding: 7px 9px !important;
+    font-size: 0.86rem !important;
+  }
+
+  #entryView .mark-input {
+    min-height: 34px !important;
+    width: 110px !important;
+    min-width: 96px !important;
+  }
+
+  body.entry-active #entryView > .table-wrap {
+    max-height: calc(100vh - 260px) !important;
+  }
+}
+
+/* Final login layout guard: keep login page centered, compact, and flat. */
+.login-screen:not(.hidden) {
+  min-height: 100vh !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 16px !important;
+  background: #f4f7fb !important;
+  overflow: auto !important;
+}
+
+.login-stack {
+  width: min(380px, 100%) !important;
+  max-width: 380px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
+  margin: 0 auto !important;
+}
+
+.login-card {
+  width: 100% !important;
+  max-width: 380px !important;
+  padding: 20px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+  border: 1px solid #d8dee8 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.login-logo,
+.brand-logo.login-logo {
+  width: 54px !important;
+  height: 54px !important;
+}
+
+.login-card h1 {
+  font-size: 1.2rem !important;
+  line-height: 1.2 !important;
+  margin-bottom: 6px !important;
+}
+
+.login-card .eyebrow,
+.login-card p {
+  font-size: 0.76rem !important;
+  line-height: 1.35 !important;
+}
+
+.login-card input,
+.login-card select,
+.login-card button {
+  min-height: 38px !important;
+}
+
+.login-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+}
+
+@media screen and (max-width: 480px) {
+  .login-screen:not(.hidden) {
+    padding: 12px !important;
+    align-items: start !important;
+  }
+
+  .login-card {
+    padding: 16px !important;
+  }
+
+  .login-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Logged-out opening guard: prevent the login page from inheriting app dashboard sizing. */
+html:has(.login-screen:not(.hidden)),
+body:has(.login-screen:not(.hidden)) {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+  background: #f4f7fb !important;
+}
+
+body:has(.login-screen:not(.hidden)) .app-shell,
+body:has(.login-screen:not(.hidden)) #appShell {
+  display: none !important;
+}
+
+body:has(.login-screen:not(.hidden)) .login-screen {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100dvh !important;
+  box-sizing: border-box !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: center !important;
+  justify-content: center !important;
+}
+
+body:has(.login-screen:not(.hidden)) .login-stack,
+body:has(.login-screen:not(.hidden)) .login-card {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+body:has(.login-screen:not(.hidden)) .login-card {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body:has(.login-screen:not(.hidden)) .login-card .brand-logo,
+body:has(.login-screen:not(.hidden)) .login-card .login-logo,
+body:has(.login-screen:not(.hidden)) .brand-logo.login-logo {
+  flex: 0 0 auto !important;
+  display: block !important;
+  width: 54px !important;
+  min-width: 54px !important;
+  max-width: 54px !important;
+  height: 54px !important;
+  min-height: 54px !important;
+  max-height: 54px !important;
+  object-fit: contain !important;
+  margin: 0 auto 4px !important;
+}
+
+@media screen and (max-width: 480px) {
+  body:has(.login-screen:not(.hidden)) .login-screen {
+    min-height: 100svh !important;
+    place-items: start center !important;
+  }
+}
+
+/* Auth state layout guard: logged-out page must never inherit dashboard sizing. */
+body.is-logged-out {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+  background: #f4f7fb !important;
+}
+
+body.is-logged-out #appShell,
+body.is-logged-out .app-shell {
+  display: none !important;
+}
+
+body.is-logged-out #loginScreen,
+body.is-logged-out .login-screen {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  padding: 16px !important;
+  place-items: center !important;
+  background: #f4f7fb !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+
+body.is-logged-out .login-stack {
+  width: 100% !important;
+  max-width: 380px !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+body.is-logged-out .login-card {
+  width: 100% !important;
+  max-width: 380px !important;
+  min-width: 0 !important;
+  padding: 18px !important;
+  display: grid !important;
+  gap: 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid #d8dee8 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.is-logged-out .login-card .brand-logo,
+body.is-logged-out .login-card .login-logo,
+body.is-logged-out .brand-logo.login-logo {
+  display: block !important;
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  margin: 0 auto 2px !important;
+  object-fit: contain !important;
+  filter: none !important;
+}
+
+body.is-logged-out .login-card h1 {
+  margin: 0 !important;
+  font-size: 1.18rem !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+}
+
+body.is-logged-out .login-card p,
+body.is-logged-out .login-card .eyebrow,
+body.is-logged-out .login-help {
+  margin: 0 !important;
+  font-size: 0.78rem !important;
+  line-height: 1.35 !important;
+}
+
+body.is-logged-out .login-card input,
+body.is-logged-out .login-card select,
+body.is-logged-out .login-card button {
+  min-height: 38px !important;
+  font-size: 0.92rem !important;
+}
+
+body.is-logged-out .login-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+}
+
+@media screen and (max-width: 480px) {
+  body.is-logged-out #loginScreen,
+  body.is-logged-out .login-screen {
+    padding: 12px !important;
+    place-items: start center !important;
+  }
+
+  body.is-logged-out .login-card {
+    padding: 16px !important;
+  }
+
+  body.is-logged-out .login-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Startup loading guard: avoid flashing login or dashboard before auth state is known. */
+body.auth-pending {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  background: #f4f7fb !important;
+  color: #0b2a5b !important;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+body.auth-pending #loginScreen,
+body.auth-pending #appShell,
+body.auth-pending .login-screen,
+body.auth-pending .app-shell {
+  display: none !important;
+}
+
+body.auth-pending::before {
+  content: "Loading Pinehill Adventist Academy...";
+  display: block;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0b2a5b;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: none;
+}
+
+/* Students page table scrolling: keep long student lists usable on desktop and mobile. */
+body.students-active #studentsView.active {
+  overflow: visible !important;
+}
+
+body.students-active #studentsView > .table-wrap {
+  max-height: clamp(260px, calc(100vh - 340px), 620px) !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.students-active #studentsView > .table-wrap thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 8 !important;
+}
+
+@media screen and (max-width: 768px) {
+  body.students-active #studentsView > .table-wrap {
+    max-height: min(58vh, 520px) !important;
+  }
+}
+
+/* Desktop results table scrolling: keep published results usable in short desktop windows. */
+@media screen and (min-width: 769px) {
+  body.results-active #resultsView.active {
+    overflow: visible !important;
+  }
+
+  body.results-active #resultsView > .table-wrap {
+    max-height: clamp(260px, calc(100vh - 360px), 640px) !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  body.results-active #resultsView > .table-wrap thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 9 !important;
+  }
+
+  body.results-active #resultsView > .table-wrap .results-table thead tr:nth-child(2) th {
+    top: 40px !important;
+    z-index: 8 !important;
+  }
+}
+
+/* Desktop marksheets scrolling: keep the preview list scrollable without changing print output. */
+@media screen and (min-width: 769px) {
+  body.marksheet-active #marksheetView.active {
+    overflow: visible !important;
+  }
+
+  body.marksheet-active #marksheet-print-area {
+    max-height: clamp(320px, calc(100vh - 330px), 760px) !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body.marksheet-active #marksheetBody.marksheet-list {
+    min-height: 0 !important;
+  }
+}

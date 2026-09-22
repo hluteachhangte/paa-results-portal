@@ -2813,8 +2813,13 @@ function entryAccessLockedMessage(className, exam) {
 
 function renderAuth() {
   const signedIn = Boolean(currentUser);
+  document.body.classList.remove("auth-pending");
+  document.body.classList.toggle("is-logged-in", signedIn);
+  document.body.classList.toggle("is-logged-out", !signedIn);
   els.loginScreen.classList.toggle("hidden", signedIn);
   els.appShell.classList.toggle("hidden", !signedIn);
+  els.loginScreen.hidden = signedIn;
+  els.appShell.hidden = !signedIn;
 
   if (!signedIn) {
     stopFirebaseStateSync();
@@ -2870,6 +2875,7 @@ function completeApprovedLogin(profile) {
   saveCurrentUser(profile);
   els.loginForm.reset();
   els.phoneOtpPanel?.classList.add("hidden");
+  if (els.phoneOtpPanel) els.phoneOtpPanel.hidden = true;
   if (els.phoneCodeInput) els.phoneCodeInput.value = "";
   void recordLoginEvent("login", { profile, status: "success", message: "Portal login successful." });
   showToast(`Logged in as ${profile.name}.`);
@@ -2956,6 +2962,7 @@ async function sendApprovedPhoneCode() {
   try {
     await window.MarkHubFirebase.sendApprovedPhoneCode(phoneNumber);
     els.phoneOtpPanel?.classList.remove("hidden");
+    if (els.phoneOtpPanel) els.phoneOtpPanel.hidden = false;
     els.phoneCodeInput?.focus();
     showToast("OTP sent to the approved phone number.");
   } catch (error) {
@@ -3614,6 +3621,7 @@ function init() {
   activeView = savedUiState.activeView || activeView;
   applyPerformanceProfile();
   applySelectLightTheme();
+  renderAuth();
 
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
   populateSelect(els.classSelect, Object.keys(state.classes));
@@ -14751,3 +14759,9 @@ window.TeacherAssessmentApp = {
 };
 
   init();
+
+
+
+
+
+

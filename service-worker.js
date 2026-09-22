@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20260920-entry-table-scroll";
+const CACHE_NAME = "paa-results-portal-v20260922-marksheets-scroll";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -49,3 +49,15 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
   );
 });
+
+
+
+
+
+
+
+
+
+
+
+
