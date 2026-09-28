@@ -12080,6 +12080,16 @@ function updateBehaviourDraft(key, rating) {
   renderBehaviourCharacter();
 }
 
+function collectVisibleBehaviourRatings() {
+  const ratings = {};
+  els.behaviourContent?.querySelectorAll("[data-behaviour-criterion]").forEach((button) => {
+    if (!button.classList.contains("selected")) return;
+    const key = String(button.dataset.behaviourCriterion || "").trim();
+    const rating = Number(button.dataset.behaviourRating);
+    if (key && Number.isFinite(rating) && rating > 0) ratings[key] = rating;
+  });
+  return ratings;
+}
 async function saveBehaviourAssessment(moveNext = false) {
   const filters = behaviourFilters();
   const students = behaviourStudents();
@@ -12087,8 +12097,9 @@ async function saveBehaviourAssessment(moveNext = false) {
   if (!student) return;
   const { teacherId, teacherName } = teacherIdentity();
   const existing = behaviourAssessmentRecords(filters).find((record) => record.studentId === student.studentId && record.teacherId === teacherId) || {};
+  const visibleRatings = collectVisibleBehaviourRatings();
   const evidence = String(existing.evidence || "").trim();
-  const draft = { ...existing, ...(behaviourCurrentDraft || {}), evidence };
+  const draft = { ...existing, ...(behaviourCurrentDraft || {}), ...visibleRatings, evidence, studentId: student.studentId };
   const missing = behaviourCriteria.filter((criterion) => !Number(draft[criterion.key]));
   if (missing.length) {
     showToast(`Select ratings for ${missing.map((item) => item.label).join(", ")}.`);
@@ -14759,6 +14770,8 @@ window.TeacherAssessmentApp = {
 };
 
   init();
+
+
 
 
 
