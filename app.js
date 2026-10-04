@@ -1665,6 +1665,7 @@ async function saveAllMarks() {
 
   marksSaveInProgress = true;
   refreshMarksSaveControls();
+  let marksSavedSuccessfully = false;
 
   try {
     const currentContextChanges = [...unsavedMarkChanges.values()].filter((change) =>
@@ -1744,13 +1745,22 @@ async function saveAllMarks() {
         unsavedMarkChanges.delete(key);
       }
     });
-    showToast("Marks saved successfully.");
+    marksSavedSuccessfully = true;
   } catch (error) {
     console.error("[Firestore] Save marks failed", error);
     showToast(firestoreSaveErrorMessage("save marks", error));
   } finally {
     marksSaveInProgress = false;
     refreshMarksSaveControls();
+    if (marksSavedSuccessfully) {
+      const message = "Marks saved successfully.";
+      if (els.entrySaveHint) {
+        els.entrySaveHint.textContent = message;
+        els.entrySaveHint.classList.remove("entry-locked-text");
+      }
+      if (els.mobileEntrySaveHint) els.mobileEntrySaveHint.textContent = message;
+      showToast(message);
+    }
   }
 }
 
@@ -14835,6 +14845,7 @@ function clearContextMessage(target) {
 }
 
 function showToast(message) {
+  if (!els.toast) return;
   els.toast.textContent = message;
   els.toast.classList.add("show");
   clearTimeout(showToast.timer);
