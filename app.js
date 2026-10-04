@@ -4,7 +4,8 @@ const mobileAuthKey = "markhub-mobile-current-user-v1";
 const uiKey = "markhub-ui-state-v1";
 const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1";
 const loginLogLocalKey = "markhub-local-login-logs-v1";
-const behaviourPeriodSettingsKey = "markhub-behaviour-period-settings-v1";
+const behaviourPeriodSettingsKey = "markhub-behaviour-period-settings-v2";
+const defaultBehaviourPeriodType = "Monthly";
 const minimalUxEnabled = false;
 
 const classNames = [
@@ -693,18 +694,18 @@ function loadBehaviourPeriodSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(behaviourPeriodSettingsKey) || "{}");
     return {
-      periodType: parsed.periodType === "Monthly" ? "Monthly" : "Weekly",
+      periodType: parsed.periodType === "Weekly" ? "Weekly" : defaultBehaviourPeriodType,
       periodKey: String(parsed.periodKey || "").trim()
     };
   } catch {
-    return { periodType: "Weekly", periodKey: "" };
+    return { periodType: defaultBehaviourPeriodType, periodKey: "" };
   }
 }
 
 function saveBehaviourPeriodSettingsLocal() {
   if (!canEditBehaviourPeriod()) return;
   localStorage.setItem(behaviourPeriodSettingsKey, JSON.stringify({
-    periodType: els.behaviourPeriodTypeSelect?.value || "Weekly",
+    periodType: els.behaviourPeriodTypeSelect?.value || defaultBehaviourPeriodType,
     periodKey: String(els.behaviourPeriodKeyInput?.value || "").trim()
   }));
 }
@@ -11514,18 +11515,24 @@ function initializeBehaviourControls() {
   const sessionValue = els.behaviourSessionSelect.value || currentSessionKey(state.academicSession);
   const classValue = els.behaviourClassSelect?.value || selectedClass();
   const localPeriodSettings = loadBehaviourPeriodSettings();
-  const savedPeriodType = localPeriodSettings.periodType || els.behaviourPeriodTypeSelect.value || "Weekly";
+  const savedPeriodType = localPeriodSettings.periodType || els.behaviourPeriodTypeSelect.value || defaultBehaviourPeriodType;
   const savedPeriodKey = localPeriodSettings.periodKey;
   const sessions = [...new Set([state.academicSession, ...Object.keys(state.sessions || {})].map(currentSessionKey))].filter(Boolean);
   populateSelect(els.behaviourSessionSelect, sessions.length ? sessions : [currentSessionKey(state.academicSession)]);
   setSelectValueIfAvailable(els.behaviourSessionSelect, sessionValue);
   setSelectValueIfAvailable(els.behaviourPeriodTypeSelect, savedPeriodType);
+  if (els.behaviourPeriodTypeSelect.value !== defaultBehaviourPeriodType) {
+    els.behaviourPeriodTypeSelect.value = defaultBehaviourPeriodType;
+  }
+  const periodValue = savedPeriodKey || els.behaviourPeriodKeyInput.value || defaultBehaviourPeriodKey();
   const periodInputIsFocused = document.activeElement === els.behaviourPeriodKeyInput;
-  if (!periodInputIsFocused && (savedPeriodKey || !els.behaviourPeriodKeyInput.value)) {
-    els.behaviourPeriodKeyInput.value = savedPeriodKey || defaultBehaviourPeriodKey();
+  if (!periodInputIsFocused) {
+    populateBehaviourMonthSelect(periodValue);
+    setSelectValueIfAvailable(els.behaviourPeriodKeyInput, periodValue);
   }
   const canEditPeriod = canEditBehaviourPeriod();
   els.behaviourPeriodTypeSelect.disabled = !canEditPeriod;
+  els.behaviourPeriodKeyInput.disabled = !canEditPeriod;
   els.behaviourPeriodKeyInput.readOnly = !canEditPeriod;
   els.behaviourPeriodTypeSelect.setAttribute("aria-disabled", String(!canEditPeriod));
   els.behaviourPeriodKeyInput.setAttribute("aria-readonly", String(!canEditPeriod));
@@ -11541,8 +11548,37 @@ function initializeBehaviourControls() {
   setSelectValueIfAvailable(els.behaviourClassSelect, classValue);
 }
 
+function behaviourMonthOptions(session = els.behaviourSessionSelect?.value || state.academicSession, extraPeriodKey = "") {
+  const sessionKey = currentSessionKey(session);
+  const sessionStartYear = Number.parseInt(sessionKey.match(/\d{4}/)?.[0] || "", 10);
+  const startYear = Number.isFinite(sessionStartYear) ? sessionStartYear : new Date().getFullYear();
+  const formatter = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" });
+  const options = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(startYear, 3 + index, 1);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return { value, label: formatter.format(date) };
+  });
+  if (extraPeriodKey && !options.some((option) => option.value === extraPeriodKey)) {
+    const [year, month] = extraPeriodKey.split("-").map(Number);
+    if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+      const date = new Date(year, month - 1, 1);
+      options.push({ value: extraPeriodKey, label: formatter.format(date) });
+      options.sort((a, b) => a.value.localeCompare(b.value));
+    }
+  }
+  return options;
+}
+
+function populateBehaviourMonthSelect(selectedPeriodKey = "") {
+  if (!els.behaviourPeriodKeyInput) return;
+  els.behaviourPeriodKeyInput.innerHTML = behaviourMonthOptions(undefined, selectedPeriodKey)
+    .map((option) => `<option value="${escapeAttr(option.value)}" style="background-color:#ffffff;color:#0b2b63;">${escapeHtml(option.label)}</option>`)
+    .join("");
+  applySelectLightTheme(els.behaviourPeriodKeyInput);
+}
+
 function defaultBehaviourPeriodKey(date = new Date()) {
-  const type = els.behaviourPeriodTypeSelect?.value || "Weekly";
+  const type = els.behaviourPeriodTypeSelect?.value || defaultBehaviourPeriodType;
   const session = currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession);
   const sessionStartYear = Number.parseInt(session.match(/\d{4}/)?.[0] || "", 10);
   const academicStartYear = Number.isFinite(sessionStartYear)
@@ -11562,7 +11598,7 @@ function behaviourFilters() {
   const periodKey = String(els.behaviourPeriodKeyInput?.value || localPeriodSettings.periodKey || defaultBehaviourPeriodKey()).trim();
   return {
     academicSessionId: currentSessionKey(els.behaviourSessionSelect?.value || state.academicSession),
-    periodType: els.behaviourPeriodTypeSelect?.value || localPeriodSettings.periodType || "Weekly",
+    periodType: els.behaviourPeriodTypeSelect?.value || localPeriodSettings.periodType || defaultBehaviourPeriodType,
     periodKey,
     className: els.behaviourClassSelect?.value || "All Classes",
     section: String(els.behaviourSectionInput?.value || "").trim()

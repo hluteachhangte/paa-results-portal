@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20261004-marks-toast-fix";
+const CACHE_NAME = "paa-results-portal-v20261004-behaviour-month-dropdown";
 const APP_SHELL = [
   "./",
   "./index.html",
