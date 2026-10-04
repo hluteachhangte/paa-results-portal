@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20260928-behaviour-save-fix";
+const CACHE_NAME = "paa-results-portal-v20261004-behaviour-save-reliable";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -49,6 +49,7 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
   );
 });
+
 
 
 

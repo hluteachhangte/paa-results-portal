@@ -614,11 +614,13 @@
   }
 
   async function downloadPdf() {
-    if (!currentData || !window.html2canvas || !window.jspdf?.jsPDF) return app.showToast("Teacher assessment is not ready.");
+    if (!currentData) return app.showToast("Teacher assessment is not ready.");
     const previous = el.pdf.textContent;
     let capture;
     try {
       el.pdf.disabled = true;
+      el.pdf.textContent = "Loading PDF tools...";
+      if (!(await window.ensurePdfLibraries?.())) throw new Error("PDF libraries unavailable");
       el.pdf.textContent = "Generating Assessment PDF...";
       capture = document.createElement("div");
       capture.className = "teacher-assessment-pdf-capture";
@@ -645,8 +647,9 @@
     }
   }
 
-  function exportExcel() {
-    if (!currentData || !window.XLSX) return app.showToast("Teacher assessment is not ready.");
+  async function exportExcel() {
+    if (!currentData) return app.showToast("Teacher assessment is not ready.");
+    if (!(await window.ensureSpreadsheetLibrary?.())) return app.showToast("Could not load Excel export tools. Please try again.");
     const workbook = XLSX.utils.book_new();
     const profile = currentData.profile;
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{

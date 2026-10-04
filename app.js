@@ -318,6 +318,7 @@ let behaviourActiveTab = "overview";
 let behaviourAssessmentIndex = 0;
 let behaviourCurrentDraft = null;
 let behaviourDirty = false;
+let behaviourSaveInProgress = false;
 let behaviourOverviewDetail = "";
 let behaviourExpandedStudentId = "";
 let firebaseBehaviourUnsubscribe = null;
@@ -9153,7 +9154,7 @@ function renderTeacherAnalytics() {
 }
 
 async function downloadTeacherAnalysisPDF() {
-  if (!isAdmin() || !teacherAnalyticsCurrentData || !window.html2canvas || !window.jspdf?.jsPDF) {
+  if (!isAdmin() || !teacherAnalyticsCurrentData) {
     showToast("Teacher analysis is not ready for PDF download.");
     return;
   }
@@ -9163,6 +9164,8 @@ async function downloadTeacherAnalysisPDF() {
   let capture = null;
   try {
     button.disabled = true;
+    button.textContent = "Loading PDF tools...";
+    if (!(await ensurePdfLibraries())) throw new Error("PDF libraries unavailable");
     button.textContent = "Generating Teacher Analysis PDF...";
     capture = els.teacherAnalyticsReport.cloneNode(true);
     capture.classList.add("teacher-analysis-pdf-capture");
@@ -9203,9 +9206,13 @@ async function downloadTeacherAnalysisPDF() {
   }
 }
 
-function exportTeacherAnalysisExcel() {
-  if (!isAdmin() || !teacherAnalyticsCurrentData || !window.XLSX) {
+async function exportTeacherAnalysisExcel() {
+  if (!isAdmin() || !teacherAnalyticsCurrentData) {
     showToast("Teacher analysis is not ready for Excel export.");
+    return;
+  }
+  if (!(await ensureSpreadsheetLibrary())) {
+    showToast("Could not load Excel export tools. Please try again.");
     return;
   }
   const data = teacherAnalyticsCurrentData;
@@ -9282,8 +9289,54 @@ function printTeacherAnalysis() {
   startPrintMode("print-teacher-analysis");
 }
 
+const lazyScriptPromises = {};
+
+function loadScriptOnce(src, test) {
+  if (typeof test === "function" && test()) return Promise.resolve();
+  if (lazyScriptPromises[src]) return lazyScriptPromises[src];
+  lazyScriptPromises[src] = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      existing.addEventListener("error", reject, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Could not load ${src}`));
+    document.head.appendChild(script);
+  });
+  return lazyScriptPromises[src];
+}
+
+async function ensurePdfLibraries() {
+  await loadScriptOnce(
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    () => Boolean(window.html2canvas)
+  );
+  await loadScriptOnce(
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+    () => Boolean(window.jspdf?.jsPDF)
+  );
+  return Boolean(window.html2canvas && window.jspdf?.jsPDF);
+}
+
+window.ensurePdfLibraries = ensurePdfLibraries;
+
+async function ensureSpreadsheetLibrary() {
+  await loadScriptOnce(
+    "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+    () => Boolean(window.XLSX)
+  );
+  return Boolean(window.XLSX);
+}
+
+window.ensureSpreadsheetLibrary = ensureSpreadsheetLibrary;
+
 async function downloadAnalysisPDF() {
-  if (!analysisCurrentData || !window.html2canvas || !window.jspdf?.jsPDF) {
+  if (!analysisCurrentData) {
     showToast("Academic analysis is not ready for PDF download.");
     return;
   }
@@ -9293,6 +9346,8 @@ async function downloadAnalysisPDF() {
   let captureSource = null;
   try {
     button.disabled = true;
+    button.textContent = "Loading PDF tools...";
+    if (!(await ensurePdfLibraries())) throw new Error("PDF libraries unavailable");
     button.textContent = "Generating Analysis PDF...";
     captureSource = els.analysisReport.cloneNode(true);
     captureSource.classList.add("analysis-pdf-capture");
@@ -9334,9 +9389,13 @@ async function downloadAnalysisPDF() {
   }
 }
 
-function exportAnalysisExcel() {
-  if (!analysisCurrentData || !window.XLSX) {
+async function exportAnalysisExcel() {
+  if (!analysisCurrentData) {
     showToast("Academic analysis is not ready for Excel export.");
+    return;
+  }
+  if (!(await ensureSpreadsheetLibrary())) {
+    showToast("Could not load Excel export tools. Please try again.");
     return;
   }
   const data = analysisCurrentData;
@@ -9477,11 +9536,6 @@ async function downloadResultsPDF() {
     showToast("Publish the result before downloading results.");
     return;
   }
-  if (!window.html2canvas || !window.jspdf?.jsPDF) {
-    showToast("Could not generate PDF. Please try again.");
-    return;
-  }
-
   const rows = visibleResultRows();
   if (!rows.length) {
     showToast("No result records are available to download.");
@@ -9498,8 +9552,10 @@ async function downloadResultsPDF() {
       clearContextMessage(button);
       button.disabled = true;
       button.classList.add("is-downloading");
-      button.textContent = "Downloading Result sheet";
+      button.textContent = "Loading PDF tools...";
     }
+    if (!(await ensurePdfLibraries())) throw new Error("PDF libraries unavailable");
+    if (button) button.textContent = "Downloading Result sheet";
     if (document.fonts?.ready) await document.fonts.ready;
 
     host = document.createElement("div");
@@ -10295,11 +10351,6 @@ async function downloadMarksheetPDF() {
     showToast("Publish the marksheets before downloading.");
     return;
   }
-  if (!window.html2canvas || !window.jspdf?.jsPDF) {
-    showToast("Could not generate PDF. Please try again.");
-    return;
-  }
-
   const button = els.downloadMarksheetPdfBtn;
   const previousText = button?.textContent || "Download PDF";
   if (button?.disabled) return;
@@ -10320,8 +10371,10 @@ async function downloadMarksheetPDF() {
   try {
     if (button) {
       button.disabled = true;
-      button.textContent = "Generating PDF...";
+      button.textContent = "Loading PDF tools...";
     }
+    if (!(await ensurePdfLibraries())) throw new Error("PDF libraries unavailable");
+    if (button) button.textContent = "Generating PDF...";
     showToast("Generating PDF...");
 
     host = document.createElement("div");
@@ -11964,6 +12017,7 @@ function renderBehaviourAssessment() {
   const draft = behaviourCurrentDraft?.studentId === student.studentId ? behaviourCurrentDraft : existing || {};
   const assessedCount = students.filter((item) => behaviourAssessmentRecords(filters).some((record) => record.studentId === item.studentId && record.teacherId === teacherId)).length;
   const total = behaviourCriteria.reduce((sum, criterion) => sum + (Number(draft[criterion.key]) || 0), 0);
+  const saveDisabled = behaviourSaveInProgress ? " disabled" : "";
   return `
     <section class="behaviour-assessment">
       <article class="behaviour-student-card">
@@ -11983,13 +12037,13 @@ function renderBehaviourAssessment() {
           ${behaviourCriteria.map((criterion) => behaviourRatingRow(criterion, Number(draft[criterion.key]) || 0)).join("")}
         </div>
         <div class="behaviour-assessment-foot">
-          <strong>Total: ${total} / ${behaviourCriteria.length * 5}</strong>
+          <strong class="behaviour-assessment-total">Total: ${total} / ${behaviourCriteria.length * 5}</strong>
           <div class="inline-actions">
-            <button class="ghost-button" type="button" data-behaviour-action="prev-student">Previous Student</button>
-            <button class="ghost-button" type="button" data-behaviour-action="next-student">Next Student</button>
-            ${existing ? `<button class="ghost-button danger" type="button" data-behaviour-action="delete-assessment">Delete</button>` : ""}
-            <button class="primary-button" type="button" data-behaviour-action="save-assessment">Save</button>
-            <button class="primary-button" type="button" data-behaviour-action="save-next-assessment">Save &amp; Next</button>
+            <button class="ghost-button" type="button" data-behaviour-action="prev-student"${saveDisabled}>Previous Student</button>
+            <button class="ghost-button" type="button" data-behaviour-action="next-student"${saveDisabled}>Next Student</button>
+            ${existing ? `<button class="ghost-button danger" type="button" data-behaviour-action="delete-assessment"${saveDisabled}>Delete</button>` : ""}
+            <button class="primary-button" type="button" data-behaviour-action="save-assessment"${saveDisabled}>${behaviourSaveInProgress ? "Saving..." : "Save"}</button>
+            <button class="primary-button" type="button" data-behaviour-action="save-next-assessment"${saveDisabled}>${behaviourSaveInProgress ? "Saving..." : "Save &amp; Next"}</button>
           </div>
         </div>
       </article>
@@ -12016,12 +12070,20 @@ function behaviourRatingRow(criterion, value) {
 function handleBehaviourContentClick(event) {
   const ratingButton = event.target.closest("[data-behaviour-rating]");
   if (ratingButton) {
-    updateBehaviourDraft(ratingButton.dataset.behaviourCriterion, Number(ratingButton.dataset.behaviourRating));
+    if (behaviourSaveInProgress) {
+      showToast("Saving current assessment. Please wait.");
+      return;
+    }
+    updateBehaviourDraft(ratingButton.dataset.behaviourCriterion, Number(ratingButton.dataset.behaviourRating), ratingButton);
     return;
   }
   const actionButton = event.target.closest("[data-behaviour-action]");
   if (!actionButton) return;
   const action = actionButton.dataset.behaviourAction;
+  if (behaviourSaveInProgress) {
+    showToast("Saving current assessment. Please wait.");
+    return;
+  }
   if (action.startsWith("toggle-")) {
     if (action === "toggle-student-score-detail") {
       const studentId = String(actionButton.dataset.studentId || "").trim();
@@ -12066,7 +12128,7 @@ function handleBehaviourContentClick(event) {
   }
 }
 
-function updateBehaviourDraft(key, rating) {
+function updateBehaviourDraft(key, rating, ratingButton = null) {
   const students = behaviourStudents();
   const student = students[behaviourAssessmentIndex];
   if (!student) return;
@@ -12077,7 +12139,13 @@ function updateBehaviourDraft(key, rating) {
   }
   behaviourCurrentDraft[key] = rating;
   behaviourDirty = true;
-  renderBehaviourCharacter();
+  if (ratingButton) {
+    ratingButton.parentElement?.querySelectorAll("[data-behaviour-rating]")
+      .forEach((button) => button.classList.toggle("selected", button === ratingButton));
+  }
+  const total = behaviourCriteria.reduce((sum, criterion) => sum + Number(behaviourCurrentDraft?.[criterion.key] || 0), 0);
+  const totalElement = els.behaviourContent?.querySelector(".behaviour-assessment-total");
+  if (totalElement) totalElement.textContent = `Total: ${total} / ${behaviourCriteria.length * 5}`;
 }
 
 function collectVisibleBehaviourRatings() {
@@ -12090,7 +12158,19 @@ function collectVisibleBehaviourRatings() {
   });
   return ratings;
 }
+
+function setBehaviourAssessmentControlsSaving(isSaving) {
+  els.behaviourContent?.querySelectorAll("[data-behaviour-action]").forEach((button) => {
+    const action = button.dataset.behaviourAction;
+    if (!["prev-student", "next-student", "delete-assessment", "save-assessment", "save-next-assessment"].includes(action)) return;
+    button.disabled = isSaving;
+    if (action === "save-assessment") button.textContent = isSaving ? "Saving..." : "Save";
+    if (action === "save-next-assessment") button.textContent = isSaving ? "Saving..." : "Save & Next";
+  });
+}
+
 async function saveBehaviourAssessment(moveNext = false) {
+  if (behaviourSaveInProgress) return;
   const filters = behaviourFilters();
   const students = behaviourStudents();
   const student = students[behaviourAssessmentIndex];
@@ -12127,18 +12207,29 @@ async function saveBehaviourAssessment(moveNext = false) {
     submittedAt: existing.submittedAt || now,
     updatedAt: now
   };
-  behaviourData.assessments[assessmentId] = record;
-  behaviourDirty = false;
-  behaviourCurrentDraft = null;
+  if (typeof window.MarkHubFirebase?.saveBehaviourAssessment !== "function") {
+    showToast("Could not save behaviour assessment. Firestore is not ready.");
+    return;
+  }
+  behaviourSaveInProgress = true;
+  setBehaviourAssessmentControlsSaving(true);
   try {
-    await window.MarkHubFirebase?.saveBehaviourAssessment?.(record);
+    const savedRecord = await window.MarkHubFirebase.saveBehaviourAssessment(record);
+    behaviourData.assessments[assessmentId] = savedRecord || record;
+    behaviourDirty = false;
+    behaviourCurrentDraft = null;
     showToast("Behaviour assessment saved successfully.");
+    if (moveNext) behaviourAssessmentIndex = Math.min(students.length - 1, behaviourAssessmentIndex + 1);
   } catch (error) {
     console.error(error);
-    showToast("Saved on this screen, but Firestore could not save behaviour assessment.");
+    behaviourDirty = true;
+    behaviourCurrentDraft = { ...draft, studentId: student.studentId };
+    showToast("Could not save behaviour assessment. Please try again.");
+  } finally {
+    behaviourSaveInProgress = false;
+    setBehaviourAssessmentControlsSaving(false);
+    renderBehaviourCharacter();
   }
-  if (moveNext) behaviourAssessmentIndex = Math.min(students.length - 1, behaviourAssessmentIndex + 1);
-  renderBehaviourCharacter();
 }
 
 async function deleteBehaviourAssessmentForCurrentStudent() {
@@ -13924,8 +14015,8 @@ async function exportExcelFromFirestore() {
     showToast("Save changes before exporting to Excel.");
     return;
   }
-  if (!window.XLSX) {
-    showToast("Excel export library is still loading. Please try again.");
+  if (!(await ensureSpreadsheetLibrary())) {
+    showToast("Could not load Excel export tools. Please try again.");
     return;
   }
   if (!window.MarkHubFirebase?.getAppStateOnce) {
