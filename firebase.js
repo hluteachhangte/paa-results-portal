@@ -603,6 +603,25 @@ window.MarkHubFirebase = {
     ];
     return () => unsubs.forEach((unsubscribe) => unsubscribe());
   },
+  async getBehaviourRecordsOnce(session) {
+    const [
+      assessmentsSnapshot,
+      observationsSnapshot,
+      interventionsSnapshot,
+      recognitionsSnapshot
+    ] = await Promise.all([
+      getDocs(collection(db, "behaviourAssessments")),
+      getDocs(collection(db, "behaviourObservations")),
+      getDocs(collection(db, "behaviourInterventions")),
+      getDocs(collection(db, "behaviourRecognitions"))
+    ]);
+    return {
+      assessments: behaviourSnapshotMap(assessmentsSnapshot, "assessmentId", session),
+      observations: behaviourSnapshotMap(observationsSnapshot, "observationId", session),
+      interventions: behaviourSnapshotMap(interventionsSnapshot, "interventionId", session),
+      recognitions: behaviourSnapshotMap(recognitionsSnapshot, "recognitionId", session)
+    };
+  },
   listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();
     if (!roll) return () => {};
@@ -877,6 +896,106 @@ window.MarkHubFirebase = {
     return () => {
       unsubs.forEach((unsubscribe) => unsubscribe());
     };
+  },
+  async getSplitSessionOnce(session) {
+    const sessionId = splitDocId(session);
+    const patch = { session };
+    const readCollection = async (collectionName, mapDoc) => {
+      try {
+        const snapshot = await getDocs(collection(db, splitRootCollection, sessionId, collectionName));
+        patch[collectionName] = patch[collectionName] || {};
+        snapshot.docs.forEach((docSnapshot) => {
+          const mapped = mapDoc(docSnapshot.data(), docSnapshot.id);
+          if (!mapped?.key) return;
+          const targetCollection = mapped.targetCollection || collectionName;
+          patch[targetCollection] = patch[targetCollection] || {};
+          patch[targetCollection][mapped.key] = mapped.value;
+          if (collectionName === "attendance" && mapped.term && mapped.workingDays !== undefined) {
+            patch.workingDays = patch.workingDays || {};
+            patch.workingDays[mapped.term] = mapped.workingDays;
+          }
+          if (mapped.dataEntryKey) {
+            patch.dataEntryUpdates = patch.dataEntryUpdates || {};
+            patch.dataEntryUpdates[mapped.dataEntryKey] = mapped.dataEntryUpdate || null;
+          }
+        });
+      } catch (error) {
+        console.warn(`[Firestore] Could not read split ${collectionName} once`, error);
+      }
+    };
+
+    await readCollection("marks", (data, id) => {
+      const key = splitDocLabel(data.markKey || id);
+      if (data.type === "classList" || key.startsWith(classListMarkKeyPrefix)) {
+        return {
+          targetCollection: "classes",
+          key: data.className || key.slice(classListMarkKeyPrefix.length),
+          value: Array.isArray(data.students) ? data.students : []
+        };
+      }
+      return {
+        key,
+        value: data.marks || {},
+        dataEntryKey: data.dataEntryUpdate?.key || "",
+        dataEntryUpdate: data.dataEntryUpdate
+      };
+    });
+    await readCollection("attendance", (data, id) => {
+      const key = splitDocLabel(data.attendanceKey || id);
+      return {
+        key,
+        value: data.attendance || {},
+        term: data.term || termFromSplitKey(key),
+        workingDays: data.workingDays,
+        dataEntryKey: data.dataEntryUpdate?.key || "",
+        dataEntryUpdate: data.dataEntryUpdate
+      };
+    });
+    await readCollection("measurements", (data, id) => ({
+      key: splitDocLabel(data.attendanceKey || id),
+      value: data.measurements || {},
+      dataEntryKey: data.dataEntryUpdate?.key || "",
+      dataEntryUpdate: data.dataEntryUpdate
+    }));
+    await readCollection("published", (data, id) => ({
+      key: splitDocLabel(data.key || id),
+      value: data.value || null
+    }));
+    await readCollection("publishedMarksheets", (data, id) => ({
+      key: splitDocLabel(data.key || id),
+      value: data.value || null
+    }));
+
+    try {
+      const snapshot = await getDocs(collection(db, "students"));
+      patch.studentProfiles = {};
+      snapshot.docs.forEach((docSnapshot) => {
+        const data = docSnapshot.data() || {};
+        const studentId = String(data.studentId || docSnapshot.id || "").trim();
+        if (studentId) patch.studentProfiles[studentId] = { ...data, studentId };
+      });
+    } catch (error) {
+      console.warn("[Firestore] Could not read students once", error);
+    }
+
+    try {
+      const snapshot = await getDocs(collection(db, "academicSessions", sessionId, "enrolments"));
+      patch.studentEnrolments = { [session]: {} };
+      snapshot.docs.forEach((docSnapshot) => {
+        const data = docSnapshot.data() || {};
+        const studentId = String(data.studentId || docSnapshot.id || "").trim();
+        if (!studentId) return;
+        patch.studentEnrolments[session][studentId] = {
+          ...data,
+          academicSessionId: session,
+          studentId
+        };
+      });
+    } catch (error) {
+      console.warn("[Firestore] Could not read enrolments once", error);
+    }
+
+    return patch;
   },
   deleteFieldValue() {
     return deleteField();

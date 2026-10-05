@@ -324,6 +324,10 @@ let behaviourOverviewDetail = "";
 let behaviourExpandedStudentId = "";
 let firebaseBehaviourUnsubscribe = null;
 let firebaseBehaviourSessionKey = "";
+let firebaseSplitSessionWarningShown = false;
+let firebaseSplitSessionFallbackLoading = false;
+let firebaseBehaviourFallbackLoading = false;
+let firebaseBehaviourLiveWarningShown = false;
 let publicationSaveInProgress = false;
 let loginLogs = [];
 let unsubscribeLoginLogs = null;
@@ -1929,7 +1933,11 @@ function stopFirebaseStateSync() {
 
 function ensureSplitSessionListener(session = state.academicSession) {
   const sessionKey = currentSessionKey(session);
-  if (!window.MarkHubFirebase?.listenSplitSession || firebaseSplitSessionKey === sessionKey) return;
+  if (!window.MarkHubFirebase?.listenSplitSession) {
+    loadSplitSessionOnce(sessionKey);
+    return;
+  }
+  if (firebaseSplitSessionKey === sessionKey) return;
   if (typeof firebaseSplitSessionUnsubscribe === "function") firebaseSplitSessionUnsubscribe();
   firebaseSplitSessionKey = sessionKey;
   firebaseSplitSessionUnsubscribe = window.MarkHubFirebase.listenSplitSession(
@@ -1937,36 +1945,81 @@ function ensureSplitSessionListener(session = state.academicSession) {
     applySplitSessionPatch,
     (error) => {
       console.error("[Firestore] Split session listener failed", error);
-      showToast("Split session live updates are not available.");
+      if (!firebaseSplitSessionWarningShown) {
+        firebaseSplitSessionWarningShown = true;
+        showToast("Split session live updates are not available. Showing cached data.");
+      }
+      loadSplitSessionOnce(sessionKey);
     }
   );
+}
+
+async function loadSplitSessionOnce(session = state.academicSession) {
+  const sessionKey = currentSessionKey(session);
+  if (!window.MarkHubFirebase?.getSplitSessionOnce || firebaseSplitSessionFallbackLoading) return false;
+  firebaseSplitSessionFallbackLoading = true;
+  try {
+    const patch = await window.MarkHubFirebase.getSplitSessionOnce(sessionKey);
+    applySplitSessionPatch(patch);
+    return true;
+  } catch (error) {
+    console.error("[Firestore] Split session one-time read failed", error);
+    return false;
+  } finally {
+    firebaseSplitSessionFallbackLoading = false;
+  }
+}
+
+function applyBehaviourRecordsPatch(patch = {}) {
+  behaviourData = {
+    assessments: patch.assessments || {},
+    observations: patch.observations || {},
+    interventions: patch.interventions || {},
+    recognitions: patch.recognitions || {}
+  };
+  if (activeView === "behaviour" || activeView === "studentProfiles") {
+    renderActiveViewOnly();
+  }
+}
+
+async function loadBehaviourRecordsOnce(session = state.academicSession, options = {}) {
+  const sessionKey = currentSessionKey(session);
+  if (!window.MarkHubFirebase?.getBehaviourRecordsOnce || firebaseBehaviourFallbackLoading) return false;
+  firebaseBehaviourFallbackLoading = true;
+  try {
+    const patch = await window.MarkHubFirebase.getBehaviourRecordsOnce(sessionKey);
+    applyBehaviourRecordsPatch(patch);
+    if (options.notify) showToast("Behaviour records loaded. Live updates are unavailable.");
+    return true;
+  } catch (error) {
+    console.error("[Firestore] Behaviour one-time read failed", error);
+    if (options.notify) showToast("Could not load Behaviour records. Check Firebase rules.");
+    return false;
+  } finally {
+    firebaseBehaviourFallbackLoading = false;
+  }
 }
 
 function ensureBehaviourListener(session = state.academicSession) {
   const sessionKey = currentSessionKey(session);
   if (!canAccessBehaviourModule()) return;
   if (!window.MarkHubFirebase?.auth?.currentUser) return;
-  if (!window.MarkHubFirebase?.listenBehaviourRecords || firebaseBehaviourSessionKey === sessionKey) return;
+  if (!window.MarkHubFirebase?.listenBehaviourRecords) {
+    loadBehaviourRecordsOnce(sessionKey, { notify: activeView === "behaviour" });
+    return;
+  }
+  if (firebaseBehaviourSessionKey === sessionKey) return;
   if (typeof firebaseBehaviourUnsubscribe === "function") firebaseBehaviourUnsubscribe();
   firebaseBehaviourSessionKey = sessionKey;
   firebaseBehaviourUnsubscribe = window.MarkHubFirebase.listenBehaviourRecords(
     sessionKey,
-    (patch) => {
-      behaviourData = {
-        assessments: patch.assessments || {},
-        observations: patch.observations || {},
-        interventions: patch.interventions || {},
-        recognitions: patch.recognitions || {}
-      };
-      if (activeView === "behaviour" || activeView === "studentProfiles") {
-        renderActiveViewOnly();
-      }
-    },
+    applyBehaviourRecordsPatch,
     (error) => {
       console.error("[Firestore] Behaviour listener failed", error);
-      if (activeView === "behaviour" || activeView === "studentProfiles") {
-        showToast("Behaviour live updates are not available. Check Firebase rules for behaviour collections.");
-      }
+      loadBehaviourRecordsOnce(sessionKey, {
+        notify: (activeView === "behaviour" || activeView === "studentProfiles") && !firebaseBehaviourLiveWarningShown
+      });
+      firebaseBehaviourLiveWarningShown = true;
     }
   );
 }
@@ -11524,7 +11577,10 @@ function initializeBehaviourControls() {
   if (els.behaviourPeriodTypeSelect.value !== defaultBehaviourPeriodType) {
     els.behaviourPeriodTypeSelect.value = defaultBehaviourPeriodType;
   }
-  const periodValue = savedPeriodKey || els.behaviourPeriodKeyInput.value || defaultBehaviourPeriodKey();
+  const periodValue = savedPeriodKey
+    || latestBehaviourMonthlyPeriodKey(sessionValue)
+    || els.behaviourPeriodKeyInput.value
+    || defaultBehaviourPeriodKey();
   const periodInputIsFocused = document.activeElement === els.behaviourPeriodKeyInput;
   if (!periodInputIsFocused) {
     populateBehaviourMonthSelect(periodValue);
@@ -11558,15 +11614,37 @@ function behaviourMonthOptions(session = els.behaviourSessionSelect?.value || st
     const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     return { value, label: formatter.format(date) };
   });
-  if (extraPeriodKey && !options.some((option) => option.value === extraPeriodKey)) {
-    const [year, month] = extraPeriodKey.split("-").map(Number);
-    if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
-      const date = new Date(year, month - 1, 1);
-      options.push({ value: extraPeriodKey, label: formatter.format(date) });
-      options.sort((a, b) => a.value.localeCompare(b.value));
-    }
-  }
+  const extraKeys = new Set([
+    extraPeriodKey,
+    ...Object.values(behaviourData.assessments || {})
+      .filter((record) => record?.academicSessionId === sessionKey && record?.periodType === "Monthly")
+      .map((record) => String(record.periodKey || "").trim())
+  ].filter(Boolean));
+  extraKeys.forEach((periodKey) => {
+    if (options.some((option) => option.value === periodKey)) return;
+    const [year, month] = periodKey.split("-").map(Number);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return;
+    const date = new Date(year, month - 1, 1);
+    options.push({ value: periodKey, label: formatter.format(date) });
+  });
+  options.sort((a, b) => a.value.localeCompare(b.value));
   return options;
+}
+
+function behaviourMonthLabel(periodKey = "") {
+  const [year, month] = String(periodKey || "").split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return periodKey;
+  return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+}
+
+function latestBehaviourMonthlyPeriodKey(session = els.behaviourSessionSelect?.value || state.academicSession) {
+  const sessionKey = currentSessionKey(session);
+  return Object.values(behaviourData.assessments || {})
+    .filter((record) => record?.academicSessionId === sessionKey && record?.periodType === "Monthly")
+    .map((record) => String(record.periodKey || "").trim())
+    .filter(Boolean)
+    .sort()
+    .pop() || "";
 }
 
 function populateBehaviourMonthSelect(selectedPeriodKey = "") {
