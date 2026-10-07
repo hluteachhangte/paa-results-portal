@@ -6,6 +6,7 @@ const dashboardNotificationSeenKey = "markhub-dashboard-notifications-seen-at-v1
 const loginLogLocalKey = "markhub-local-login-logs-v1";
 const behaviourPeriodSettingsKey = "markhub-behaviour-period-settings-v2";
 const defaultBehaviourPeriodType = "Monthly";
+const approvedAdminIdentifiers = new Set(["hluteachhangte@gmail.com", "admin/hluteachhangte@gmail.com"]);
 const minimalUxEnabled = false;
 
 const classNames = [
@@ -2487,8 +2488,28 @@ function applyPerformanceProfile() {
   document.documentElement.classList.toggle("minimal-ux", isMinimalUx());
 }
 
+function normalizePortalIdentifier(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isApprovedAdminIdentifier(value = "") {
+  const normalized = normalizePortalIdentifier(value);
+  if (!normalized) return false;
+  return approvedAdminIdentifiers.has(normalized)
+    || approvedAdminIdentifiers.has(normalized.split("/").pop());
+}
+
+function isKnownAdminUser(user = currentUser) {
+  return Boolean(user) && (
+    isApprovedAdminIdentifier(user.email)
+    || isApprovedAdminIdentifier(user.username)
+    || isApprovedAdminIdentifier(user.identifier)
+    || isApprovedAdminIdentifier(user.name)
+  );
+}
+
 function isAdmin() {
-  return currentUser?.role === "admin";
+  return currentUser?.role === "admin" || currentUser?.staffRole === "admin" || isKnownAdminUser();
 }
 
 function isPrincipalUser() {
@@ -3664,13 +3685,38 @@ function applySelectLightTheme(root = document) {
   selects.forEach((select) => {
     select.style.colorScheme = "only light";
     select.style.backgroundColor = "#ffffff";
+    select.style.background = "#ffffff";
     select.style.color = "#0b2b63";
     select.style.boxShadow = "none";
+    select.dataset.lightDropdown = "true";
     [...select.options].forEach((option) => {
       option.style.backgroundColor = "#ffffff";
+      option.style.background = "#ffffff";
       option.style.color = "#0b2b63";
     });
   });
+}
+
+const refreshSelectLightTheme = debounce((root = document) => {
+  applySelectLightTheme(root);
+}, 40);
+
+function installSelectLightThemeGuard() {
+  document.addEventListener("pointerdown", (event) => {
+    const select = event.target?.closest?.("select");
+    if (select) applySelectLightTheme(select);
+  }, true);
+  document.addEventListener("focusin", (event) => {
+    const select = event.target?.closest?.("select");
+    if (select) applySelectLightTheme(select);
+  }, true);
+  const observer = new MutationObserver((mutations) => {
+    if (!mutations.some((mutation) => mutation.target?.closest?.("select") || [...mutation.addedNodes].some((node) =>
+      node instanceof HTMLSelectElement || node instanceof HTMLOptionElement || node.querySelector?.("select,option")
+    ))) return;
+    refreshSelectLightTheme();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 function debounce(fn, delay = 180) {
@@ -3685,6 +3731,7 @@ function init() {
   const savedUiState = loadSavedUiState();
   activeView = savedUiState.activeView || activeView;
   applyPerformanceProfile();
+  installSelectLightThemeGuard();
   applySelectLightTheme();
   renderAuth();
 
@@ -11528,6 +11575,12 @@ function setupBehaviourEvents() {
       rerender();
       return;
     }
+    if (document.activeElement === els.behaviourPeriodTypeSelect) {
+      const nextPeriodKey = latestBehaviourPeriodKey(els.behaviourPeriodTypeSelect.value, els.behaviourSessionSelect?.value)
+        || defaultBehaviourPeriodKey();
+      populateBehaviourPeriodSelect(nextPeriodKey);
+      setSelectValueIfAvailable(els.behaviourPeriodKeyInput, nextPeriodKey);
+    }
     saveBehaviourPeriodSettingsLocal();
     rerender();
   };
@@ -11574,16 +11627,13 @@ function initializeBehaviourControls() {
   populateSelect(els.behaviourSessionSelect, sessions.length ? sessions : [currentSessionKey(state.academicSession)]);
   setSelectValueIfAvailable(els.behaviourSessionSelect, sessionValue);
   setSelectValueIfAvailable(els.behaviourPeriodTypeSelect, savedPeriodType);
-  if (els.behaviourPeriodTypeSelect.value !== defaultBehaviourPeriodType) {
-    els.behaviourPeriodTypeSelect.value = defaultBehaviourPeriodType;
-  }
   const periodValue = savedPeriodKey
-    || latestBehaviourMonthlyPeriodKey(sessionValue)
+    || latestBehaviourPeriodKey(els.behaviourPeriodTypeSelect.value, sessionValue)
     || els.behaviourPeriodKeyInput.value
     || defaultBehaviourPeriodKey();
   const periodInputIsFocused = document.activeElement === els.behaviourPeriodKeyInput;
   if (!periodInputIsFocused) {
-    populateBehaviourMonthSelect(periodValue);
+    populateBehaviourPeriodSelect(periodValue);
     setSelectValueIfAvailable(els.behaviourPeriodKeyInput, periodValue);
   }
   const canEditPeriod = canEditBehaviourPeriod();
@@ -11631,25 +11681,70 @@ function behaviourMonthOptions(session = els.behaviourSessionSelect?.value || st
   return options;
 }
 
+function behaviourWeekOptions(session = els.behaviourSessionSelect?.value || state.academicSession, extraPeriodKey = "") {
+  const sessionKey = currentSessionKey(session);
+  const sessionStartYear = Number.parseInt(sessionKey.match(/\d{4}/)?.[0] || "", 10);
+  const startYear = Number.isFinite(sessionStartYear) ? sessionStartYear : new Date().getFullYear();
+  const academicStart = new Date(startYear, 3, 1);
+  const academicEnd = new Date(startYear + 1, 2, 31);
+  const formatter = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
+  const options = [];
+  let cursor = new Date(academicStart);
+  let week = 1;
+  while (cursor <= academicEnd) {
+    const start = new Date(cursor);
+    const end = new Date(cursor);
+    end.setDate(end.getDate() + 6);
+    if (end > academicEnd) end.setTime(academicEnd.getTime());
+    const value = `${startYear}-W${String(week).padStart(2, "0")}`;
+    options.push({
+      value,
+      label: `Week ${week} (${formatter.format(start)} - ${formatter.format(end)})`
+    });
+    cursor.setDate(cursor.getDate() + 7);
+    week += 1;
+  }
+  const extraKeys = new Set([
+    extraPeriodKey,
+    ...Object.values(behaviourData.assessments || {})
+      .filter((record) => record?.academicSessionId === sessionKey && record?.periodType === "Weekly")
+      .map((record) => String(record.periodKey || "").trim())
+  ].filter(Boolean));
+  extraKeys.forEach((periodKey) => {
+    if (options.some((option) => option.value === periodKey)) return;
+    const match = periodKey.match(/^(\d{4})-W(\d{1,2})$/);
+    if (!match) return;
+    const year = Number(match[1]);
+    const weekNumber = Number(match[2]);
+    if (!Number.isFinite(year) || !Number.isFinite(weekNumber) || weekNumber < 1) return;
+    options.push({ value: periodKey, label: `Week ${weekNumber} (${periodKey})` });
+  });
+  options.sort((a, b) => a.value.localeCompare(b.value));
+  return options;
+}
+
 function behaviourMonthLabel(periodKey = "") {
   const [year, month] = String(periodKey || "").split("-").map(Number);
   if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return periodKey;
   return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
 }
 
-function latestBehaviourMonthlyPeriodKey(session = els.behaviourSessionSelect?.value || state.academicSession) {
+function latestBehaviourPeriodKey(periodType = els.behaviourPeriodTypeSelect?.value || defaultBehaviourPeriodType, session = els.behaviourSessionSelect?.value || state.academicSession) {
   const sessionKey = currentSessionKey(session);
   return Object.values(behaviourData.assessments || {})
-    .filter((record) => record?.academicSessionId === sessionKey && record?.periodType === "Monthly")
+    .filter((record) => record?.academicSessionId === sessionKey && record?.periodType === periodType)
     .map((record) => String(record.periodKey || "").trim())
     .filter(Boolean)
     .sort()
     .pop() || "";
 }
 
-function populateBehaviourMonthSelect(selectedPeriodKey = "") {
+function populateBehaviourPeriodSelect(selectedPeriodKey = "") {
   if (!els.behaviourPeriodKeyInput) return;
-  els.behaviourPeriodKeyInput.innerHTML = behaviourMonthOptions(undefined, selectedPeriodKey)
+  const options = (els.behaviourPeriodTypeSelect?.value || defaultBehaviourPeriodType) === "Weekly"
+    ? behaviourWeekOptions(undefined, selectedPeriodKey)
+    : behaviourMonthOptions(undefined, selectedPeriodKey);
+  els.behaviourPeriodKeyInput.innerHTML = options
     .map((option) => `<option value="${escapeAttr(option.value)}" style="background-color:#ffffff;color:#0b2b63;">${escapeHtml(option.label)}</option>`)
     .join("");
   applySelectLightTheme(els.behaviourPeriodKeyInput);

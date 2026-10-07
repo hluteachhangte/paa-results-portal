@@ -49,6 +49,7 @@ const auth = getAuth(app);
 const appStateRef = doc(db, "appState", "markhub");
 const splitRootCollection = "sessionData";
 const classListMarkKeyPrefix = "__classList__::";
+const approvedAdminIdentifiers = new Set(["hluteachhangte@gmail.com", "admin/hluteachhangte@gmail.com"]);
 let phoneConfirmationResult = null;
 let phoneRecaptchaVerifier = null;
 const duplicatedActiveSessionFields = [
@@ -202,6 +203,13 @@ function normalizeApprovedIdentifier(identifier = "") {
   return value.replace(/[\s().-]/g, "");
 }
 
+function isApprovedAdminIdentifier(identifier = "") {
+  const normalized = normalizeApprovedIdentifier(identifier);
+  if (!normalized) return false;
+  return approvedAdminIdentifiers.has(normalized)
+    || approvedAdminIdentifiers.has(normalized.split("/").pop());
+}
+
 function approvedUserRef(identifier = "") {
   const normalized = normalizeApprovedIdentifier(identifier);
   if (!normalized || normalized.includes("/")) return null;
@@ -210,7 +218,9 @@ function approvedUserRef(identifier = "") {
 
 function authProfileFromApprovedDoc(identifier, data = {}, firebaseUser = null) {
   const rawRole = String(data.role || "teacher").trim().toLowerCase();
-  const staffRole = ["admin", "principal", "headmaster", "teacher"].includes(rawRole) ? rawRole : "teacher";
+  const staffRole = isApprovedAdminIdentifier(identifier) || isApprovedAdminIdentifier(firebaseUser?.email) || isApprovedAdminIdentifier(data.email)
+    ? "admin"
+    : ["admin", "principal", "headmaster", "teacher"].includes(rawRole) ? rawRole : "teacher";
   const displayName = String(data.name || firebaseUser?.displayName || firebaseUser?.email || firebaseUser?.phoneNumber || identifier || staffRole).trim();
   return {
     username: String(data.username || (staffRole === "principal" ? "principal" : staffRole === "headmaster" ? "headmaster" : firebaseUser?.uid || normalizeApprovedIdentifier(identifier))).trim(),

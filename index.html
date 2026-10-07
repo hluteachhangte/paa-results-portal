@@ -82,7 +82,7 @@
       .login-screen:not(.hidden) { padding: 12px; place-items: start center; }
       .login-actions { grid-template-columns: 1fr; }
     }
-  </style><link rel="stylesheet" href="./styles.css?v=behaviour-live-fallback-20261005">
+  </style><link rel="stylesheet" href="./styles.css?v=behaviour-weekly-view-20261007">
 </head>
 <body class="is-logged-out" style="margin:0;min-height:100vh;background:#f4f7fb;color:#0b2a5b;font-family:Inter,Noto Sans,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;overflow-x:hidden;">
   <section id="loginScreen" class="login-screen" aria-label="Login" style="min-height:100vh;display:grid;place-items:center;padding:16px;background:#f4f7fb;box-sizing:border-box;">
@@ -1201,6 +1201,7 @@
           <label>Academic Session<select id="behaviourSessionSelect"></select></label>
           <label>Assessment Period<select id="behaviourPeriodTypeSelect">
             <option value="Monthly" selected>Monthly</option>
+            <option value="Weekly">Weekly</option>
           </select></label>
           <label>Period<select id="behaviourPeriodKeyInput"></select></label>
           <label>Class<select id="behaviourClassSelect"></select></label>
@@ -1274,9 +1275,9 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="./firebase.js?v=dropdown-popup-fix-20260830"></script>
-  <script src="./app.js?v=behaviour-live-fallback-20261005"></script>
-  <script src="./teacher-assessment.js?v=behaviour-live-fallback-20261005"></script>
-  <script src="./pwa-register.js?v=behaviour-live-fallback-20261005"></script>
+  <script src="./app.js?v=behaviour-weekly-view-20261007"></script>
+  <script src="./teacher-assessment.js?v=behaviour-weekly-view-20261007"></script>
+  <script src="./pwa-register.js?v=behaviour-weekly-view-20261007"></script>
 </body>
 </html>
 

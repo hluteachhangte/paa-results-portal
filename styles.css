@@ -18736,3 +18736,50 @@ body.students-active #studentsView > .table-wrap thead th {
     min-height: 0 !important;
   }
 }
+
+/* Final native dropdown fix: prevent blank black option popups on login/open pages. */
+html,
+body,
+select,
+select:focus,
+select:active,
+select:focus-visible,
+select option,
+select optgroup,
+option {
+  color-scheme: only light !important;
+}
+
+select,
+select[data-light-dropdown="true"],
+body.is-logged-out .login-card select,
+body.auth-pending select {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0b2b63 !important;
+  -webkit-text-fill-color: #0b2b63 !important;
+}
+
+select option,
+select optgroup,
+select[data-light-dropdown="true"] option,
+select[data-light-dropdown="true"] optgroup,
+body.is-logged-out .login-card select option,
+body.is-logged-out .login-card select optgroup,
+option {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0b2b63 !important;
+  -webkit-text-fill-color: #0b2b63 !important;
+}
+
+select option:checked,
+select option:hover,
+select option:focus,
+option:checked,
+option:hover {
+  background: #e8f4ff !important;
+  background-color: #e8f4ff !important;
+  color: #0b2b63 !important;
+  -webkit-text-fill-color: #0b2b63 !important;
+}

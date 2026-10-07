@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20261005-behaviour-live-fallback";
+const CACHE_NAME = "paa-results-portal-v20261007-behaviour-weekly-view";
 const APP_SHELL = [
   "./",
   "./index.html",
