@@ -18760,6 +18760,17 @@ body.auth-pending select {
   -webkit-text-fill-color: #0b2b63 !important;
 }
 
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 select option,
 select optgroup,
 select[data-light-dropdown="true"] option,
