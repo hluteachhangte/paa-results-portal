@@ -18760,6 +18760,32 @@ body.auth-pending select {
   -webkit-text-fill-color: #0b2b63 !important;
 }
 
+.moral-mark-grade {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 142px;
+}
+
+.moral-mark-grade > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+#marksBody .moral-mark-grade .mark-input {
+  width: 72px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#marksBody .moral-mark-grade .grade-input {
+  width: 54px;
+  background: #f1f5f9;
+  text-align: center;
+}
+
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;

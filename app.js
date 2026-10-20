@@ -3149,6 +3149,7 @@ function getPassMarks(className = selectedClass(), exam = selectedExam()) {
 }
 
 function getSubjectMaxMarks(className = selectedClass(), exam = selectedExam(), subject = selectedSubject()) {
+  if (isHighClass(className) && subject === "Moral") return 50;
   if (className === "LKG" && (subject === "Rhymes" || subject === "A.E.")) return 50;
   if (className === "UKG" && subject === "A.E.") return 50;
   if (isHighClass(className) && exam === "Third Term" && subject.endsWith(" (Assignment)")) return 2;
@@ -3225,6 +3226,14 @@ function isGradeSubject(subject = selectedSubject(), className = selectedClass()
   return (isHighClass(className) && subject === "W.E.")
     || (isHighClass(className) && subject === "Moral")
     || (["Class VI", "Class VII", "Class VIII", "Class IX", "Class X"].includes(className) && subject === "Skill Development");
+}
+
+function moralGradeFromPercentage(percentage) {
+  if (percentage >= 75) return "A";
+  if (percentage >= 60) return "B";
+  if (percentage >= 50) return "C";
+  if (percentage >= 33) return "D";
+  return "E";
 }
 
 function baseSubjectName(subject = selectedSubject()) {
@@ -5042,7 +5051,9 @@ function renderEntry() {
             <td><output class="calculated-mark">${value === "" ? "-" : escapeHtml(value)}</output></td>`
           : `<td>
           ${gradeSubject
-            ? `<input class="mark-input grade-input" type="text" inputmode="text" enterkeyhint="next" maxlength="2" placeholder="A-E, -1, -2" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}. Enter -1 for Absent or -2 for Not yet enrolled.">`
+            ? `${isHighClass() && selectedSubject() === "Moral"
+              ? `<div class="moral-mark-grade"><label>Marks / ${maxMarks}<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" tabindex="${index + 1}" min="-2" max="${maxMarks}" step="0.01" data-moral-roll="${student.roll}" aria-label="Moral marks out of ${maxMarks} for ${escapeAttr(student.name)}"></label><label>Grade<input class="mark-input grade-input" type="text" readonly tabindex="-1" placeholder="-" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Calculated Moral grade for ${escapeAttr(student.name)}"></label></div>`
+              : `<input class="mark-input grade-input" type="text" inputmode="text" enterkeyhint="next" maxlength="2" placeholder="A-E, -1, -2" tabindex="${index + 1}" value="${escapeAttr(value)}" data-grade-roll="${student.roll}" aria-label="Grade for ${escapeAttr(student.name)}. Enter -1 for Absent or -2 for Not yet enrolled.">`}`
             : `<input class="mark-input" type="number" inputmode="decimal" enterkeyhint="next" min="-2" max="${maxMarks}" step="0.01" tabindex="${index + 1}"
                 value="${value}" data-roll="${student.roll}" aria-label="Marks for ${escapeAttr(student.name)}">`}
         </td>`}
@@ -5065,6 +5076,16 @@ function setupEntryTableEvents() {
   setupEntryTableEvents.bound = true;
   const handleEntryChange = (event, options = {}) => {
     const input = event.target;
+    if (input instanceof HTMLInputElement && input.dataset.moralRoll !== undefined) {
+      if (selectedMarksEntryLocked() || marksSaveInProgress || !isHighClass() || selectedSubject() !== "Moral") return;
+      const maxMarks = getSubjectMaxMarks();
+      const marks = normalizeNumberInputValue(input, maxMarks, Boolean(options.showWarning), `Enter Moral marks up to ${maxMarks}.`);
+      const gradeInput = input.closest("tr")?.querySelector("[data-grade-roll]");
+      if (!gradeInput) return;
+      gradeInput.value = marks === "" ? "" : isEntryStatusValue(marks) ? String(marks) : moralGradeFromPercentage(Number(marks) / maxMarks * 100);
+      saveEntryInputInPlace(gradeInput, options);
+      return;
+    }
     if (!isEntryMarkInput(input)) return;
     saveEntryInputInPlace(input, options);
   };
