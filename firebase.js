@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   query,
+  where,
   orderBy,
   limit as firestoreLimit,
   onSnapshot,
@@ -218,7 +219,7 @@ function approvedUserRef(identifier = "") {
 
 function authProfileFromApprovedDoc(identifier, data = {}, firebaseUser = null) {
   const rawRole = String(data.role || "teacher").trim().toLowerCase();
-  const staffRole = isApprovedAdminIdentifier(identifier) || isApprovedAdminIdentifier(firebaseUser?.email) || isApprovedAdminIdentifier(data.email)
+  const staffRole = isApprovedAdminIdentifier(firebaseUser?.email)
     ? "admin"
     : ["admin", "principal", "headmaster", "teacher"].includes(rawRole) ? rawRole : "teacher";
   const displayName = String(data.name || firebaseUser?.displayName || firebaseUser?.email || firebaseUser?.phoneNumber || identifier || staffRole).trim();
@@ -587,50 +588,37 @@ window.MarkHubFirebase = {
     return payload;
   },
   listenBehaviourRecords(session, onPatch, onError) {
-    const patch = {
-      assessments: {},
-      observations: {},
-      interventions: {},
-      recognitions: {}
-    };
-    const unsubs = [
-      onSnapshot(collection(db, "behaviourAssessments"), (snapshot) => {
-        patch.assessments = behaviourSnapshotMap(snapshot, "assessmentId", session);
-        onPatch({ ...patch });
-      }, onError),
-      onSnapshot(collection(db, "behaviourObservations"), (snapshot) => {
-        patch.observations = behaviourSnapshotMap(snapshot, "observationId", session);
-        onPatch({ ...patch });
-      }, onError),
-      onSnapshot(collection(db, "behaviourInterventions"), (snapshot) => {
-        patch.interventions = behaviourSnapshotMap(snapshot, "interventionId", session);
-        onPatch({ ...patch });
-      }, onError),
-      onSnapshot(collection(db, "behaviourRecognitions"), (snapshot) => {
-        patch.recognitions = behaviourSnapshotMap(snapshot, "recognitionId", session);
-        onPatch({ ...patch });
-      }, onError)
+    const sources = [
+      ["assessments", "behaviourAssessments", "assessmentId"],
+      ["observations", "behaviourObservations", "observationId"],
+      ["interventions", "behaviourInterventions", "interventionId"],
+      ["recognitions", "behaviourRecognitions", "recognitionId"]
     ];
+    const unsubs = sources.map(([key, name, idField]) => onSnapshot(
+      query(collection(db, name), where("academicSessionId", "==", String(session || ""))),
+      (snapshot) => onPatch({ [key]: behaviourSnapshotMap(snapshot, idField, session) }),
+      onError
+    ));
     return () => unsubs.forEach((unsubscribe) => unsubscribe());
   },
   async getBehaviourRecordsOnce(session) {
-    const [
-      assessmentsSnapshot,
-      observationsSnapshot,
-      interventionsSnapshot,
-      recognitionsSnapshot
-    ] = await Promise.all([
-      getDocs(collection(db, "behaviourAssessments")),
-      getDocs(collection(db, "behaviourObservations")),
-      getDocs(collection(db, "behaviourInterventions")),
-      getDocs(collection(db, "behaviourRecognitions"))
-    ]);
-    return {
-      assessments: behaviourSnapshotMap(assessmentsSnapshot, "assessmentId", session),
-      observations: behaviourSnapshotMap(observationsSnapshot, "observationId", session),
-      interventions: behaviourSnapshotMap(interventionsSnapshot, "interventionId", session),
-      recognitions: behaviourSnapshotMap(recognitionsSnapshot, "recognitionId", session)
-    };
+    const sources = [
+      ["assessments", "behaviourAssessments", "assessmentId"],
+      ["observations", "behaviourObservations", "observationId"],
+      ["interventions", "behaviourInterventions", "interventionId"],
+      ["recognitions", "behaviourRecognitions", "recognitionId"]
+    ];
+    const results = await Promise.allSettled(sources.map(([, name]) =>
+      getDocs(query(collection(db, name), where("academicSessionId", "==", String(session || ""))))
+    ));
+    const patch = {};
+    results.forEach((result, index) => {
+      const [key, , idField] = sources[index];
+      if (result.status === "fulfilled") patch[key] = behaviourSnapshotMap(result.value, idField, session);
+      else console.warn(`[Firestore] Could not load ${key}`, result.reason);
+    });
+    if (!Object.keys(patch).length) throw results[0].reason;
+    return patch;
   },
   listenResultByRoll(rollNumber, onResult, onError) {
     const roll = String(rollNumber || "").trim();

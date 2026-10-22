@@ -1612,7 +1612,7 @@ function buildUnsavedMarkFieldUpdates(changes = [...unsavedMarkChanges.values()]
 
 function markInputsRequiredForSave() {
   const allInputs = [...document.querySelectorAll("#entryView.active .mark-input")];
-  if (!isSplitPartSubject()) return allInputs;
+  if (!isSplitPartSubject()) return allInputs.filter((input) => input.dataset.moralRoll === undefined);
 
   const changedPartKeys = new Set(
     [...unsavedMarkChanges.values()]
@@ -1745,9 +1745,9 @@ async function saveAllMarks() {
       lastSyncedFirebaseStateJson = stateJson;
       if (pendingFirebaseStateJson === stateJson) pendingFirebaseStateJson = "";
     }
-    const savedContextKeys = new Set(currentContextChanges.map((change) => `${change.className}\u0000${change.exam}\u0000${change.subject}`));
+    const savedChanges = new Set(currentContextChanges);
     [...unsavedMarkChanges.entries()].forEach(([key, change]) => {
-      if (savedContextKeys.has(`${change.className}\u0000${change.exam}\u0000${change.subject}`)) {
+      if (savedChanges.has(change)) {
         unsavedMarkChanges.delete(key);
       }
     });
@@ -1973,10 +1973,8 @@ async function loadSplitSessionOnce(session = state.academicSession) {
 
 function applyBehaviourRecordsPatch(patch = {}) {
   behaviourData = {
-    assessments: patch.assessments || {},
-    observations: patch.observations || {},
-    interventions: patch.interventions || {},
-    recognitions: patch.recognitions || {}
+    ...behaviourData,
+    ...patch
   };
   if (activeView === "behaviour" || activeView === "studentProfiles") {
     renderActiveViewOnly();
@@ -1989,6 +1987,7 @@ async function loadBehaviourRecordsOnce(session = state.academicSession, options
   firebaseBehaviourFallbackLoading = true;
   try {
     const patch = await window.MarkHubFirebase.getBehaviourRecordsOnce(sessionKey);
+    if (!window.MarkHubFirebase?.auth?.currentUser || currentSessionKey(state.academicSession) !== sessionKey) return false;
     applyBehaviourRecordsPatch(patch);
     if (options.notify) showToast("Behaviour records loaded. Live updates are unavailable.");
     return true;
@@ -2012,9 +2011,12 @@ function ensureBehaviourListener(session = state.academicSession) {
   if (firebaseBehaviourSessionKey === sessionKey) return;
   if (typeof firebaseBehaviourUnsubscribe === "function") firebaseBehaviourUnsubscribe();
   firebaseBehaviourSessionKey = sessionKey;
+  behaviourData = behaviourEmptyData();
   firebaseBehaviourUnsubscribe = window.MarkHubFirebase.listenBehaviourRecords(
     sessionKey,
-    applyBehaviourRecordsPatch,
+    (patch) => {
+      if (firebaseBehaviourSessionKey === sessionKey) applyBehaviourRecordsPatch(patch);
+    },
     (error) => {
       console.error("[Firestore] Behaviour listener failed", error);
       loadBehaviourRecordsOnce(sessionKey, {
@@ -2367,9 +2369,9 @@ function applyRemoteStateToCurrentView(uiState) {
     els.marksheetNameSearchInput.value = uiState.marksheetNameSearch || "";
   }
   updateAttendanceInputs();
-  initializeAnalysisFilters(uiState);
-  initializeTeacherAnalyticsFilters(uiState);
-  initializeStudentProfileControls(uiState);
+  if (activeView === "analysis") initializeAnalysisFilters(uiState);
+  if (activeView === "teacherAnalytics") initializeTeacherAnalyticsFilters(uiState);
+  if (activeView === "studentProfiles") initializeStudentProfileControls(uiState);
 
   if (isFocusedEntryMarkInput()) {
     renderPublishStatus();
@@ -2387,7 +2389,19 @@ function setSelectValueIfAvailable(select, value) {
   if (values.includes(value)) select.value = value;
 }
 
+const initializedViewControls = new Set();
+let deferredViewUiState = {};
+
+function initializeActiveViewControls() {
+  if (initializedViewControls.has(activeView)) return;
+  const savedUiState = deferredViewUiState;
+  if (activeView === "teacherAnalytics") initializeTeacherAnalyticsFilters(savedUiState);
+  if (activeView === "studentProfiles") initializeStudentProfileControls(savedUiState);
+  initializedViewControls.add(activeView);
+}
+
 function renderActiveViewOnly() {
+  initializeActiveViewControls();
   renderPublishStatus();
   renderMarksheetPublishStatus();
   if (activeView === "dashboard") {
@@ -2417,7 +2431,6 @@ function renderActiveViewOnly() {
   } else {
     render();
   }
-  applySelectLightTheme();
 }
 
 function refreshStateControls() {
@@ -2500,12 +2513,9 @@ function isApprovedAdminIdentifier(value = "") {
 }
 
 function isKnownAdminUser(user = currentUser) {
-  return Boolean(user) && (
-    isApprovedAdminIdentifier(user.email)
-    || isApprovedAdminIdentifier(user.username)
-    || isApprovedAdminIdentifier(user.identifier)
-    || isApprovedAdminIdentifier(user.name)
-  );
+  const verifiedUser = window.MarkHubFirebase?.auth?.currentUser;
+  return Boolean(verifiedUser && user?.uid === verifiedUser.uid
+    && isApprovedAdminIdentifier(verifiedUser.email));
 }
 
 function isAdmin() {
@@ -3681,51 +3691,23 @@ function canViewMarksheet() {
 }
 
 function populateSelect(select, options) {
+  prepareNativeDropdown(select);
+  const values = options.map(String);
+  if (select.options.length === values.length && values.every((value, index) =>
+    select.options[index].value === value && select.options[index].textContent === value
+  )) return;
   select.innerHTML = options
     .map((option) => `<option value="${escapeAttr(option)}" style="background-color:#ffffff;color:#0b2b63;">${escapeHtml(option)}</option>`)
     .join("");
-  applySelectLightTheme(select);
 }
 
-function applySelectLightTheme(root = document) {
-  const selects = root instanceof HTMLSelectElement
-    ? [root]
-    : [...(root.querySelectorAll?.("select") || [])];
-  selects.forEach((select) => {
-    select.style.colorScheme = "only light";
-    select.style.backgroundColor = "#ffffff";
-    select.style.background = "#ffffff";
-    select.style.color = "#0b2b63";
-    select.style.boxShadow = "none";
-    select.dataset.lightDropdown = "true";
-    [...select.options].forEach((option) => {
-      option.style.backgroundColor = "#ffffff";
-      option.style.background = "#ffffff";
-      option.style.color = "#0b2b63";
-    });
-  });
-}
-
-const refreshSelectLightTheme = debounce((root = document) => {
-  applySelectLightTheme(root);
-}, 40);
-
-function installSelectLightThemeGuard() {
-  document.addEventListener("pointerdown", (event) => {
-    const select = event.target?.closest?.("select");
-    if (select) applySelectLightTheme(select);
-  }, true);
-  document.addEventListener("focusin", (event) => {
-    const select = event.target?.closest?.("select");
-    if (select) applySelectLightTheme(select);
-  }, true);
-  const observer = new MutationObserver((mutations) => {
-    if (!mutations.some((mutation) => mutation.target?.closest?.("select") || [...mutation.addedNodes].some((node) =>
-      node instanceof HTMLSelectElement || node instanceof HTMLOptionElement || node.querySelector?.("select,option")
-    ))) return;
-    refreshSelectLightTheme();
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+function prepareNativeDropdown(select) {
+  if (!select || select.dataset.lightDropdown === "true") return;
+  select.style.setProperty("color-scheme", "only light", "important");
+  select.style.setProperty("background", "#ffffff", "important");
+  select.style.setProperty("color", "#0b2b63", "important");
+  select.style.setProperty("box-shadow", "none", "important");
+  select.dataset.lightDropdown = "true";
 }
 
 function debounce(fn, delay = 180) {
@@ -3738,10 +3720,10 @@ function debounce(fn, delay = 180) {
 
 function init() {
   const savedUiState = loadSavedUiState();
+  deferredViewUiState = savedUiState;
+  document.querySelectorAll("select").forEach(prepareNativeDropdown);
   activeView = savedUiState.activeView || activeView;
   applyPerformanceProfile();
-  installSelectLightThemeGuard();
-  applySelectLightTheme();
   renderAuth();
 
   els.academicSessionInput.value = state.academicSession || "2026 - 2027";
@@ -3766,8 +3748,6 @@ function init() {
     updateTeacherAssignmentSubjectOptions();
     updateTeacherAssignmentPartOptions();
   }
-  initializeTeacherAnalyticsFilters(savedUiState);
-  initializeStudentProfileControls(savedUiState);
 
   document.querySelectorAll(".nav-tab").forEach((tab) => {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
@@ -5014,7 +4994,7 @@ function renderEntry() {
         <th>Status</th>`
     : `<th>Roll No.</th><th>Student Name</th><th>Marks / Grade</th><th>Status</th>`;
 
-  els.marksBody.innerHTML = students.map((student, index) => {
+  const entryRowsHtml = students.map((student, index) => {
     const mark = getStudentMark(student);
     const value = mark.value ?? "";
     const numericValue = Number(value);
@@ -5061,6 +5041,11 @@ function renderEntry() {
       </tr>
     `;
   }).join("");
+
+  if (els.marksBody.entryRowsHtml !== entryRowsHtml) {
+    els.marksBody.innerHTML = entryRowsHtml;
+    els.marksBody.entryRowsHtml = entryRowsHtml;
+  }
 
   els.studentCount.textContent = students.length;
   els.enteredCount.textContent = entered;
@@ -5275,6 +5260,7 @@ function saveSplitPartInput(input, showWarning = false) {
 }
 
 function updateEntryRow(input) {
+  delete els.marksBody.entryRowsHtml;
   const row = input.closest("tr");
   if (!row) return;
   const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.partRoll || input.dataset.gradeRoll;
@@ -5323,6 +5309,7 @@ function updateEntrySummaryFromState() {
 }
 
 function syncEntryInputsFromState() {
+  delete els.marksBody.entryRowsHtml;
   document.querySelectorAll("#entryView [data-roll], #entryView [data-project-roll], #entryView [data-part-roll], #entryView [data-grade-roll]").forEach((input) => {
     if (!(input instanceof HTMLInputElement) || input === document.activeElement) return;
     const roll = input.dataset.roll || input.dataset.projectRoll || input.dataset.partRoll || input.dataset.gradeRoll;
@@ -11768,7 +11755,6 @@ function populateBehaviourPeriodSelect(selectedPeriodKey = "") {
   els.behaviourPeriodKeyInput.innerHTML = options
     .map((option) => `<option value="${escapeAttr(option.value)}" style="background-color:#ffffff;color:#0b2b63;">${escapeHtml(option.label)}</option>`)
     .join("");
-  applySelectLightTheme(els.behaviourPeriodKeyInput);
 }
 
 function defaultBehaviourPeriodKey(date = new Date()) {

@@ -18754,6 +18754,7 @@ select,
 select[data-light-dropdown="true"],
 body.is-logged-out .login-card select,
 body.auth-pending select {
+  box-shadow: none !important;
   background: #ffffff !important;
   background-color: #ffffff !important;
   color: #0b2b63 !important;

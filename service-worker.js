@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20261007-behaviour-weekly-view";
+const CACHE_NAME = "paa-results-portal-v20261022-dropdown-light";
 const APP_SHELL = [
   "./",
   "./index.html",
