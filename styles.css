@@ -18821,3 +18821,19 @@ option:hover {
   color: #0b2b63 !important;
   -webkit-text-fill-color: #0b2b63 !important;
 }
+
+@media screen and (min-width: 769px) {
+  body.attendance-active #attendanceView > .table-wrap {
+    min-height: 0 !important;
+    max-height: clamp(260px, calc(100vh - 360px), 640px) !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  body.attendance-active #attendanceView > .table-wrap thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 9 !important;
+  }
+}
