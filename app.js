@@ -1253,6 +1253,14 @@ function hasUnsavedLocalChanges() {
   return hasUnsavedMarkChanges() || hasUnsavedAttendanceChanges();
 }
 
+window.MarkHubUpdateBlockReason = () => {
+  if (marksSaveInProgress || attendanceSaveInProgress || behaviourSaveInProgress || entryAccessSaveInProgress || publicationSaveInProgress) {
+    return "Saving is in progress. Please wait, then press Update.";
+  }
+  return hasUnsavedLocalChanges() || behaviourDirty || entryAccessDirty
+    ? "Save your changes before updating the app." : "";
+};
+
 function hasUnsavedResultChanges(className = selectedClass(), exam = selectedExam()) {
   const hasMarks = [...unsavedMarkChanges.values()].some((change) =>
     change.className === className && change.exam === exam);

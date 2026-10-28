@@ -1,4 +1,4 @@
-const CACHE_NAME = "paa-results-portal-v20261028-skill-dash";
+const CACHE_NAME = "paa-results-portal-v20261028-update-banner";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -13,7 +13,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
   );
 });
 

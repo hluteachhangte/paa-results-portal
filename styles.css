@@ -18901,3 +18901,67 @@ option:hover {
     overscroll-behavior: auto !important;
   }
 }
+
+@media screen and (min-width: 769px) {
+  body.results-active .app-shell > .main-content {
+    overflow-x: auto !important;
+  }
+
+  /* Keep the page as the sticky headers' scroll container on both axes. */
+  body.results-active #resultsView > .table-wrap {
+    overflow: visible !important;
+  }
+
+  body.results-active #resultsView .results-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  body.results-active #resultsView .results-table thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20 !important;
+    background: #edf3f6 !important;
+  }
+
+  body.results-active #resultsView .results-table thead tr:nth-child(2) th {
+    top: var(--results-header-row-height, 40px) !important;
+    z-index: 19 !important;
+  }
+}
+
+.app-update-banner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  left: auto;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #146c63;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #17202a;
+  font-size: 14px;
+}
+
+.app-update-banner span { min-width: 0; overflow-wrap: anywhere; }
+.app-update-banner button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 4px;
+  background: #146c63;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media print { .app-update-banner { display: none !important; } }
