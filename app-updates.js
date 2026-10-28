@@ -5,11 +5,13 @@
   let checking = false;
   let lastCheck = 0;
   const signature = (doc) => [...doc.querySelectorAll('script[src],link[rel="stylesheet"][href]')]
-    .map((node) => node.getAttribute("src") || node.getAttribute("href")).join("|");
+    .map((node) => new URL(node.getAttribute("src") || node.getAttribute("href"), location.href))
+    .filter((url) => url.origin === location.origin && url.searchParams.has("v"))
+    .map((url) => url.pathname + url.search).sort().join("|");
   const initial = signature(document);
 
   function showUpdate() {
-    if (banner) return;
+    if (banner || requested) return;
     banner = document.createElement("aside");
     banner.className = "app-update-banner";
     banner.setAttribute("aria-label", "App update");
@@ -24,6 +26,8 @@
       if (reason) { message.textContent = reason; return; }
       if (!window.confirm("Update now? Finish any unsaved form entries before continuing.")) return;
       requested = true;
+      banner.remove();
+      banner = null;
       if (registration?.waiting) {
         button.disabled = true;
         button.textContent = "Updating...";
@@ -36,14 +40,14 @@
 
   window.addEventListener("markhub-update-ready", (event) => {
     registration = event.detail;
-    showUpdate();
+    checkUpdate();
   });
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (requested) location.reload();
   });
 
   async function checkUpdate() {
-    if (checking || document.hidden || Date.now() - lastCheck < 60000) return;
+    if (requested || checking || document.hidden || Date.now() - lastCheck < 60000) return;
     checking = true;
     lastCheck = Date.now();
     try {
@@ -52,7 +56,10 @@
       const response = await fetch(url, { cache: "no-store" });
       if (response.ok) {
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
-        if (doc.querySelector("#appShell") && signature(doc) !== initial) showUpdate();
+        if (doc.querySelector("#appShell")) {
+          if (signature(doc) !== initial) showUpdate();
+          else if (banner) { banner.remove(); banner = null; }
+        }
       }
       await registration?.update();
     } catch {
