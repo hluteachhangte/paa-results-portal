@@ -5678,6 +5678,7 @@ function renderResults() {
   const term = isTermExam();
   const workingDays = getWorkingDays();
   els.resultsTable.classList.toggle("structured-results", isStructuredResultSheet());
+  els.resultsTable.classList.toggle("upper-middle-results", ["Class VI", "Class VII", "Class VIII"].includes(selectedClass()));
   els.resultsTable.classList.toggle("high-third-term-results", isHighThirdTermResult());
   els.resultsTable.classList.toggle("class-one-two-term-results", isClassOneTwoTermResult());
   els.resultsTable.classList.toggle("early-years-results", ["LKG", "UKG"].includes(selectedClass()));
@@ -6088,6 +6089,10 @@ function optimizeResultTableLayout() {
       measured = Math.max(measured, measure(resultCellText(cell), true) / span);
     });
     const padding = table.classList.contains("structured-results") ? 10 : 20;
+    if (table.classList.contains("upper-middle-results") && !["name", "remarks", "roll"].includes(role)) {
+      limits.min = Math.max(limits.min, Math.ceil(measured + 16), 44);
+      limits.max = Math.max(limits.max, limits.min);
+    }
     const width = Math.min(limits.max, Math.max(limits.min, Math.ceil(measured + padding)));
     return {
       role,

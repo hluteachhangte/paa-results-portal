@@ -18713,7 +18713,7 @@ body.students-active #studentsView > .table-wrap thead th {
   }
 
   body.results-active #resultsView > .table-wrap .results-table thead tr:nth-child(2) th {
-    top: 40px !important;
+    top: var(--results-header-row-height, 40px) !important;
     z-index: 8 !important;
   }
 }
@@ -18820,6 +18820,16 @@ option:hover {
   background-color: #e8f4ff !important;
   color: #0b2b63 !important;
   -webkit-text-fill-color: #0b2b63 !important;
+}
+
+@media screen {
+  .results-table.upper-middle-results tbody td:not(:nth-child(2)) {
+    text-align: center !important;
+    vertical-align: middle;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @media screen and (min-width: 769px) {
