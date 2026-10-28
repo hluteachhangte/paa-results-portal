@@ -12,15 +12,16 @@ test('update notice is unique and blocks refresh until changes are saved', async
   const context = {
     URL,
     fetch: async () => ({ ok: true, text: async () => 'latest' }),
-    DOMParser: class { parseFromString() { return { querySelector: () => ({}), querySelectorAll: () => [{ getAttribute: () => './app.js?v=new' }] }; } },
+    DOMParser: class { parseFromString() { return { querySelector: selector => selector === '#appShell' ? {} : { content: '20261028.02' } }; } },
     window: {
       addEventListener: (name, fn) => { listeners[name] = fn; },
       MarkHubUpdateBlockReason: () => reason,
       confirm: () => true
     },
     navigator: {},
-    location: { href: 'http://localhost/index.html', origin: 'http://localhost', reload: () => { reloads++; } },
+    location: { href: 'http://localhost/index.html', origin: 'http://localhost', replace: url => { assert.ok(url.includes('appRefresh=')); reloads++; } },
     document: {
+      querySelector: () => ({ content: '20261028.01' }),
       querySelectorAll: () => [], addEventListener() {},
       createElement: () => ({
         setAttribute() {}, addEventListener(name, fn) { this[name] = fn; },
@@ -57,6 +58,7 @@ test('current page does not show an update for a waiting worker or external scri
     navigator: {},
     window: { addEventListener: (name, fn) => { listeners[name] = fn; } },
     document: {
+      querySelector: () => ({ content: '20261028.01' }),
       querySelectorAll: () => [asset('./app.js?v=current'), asset('https://cdn.example.com/pdf.js?v=1')],
       addEventListener() {},
       createElement() { banners++; throw new Error('Unexpected update notice'); }
@@ -64,7 +66,7 @@ test('current page does not show an update for a waiting worker or external scri
     fetch: async () => ({ ok: true, text: async () => 'current' }),
     DOMParser: class {
       parseFromString() {
-        return { querySelector: () => ({}), querySelectorAll: () => [asset('./app.js?v=current')] };
+        return { querySelector: selector => selector === '#appShell' ? {} : { content: '20261028.01' }, querySelectorAll: () => [asset('./app.js?v=current')] };
       }
     }
   };

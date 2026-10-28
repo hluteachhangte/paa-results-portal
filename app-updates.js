@@ -4,11 +4,14 @@
   let requested = false;
   let checking = false;
   let lastCheck = 0;
-  const signature = (doc) => [...doc.querySelectorAll('script[src],link[rel="stylesheet"][href]')]
-    .map((node) => new URL(node.getAttribute("src") || node.getAttribute("href"), location.href))
-    .filter((url) => url.origin === location.origin && url.searchParams.has("v"))
-    .map((url) => url.pathname + url.search).sort().join("|");
-  const initial = signature(document);
+  const version = (doc) => doc.querySelector('meta[name="app-version"]')?.content || "";
+  const initial = version(document);
+
+  function loadLatestPage() {
+    const url = new URL(location.href);
+    url.searchParams.set("appRefresh", String(Date.now()));
+    location.replace(url.href);
+  }
 
   function showUpdate() {
     if (banner || requested) return;
@@ -32,7 +35,7 @@
         button.disabled = true;
         button.textContent = "Updating...";
         registration.waiting.postMessage({ type: "SKIP_WAITING" });
-      } else location.reload();
+      } else loadLatestPage();
     });
     banner.append(message, button);
     document.body.appendChild(banner);
@@ -43,7 +46,7 @@
     checkUpdate();
   });
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (requested) location.reload();
+    if (requested) loadLatestPage();
   });
 
   async function checkUpdate() {
@@ -57,7 +60,8 @@
       if (response.ok) {
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
         if (doc.querySelector("#appShell")) {
-          if (signature(doc) !== initial) showUpdate();
+          const latest = version(doc);
+          if (initial && latest && latest > initial) showUpdate();
           else if (banner) { banner.remove(); banner = null; }
         }
       }
