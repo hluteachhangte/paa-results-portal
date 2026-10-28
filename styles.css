@@ -6284,6 +6284,23 @@ body.print-marksheets .marksheet .failed-mark {
 }
 
 @media (max-width: 768px) {
+  body.results-active .app-shell:not(.hidden) {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.results-active .app-shell > .main-content {
+    display: block !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-gutter: stable;
+  }
+
   body.results-active #resultsView.active {
     display: flex;
     flex-direction: column;
@@ -18268,7 +18285,7 @@ select option:-internal-list-box {
     max-height: clamp(220px, calc(100vh - 310px), 560px) !important;
     overflow-x: auto !important;
     overflow-y: auto !important;
-    overscroll-behavior: contain !important;
+    overscroll-behavior: auto !important;
   }
 
   body.entry-active #entryView > .table-wrap thead th {
@@ -18823,7 +18840,8 @@ option:hover {
 }
 
 @media screen {
-  .results-table.upper-middle-results tbody td:not(:nth-child(2)) {
+  .results-table.upper-middle-results tbody td:not(:nth-child(2)),
+  .results-table.primary-results tbody td:not(:nth-child(2)) {
     text-align: center !important;
     vertical-align: middle;
     padding-left: 4px !important;
@@ -18845,5 +18863,41 @@ option:hover {
     position: sticky !important;
     top: 0 !important;
     z-index: 9 !important;
+  }
+}
+
+@media screen and (min-width: 769px) {
+  body.results-active .app-shell:not(.hidden) {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.results-active .app-shell > .main-content {
+    display: block !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-gutter: stable;
+  }
+
+  body.results-active #resultsView.active {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.results-active #resultsView > .table-wrap {
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior: auto !important;
   }
 }
