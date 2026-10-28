@@ -49,6 +49,28 @@ test('Moral grade boundaries use percentages out of 50', () => {
   }
 });
 
+test('Skill Development dash is restricted to IX and X Second Term', () => {
+  const context = vm.createContext({ isHighClass: name => ['Class IX', 'Class X'].includes(name) });
+  vm.runInContext(appFunction('allowsSkillDevelopmentDash'), context);
+  for (const className of ['Class VIII', 'Class IX', 'Class X']) {
+    for (const exam of ['First Term', 'Second Term', 'Third Term']) {
+      assert.equal(context.allowsSkillDevelopmentDash(className, exam, 'Skill Development'),
+        className !== 'Class VIII' && exam === 'Second Term');
+      assert.equal(context.allowsSkillDevelopmentDash(className, exam, 'Moral'), false);
+    }
+  }
+});
+
+test('dash is neutral while A-E grading stays unchanged', () => {
+  const context = vm.createContext({ isNotEnrolledEntry: value => String(value) === '-2', isAbsentEntry: value => String(value) === '-1' });
+  vm.runInContext(appFunction('getGradeStatus') + '\n' + appFunction('isFailingGrade'), context);
+  assert.equal(context.getGradeStatus('-').label, 'Not applicable');
+  assert.equal(context.isFailingGrade('-'), false);
+  for (const grade of ['A', 'B', 'C', 'D']) assert.equal(context.isFailingGrade(grade), false);
+  assert.equal(context.isFailingGrade('E'), true);
+  assert.equal(context.isFailingGrade('-1'), true);
+});
+
 test('saved Moral grades remain saveable without original numeric marks', () => {
   const grade = { value: 'A', dataset: { gradeRoll: '1' } };
   const marks = { value: '', dataset: { moralRoll: '1' } };

@@ -3238,6 +3238,10 @@ function isGradeSubject(subject = selectedSubject(), className = selectedClass()
     || (["Class VI", "Class VII", "Class VIII", "Class IX", "Class X"].includes(className) && subject === "Skill Development");
 }
 
+function allowsSkillDevelopmentDash(className = selectedClass(), exam = selectedExam(), subject = selectedSubject()) {
+  return isHighClass(className) && exam === "Second Term" && subject === "Skill Development";
+}
+
 function moralGradeFromPercentage(percentage) {
   if (percentage >= 75) return "A";
   if (percentage >= 60) return "B";
@@ -5045,6 +5049,12 @@ function renderEntry() {
   if (els.marksBody.entryRowsHtml !== entryRowsHtml) {
     els.marksBody.innerHTML = entryRowsHtml;
     els.marksBody.entryRowsHtml = entryRowsHtml;
+    if (allowsSkillDevelopmentDash()) {
+      els.marksBody.querySelectorAll("[data-grade-roll]").forEach((input) => {
+        input.placeholder = "A-E, -, -1, -2";
+        input.setAttribute("aria-label", `${input.getAttribute("aria-label")} Enter - for Not applicable.`);
+      });
+    }
   }
 
   els.studentCount.textContent = students.length;
@@ -5188,12 +5198,12 @@ function saveEntryInputInPlace(input, options = {}) {
 
   if (input.dataset.gradeRoll !== undefined) {
     const value = input.value.trim().toUpperCase().slice(0, 2);
-    if (value === "-" && !showWarning) {
+    if (value === "-" && !showWarning && !allowsSkillDevelopmentDash()) {
       input.value = value;
       return;
     }
-    if (value && !["A", "B", "C", "D", "E", "-1", "-2"].includes(value)) {
-      if (showWarning) showContextMessage(input, "Enter grade A-E, -1 for Absent, or -2 for Not yet enrolled.", { type: "error" });
+    if (value && !["A", "B", "C", "D", "E", "-1", "-2"].includes(value) && !(value === "-" && allowsSkillDevelopmentDash())) {
+      if (showWarning) showContextMessage(input, `Enter grade A-E, -1 for Absent, or -2 for Not yet enrolled.${allowsSkillDevelopmentDash() ? " Use - for Not applicable." : ""}`, { type: "error" });
       input.value = "";
       setStudentMark(input.dataset.gradeRoll, { value: "" }, { save: false });
     } else {
@@ -6353,7 +6363,7 @@ function calculateStructuredTermOutcome(markValues, percentage, gradeValues = []
     return !isNotEnrolledEntry(entry) && (entry === "" || isAbsentEntry(entry) || numericMark(entry) < passMark);
   }).length;
   const gradeFailCount = gradeValues.filter((value) =>
-    !isNotEnrolledEntry(value) && getGradeStatus(value).className !== "pass").length;
+    !isNotEnrolledEntry(value) && isFailingGrade(value)).length;
   const failCount = numericFailCount + gradeFailCount;
   const result = failCount === 0 ? "Pass" : failCount === 1 ? "Simple Pass" : "Fail";
   return {
@@ -6724,7 +6734,7 @@ function renderMarksheetGradedSubjects(subjects, extraClass = "") {
   return `<div class="marksheet-graded-subjects ${extraClass}">
     ${subjects.map(({ subject, value }) => {
       const displayValue = value || "AB";
-      const failed = getGradeStatus(value).className !== "pass";
+      const failed = isFailingGrade(value);
       return `<span${marksheetSpecialSubjectAttr(subject)}>${escapeHtml(subject)}: <strong>${failed ? `<span class="failed-mark">${escapeHtml(displayValue)}</span>` : escapeHtml(displayValue)}</strong></span>`;
     }).join("")}
   </div>`;
@@ -6858,7 +6868,7 @@ function renderLowerClassMarksheetTable(student, subjects, passMarks) {
           const earlyYearsSubject = selectedClass() === "LKG" || selectedClass() === "UKG";
           const hasNoPassMark = noPassMark && !earlyYearsSubject;
           const failed = value === "" || (!graded && !hasNoPassMark && getStatus(value, subjectPassMarks).className !== "pass")
-            || (graded && getGradeStatus(value).className !== "pass");
+            || (graded && isFailingGrade(value));
           const subjectMaxMarks = getSubjectMaxMarks(selectedClass(), selectedExam(), subject);
           return `<tr>
             <td${marksheetSpecialSubjectAttr(subject)}>${escapeHtml(subject)}</td>
@@ -6883,7 +6893,7 @@ function renderLowerClassMarksheetTable(student, subjects, passMarks) {
 function marksheetHighClassValue(subject, value, passMarks) {
   const displayValue = marksheetDisplayValue(value);
   const failed = isGradeSubject(subject)
-    ? getGradeStatus(value).className !== "pass"
+    ? isFailingGrade(value)
     : getStatus(value, passMarks).className !== "pass";
   return failed ? `<span class="failed-mark">${displayValue}</span>` : displayValue;
 }
@@ -6934,7 +6944,7 @@ function formatResultMark(subject, value, passMarks) {
   const displayValue = entryDisplayValue(value, "AB");
   const subjectPassMarks = getSubjectPassMarks(selectedClass(), selectedExam(), subject);
   const failed = !isNotEnrolledEntry(value) && (isGradeSubject(subject)
-    ? getGradeStatus(value).className !== "pass"
+    ? isFailingGrade(value)
     : !isNoPassMarkSubject(selectedClass(), selectedExam(), subject)
       && getStatus(value, subjectPassMarks).className !== "pass");
   return `<td class="result-subject-mark">${failed
@@ -13924,7 +13934,12 @@ function getStatus(value, passMarks) {
     : { label: "Fail", className: "fail" };
 }
 
+function isFailingGrade(value) {
+  return value !== "-" && getGradeStatus(value).className !== "pass";
+}
+
 function getGradeStatus(value) {
+  if (value === "-") return { label: "Not applicable", className: "not-enrolled" };
   if (isNotEnrolledEntry(value)) return { label: "Not yet enrolled", className: "not-enrolled" };
   if (isAbsentEntry(value) || value === "" || value === undefined || value === null) return { label: "Absent", className: "absent" };
   const grade = String(value).trim().toUpperCase();
@@ -13944,7 +13959,7 @@ function calculateOutcome(markValues, passMarks, percentage, className = selecte
     return !isNotEnrolledEntry(value) && getStatus(value, requiredPassMarks).className !== "pass";
   }).length;
   const gradeFailCount = gradeValues.filter((value) =>
-    !isNotEnrolledEntry(value) && getGradeStatus(value).className !== "pass").length;
+    !isNotEnrolledEntry(value) && isFailingGrade(value)).length;
   const failCount = numericFailCount + gradeFailCount;
 
   if (isPrimaryUnitTest(className, exam)) {
@@ -14599,7 +14614,7 @@ function mergeMarksFromCsv(rows) {
 
     if (gradeSubject) {
       const grade = rawValue.toUpperCase();
-      if (!["A", "B", "C", "D", "E", "-1", "-2"].includes(grade)) {
+      if (!["A", "B", "C", "D", "E", "-1", "-2"].includes(grade) && !(grade === "-" && allowsSkillDevelopmentDash())) {
         skipped += 1;
         return;
       }
