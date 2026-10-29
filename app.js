@@ -6542,7 +6542,7 @@ function clearMarksheetSearch() {
   els.marksheetNameSearchInput.value = "";
 }
 
-function renderMarksheets({ ignoreSearch = false } = {}) {
+function renderMarksheets({ ignoreSearch = false, target = els.marksheetBody } = {}) {
   const allStudents = sortedStudents();
   const filteredStudents = ignoreSearch ? allStudents : filteredMarksheetStudents(allStudents);
   const query = (els.marksheetNameSearchInput?.value || "").trim();
@@ -6559,7 +6559,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
   const workingDays = getWorkingDays();
 
   if (!canViewMarksheet()) {
-    els.marksheetBody.innerHTML = `
+    target.innerHTML = `
       <div class="table-wrap">
         <table>
           <tbody><tr><td>No published marksheets for ${escapeHtml(selectedClass())} ${escapeHtml(selectedExam())}.</td></tr></tbody>
@@ -6573,7 +6573,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     const message = allStudents.length && query
       ? `No marksheets match "${escapeHtml(query)}" in ${escapeHtml(selectedClass())}. Clear the search to show all students.`
       : `No students loaded for ${escapeHtml(selectedClass())}. Please check the Students page and refresh after sync.`;
-    els.marksheetBody.innerHTML = `
+    target.innerHTML = `
       <div class="table-wrap">
         <table>
           <tbody><tr><td>${message}</td></tr></tbody>
@@ -6587,7 +6587,7 @@ function renderMarksheets({ ignoreSearch = false } = {}) {
     ? `<div class="marksheet-preview-note">Showing ${students.length} of ${filteredStudents.length} marksheets for smoother preview. Search a student name or use Print / PDF for the full class.</div>`
     : "";
 
-  els.marksheetBody.innerHTML = limitedPreviewNotice + students.map((student) => {
+  target.innerHTML = limitedPreviewNotice + students.map((student) => {
     const markValues = subjectsForMarks.map((subject) => getStudentMark(student, subject).value);
     const resultMarkValues = outcomeMarkValues(student, subjectsForMarks);
     const gradeValues = subjects.filter((subject) => isGradeSubject(subject)).map((subject) => getStudentMark(student, subject).value);
@@ -10499,12 +10499,9 @@ async function downloadMarksheetPDF() {
   const previousText = button?.textContent || "Download PDF";
   if (button?.disabled) return;
 
-  const allMarksheets = [...(els.marksheetBody?.querySelectorAll(".marksheet") || [])];
-  const hasStudentFilter = Boolean((els.marksheetNameSearchInput?.value || "").trim());
-  const currentMarksheet = getCurrentVisibleMarksheet();
-  const marksheetsToDownload = hasStudentFilter
-    ? (currentMarksheet ? [currentMarksheet] : [])
-    : allMarksheets;
+  const exportBody = document.createElement("div");
+  renderMarksheets({ ignoreSearch: true, target: exportBody });
+  const marksheetsToDownload = [...exportBody.querySelectorAll(".marksheet")];
 
   if (!marksheetsToDownload.length) {
     showToast("No marksheet available to download.");
@@ -10522,7 +10519,7 @@ async function downloadMarksheetPDF() {
     showToast("Generating PDF...");
 
     host = document.createElement("div");
-    host.className = "pdf-capture-host";
+    host.className = "pdf-capture-host plain-marksheet-pdf";
     document.body.appendChild(host);
 
     if (document.fonts?.ready) await document.fonts.ready;
@@ -10557,8 +10554,10 @@ async function captureMarksheetCanvas(marksheet, host) {
   const clone = marksheet.cloneNode(true);
   clone.classList.add("pdf-capture-target");
   clone.classList.remove("print-current-target");
-  const logoWatermark = await createPdfLogoWatermark();
-  if (logoWatermark) clone.prepend(logoWatermark);
+  if (!host.classList.contains("plain-marksheet-pdf")) {
+    const logoWatermark = await createPdfLogoWatermark();
+    if (logoWatermark) clone.prepend(logoWatermark);
+  }
   host.replaceChildren(clone);
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return window.html2canvas(clone, {

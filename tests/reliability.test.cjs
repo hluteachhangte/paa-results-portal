@@ -49,6 +49,31 @@ test('Moral grade boundaries use percentages out of 50', () => {
   }
 });
 
+test('marksheet PDF exports the entire class using plain capture styling', async () => {
+  const sheets = Array.from({ length: 5 }, () => ({ classList: { remove() {} } }));
+  const captured = [];
+  let pages = 1;
+  let saved = '';
+  const button = { textContent: 'Download PDF', disabled: false };
+  const context = vm.createContext({
+    canViewMarksheet: () => true,
+    els: { downloadMarksheetPdfBtn: button, marksheetNameSearchInput: { value: 'One student' } },
+    document: { createElement: () => ({ querySelectorAll: () => sheets, remove() {} }), body: { appendChild() {} } },
+    renderMarksheets: options => { assert.equal(options.ignoreSearch, true); assert.ok(options.target); },
+    ensurePdfLibraries: async () => true,
+    captureMarksheetCanvas: async (sheet, host) => { assert.ok(host.className.includes('plain-marksheet-pdf')); captured.push(sheet); return {}; },
+    addMarksheetCanvasToPdf() {}, allMarksheetsPdfFilename: () => 'Class.pdf',
+    showToast() {}, console,
+    window: { jspdf: { jsPDF: class { addPage() { pages++; } save(name) { saved = name; } } } }
+  });
+  vm.runInContext(`async ${appFunction('downloadMarksheetPDF')}`, context);
+  await context.downloadMarksheetPDF();
+  assert.equal(captured.length, 5);
+  assert.equal(pages, 5);
+  assert.equal(saved, 'Class.pdf');
+  assert.equal(button.disabled, false);
+});
+
 test('Skill Development dash is restricted to IX and X Second Term', () => {
   const context = vm.createContext({ isHighClass: name => ['Class IX', 'Class X'].includes(name) });
   vm.runInContext(appFunction('allowsSkillDevelopmentDash'), context);

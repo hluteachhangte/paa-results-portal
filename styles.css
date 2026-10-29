@@ -18930,6 +18930,29 @@ option:hover {
   }
 }
 
+.pdf-capture-host.plain-marksheet-pdf .marksheet,
+.pdf-capture-host.plain-marksheet-pdf .marksheet * {
+  background: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.pdf-capture-host.plain-marksheet-pdf .marksheet::before,
+.pdf-capture-host.plain-marksheet-pdf .marksheet::after,
+.pdf-capture-host.plain-marksheet-pdf .marksheet *::before,
+.pdf-capture-host.plain-marksheet-pdf .marksheet *::after,
+.pdf-capture-host.plain-marksheet-pdf .pdf-capture-logo-watermark {
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
 .app-update-banner {
   position: fixed;
   right: 16px;
