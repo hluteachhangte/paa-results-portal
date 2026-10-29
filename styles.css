@@ -18988,3 +18988,38 @@ option:hover {
 }
 
 @media print { .app-update-banner { display: none !important; } }
+
+@media screen {
+  body.students-active #studentsView > .table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    overflow-x: scroll !important;
+    scrollbar-width: auto !important;
+    touch-action: pan-x pan-y;
+  }
+
+  body.students-active #studentsView > .table-wrap > table {
+    min-width: 1250px !important;
+  }
+}
+
+@media screen and (min-width: 769px) {
+  body.results-active .app-shell > .main-content {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: scroll !important;
+    scrollbar-width: auto !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body.results-active #resultsView > .table-wrap {
+    max-width: 100% !important;
+    overflow-x: scroll !important;
+    scrollbar-width: auto !important;
+    touch-action: pan-x pan-y;
+  }
+}
