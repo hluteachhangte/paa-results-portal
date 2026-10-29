@@ -19023,3 +19023,33 @@ option:hover {
     touch-action: pan-x pan-y;
   }
 }
+
+@media screen and (min-width: 769px) {
+  body.students-active .app-shell > .main-content,
+  body.students-active #studentsView.active {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  body.students-active #studentsView > .table-wrap {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: scroll !important;
+    overflow-y: auto !important;
+    scrollbar-width: auto !important;
+  }
+
+  body.students-active #studentsView > .table-wrap > table {
+    width: max-content !important;
+    min-width: max(100%, 1400px) !important;
+    table-layout: auto !important;
+  }
+
+  body.students-active #studentsView > .table-wrap > table th,
+  body.students-active #studentsView > .table-wrap > table td {
+    white-space: nowrap;
+  }
+}
