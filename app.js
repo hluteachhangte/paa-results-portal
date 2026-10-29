@@ -6764,7 +6764,7 @@ function renderHighThirdTermMarksheetTable(subjects, subjectResults) {
           <td>Grand Total</td>
           <td>${subjects.length * 100}</td>
           <td>${subjects.length * 33}</td>
-          <td><strong>${obtainedTotal}</strong></td>
+          <td><strong>${Math.round(obtainedTotal)}</strong></td>
         </tr>
       </tbody>
     </table>
@@ -6872,7 +6872,7 @@ function renderHighClassMarksheetTable(student, subjects, passMarks, maxMarks) {
           <td>Grand Total</td>
           <td>${fullMarksTotal}</td>
           <td>${passMarksTotal}</td>
-          <td><strong>${obtainedTotal}</strong></td>
+          <td><strong>${Math.round(obtainedTotal)}</strong></td>
         </tr>
       </tbody>
     </table>
@@ -10012,6 +10012,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   rebalanceUpperMiddleResultPdfColumns(table);
   rebalanceClassVIIIResultPdfColumns(table);
   rebalanceClassIIIResultPdfColumns(table);
+  rebalanceHighClassResultPdfColumns(table);
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
   markClassITermPdfHeaders(table);
@@ -10133,6 +10134,21 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
   table.classList.toggle("result-pdf-upper-middle-term", upperMiddleTerm);
   table.classList.toggle("result-pdf-compact-term-marks", compactTermMarks);
+}
+
+function rebalanceHighClassResultPdfColumns(table) {
+  if (!table.classList.contains("result-pdf-high-abbreviated")) return;
+  const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
+  const reserved = { total: 9, percentage: 8, attendance: 6 };
+  const flexible = columns.filter((column) => !(column.dataset.resultRole in reserved));
+  const reservedWidth = columns.reduce((sum, column) => sum + (reserved[column.dataset.resultRole] || 0), 0);
+  const flexibleWidth = flexible.reduce((sum, column) => sum + (parseFloat(column.style.width) || 0), 0);
+  if (!flexibleWidth) return;
+  columns.forEach((column) => {
+    const width = reserved[column.dataset.resultRole]
+      || (parseFloat(column.style.width) || 0) / flexibleWidth * (100 - reservedWidth);
+    column.style.width = `${width}%`;
+  });
 }
 
 function rebalanceClassIIIResultPdfColumns(table) {

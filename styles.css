@@ -18964,6 +18964,18 @@ option:hover {
   font-size: 10pt !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-high-abbreviated tbody td[data-result-role="total"],
+.result-pdf-page .result-pdf-table.result-pdf-high-abbreviated tbody td[data-result-role="percentage"],
+.result-pdf-page .result-pdf-table.result-pdf-high-abbreviated tbody td[data-result-role="attendance"] {
+  font-size: 10.5pt !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  box-sizing: border-box;
+}
+
 .app-update-banner {
   position: fixed;
   right: 16px;
