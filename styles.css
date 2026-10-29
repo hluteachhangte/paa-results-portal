@@ -18953,6 +18953,17 @@ option:hover {
   box-shadow: none !important;
 }
 
+.result-pdf-page .result-pdf-table.result-pdf-class-iii-term tbody td[data-result-role="total"],
+.result-pdf-page .result-pdf-table.result-pdf-class-iii-term tbody td[data-result-role="percentage"] {
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  box-sizing: border-box;
+  font-size: 10pt !important;
+}
+
 .app-update-banner {
   position: fixed;
   right: 16px;

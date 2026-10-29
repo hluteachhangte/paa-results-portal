@@ -10011,6 +10011,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   formatClassVIIIResultPdfHeaders(table);
   rebalanceUpperMiddleResultPdfColumns(table);
   rebalanceClassVIIIResultPdfColumns(table);
+  rebalanceClassIIIResultPdfColumns(table);
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
   markClassITermPdfHeaders(table);
@@ -10128,9 +10129,25 @@ function applyResultPdfTableProfile(table, className, exam) {
   table.classList.toggle("result-pdf-high-abbreviated", highClassAbbreviated);
   table.classList.toggle("result-pdf-class-i-term", classOneStyleTerm || (className === "Class VIII" && term));
   table.classList.toggle("result-pdf-class-viii-term", className === "Class VIII" && term);
+  table.classList.toggle("result-pdf-class-iii-term", className === "Class III" && term);
   table.classList.toggle("result-pdf-class-six-term", isClassSixTermPdf(className, exam));
   table.classList.toggle("result-pdf-upper-middle-term", upperMiddleTerm);
   table.classList.toggle("result-pdf-compact-term-marks", compactTermMarks);
+}
+
+function rebalanceClassIIIResultPdfColumns(table) {
+  if (!table.classList.contains("result-pdf-class-iii-term")) return;
+  const columns = [...table.querySelectorAll('colgroup[data-result-layout="true"] col')];
+  const reserved = { total: 7, percentage: 6 };
+  const flexible = columns.filter((column) => !(column.dataset.resultRole in reserved));
+  const reservedWidth = columns.reduce((sum, column) => sum + (reserved[column.dataset.resultRole] || 0), 0);
+  const flexibleWidth = flexible.reduce((sum, column) => sum + (parseFloat(column.style.width) || 0), 0);
+  if (!flexibleWidth) return;
+  columns.forEach((column) => {
+    const width = reserved[column.dataset.resultRole]
+      || (parseFloat(column.style.width) || 0) / flexibleWidth * (100 - reservedWidth);
+    column.style.width = `${width}%`;
+  });
 }
 
 function isClassSixTermPdf(className, exam) {

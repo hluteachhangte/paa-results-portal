@@ -49,6 +49,20 @@ test('Moral grade boundaries use percentages out of 50', () => {
   }
 });
 
+test('Class III PDF reserves separate total and percentage columns', () => {
+  const columns = ['name', 'component', 'component', 'total', 'percentage', 'result']
+    .map(role => ({ dataset: { resultRole: role }, style: { width: `${100 / 6}%` } }));
+  const context = vm.createContext({});
+  vm.runInContext(appFunction('rebalanceClassIIIResultPdfColumns'), context);
+  context.rebalanceClassIIIResultPdfColumns({ classList: { contains: () => true }, querySelectorAll: () => columns });
+  assert.equal(columns[3].style.width, '7%');
+  assert.equal(columns[4].style.width, '6%');
+  assert.ok(Math.abs(columns.reduce((sum, column) => sum + parseFloat(column.style.width), 0) - 100) < 0.001);
+  const before = columns.map(column => column.style.width);
+  context.rebalanceClassIIIResultPdfColumns({ classList: { contains: () => false }, querySelectorAll: () => columns });
+  assert.deepEqual(columns.map(column => column.style.width), before);
+});
+
 test('Results horizontal scrollbar moves the table rather than the page', () => {
   const main = { scrollLeft: 0 };
   const wrapper = { clientWidth: 800, scrollWidth: 1400, scrollLeft: 0,
