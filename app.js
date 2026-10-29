@@ -6098,8 +6098,7 @@ function optimizeResultTableLayout() {
       measured = Math.max(measured, measure(resultCellText(cell), true) / span);
     });
     const padding = table.classList.contains("structured-results") ? 10 : 20;
-    if ((table.classList.contains("upper-middle-results") || table.classList.contains("primary-results"))
-      && !["name", "remarks", "roll"].includes(role)) {
+    if (!["name", "remarks", "roll"].includes(role)) {
       limits.min = Math.max(limits.min, Math.ceil(measured + 16), 44);
       limits.max = Math.max(limits.max, limits.min);
     }
@@ -6203,7 +6202,34 @@ function scheduleResultTableLayout() {
   scheduleResultTableLayout.frame = requestAnimationFrame(() => {
     optimizeResultTableLayout();
     updateResultStickyHeaderMetrics();
+    updateResultsHorizontalScroll();
   });
+}
+
+function updateResultsHorizontalScroll() {
+  const table = els.resultsTable;
+  const wrapper = table?.closest(".table-wrap");
+  const main = wrapper?.closest(".main-content");
+  if (!wrapper || !main) return;
+  let bar = document.querySelector("#resultsHorizontalScroll");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "resultsHorizontalScroll";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Scroll results horizontally");
+    bar.tabIndex = 0;
+    bar.appendChild(document.createElement("div"));
+    wrapper.before(bar);
+    bar.addEventListener("scroll", () => {
+      if (window.innerWidth > 768 && Math.abs(main.scrollLeft - bar.scrollLeft) > 1) main.scrollLeft = bar.scrollLeft;
+    }, { passive: true });
+    main.addEventListener("scroll", () => {
+      if (window.innerWidth > 768 && Math.abs(bar.scrollLeft - main.scrollLeft) > 1) bar.scrollLeft = main.scrollLeft;
+    }, { passive: true });
+  }
+  bar.style.width = `${Math.max(0, main.clientWidth - 48)}px`;
+  bar.firstElementChild.style.width = `${Math.max(0, main.scrollWidth - main.clientWidth + bar.clientWidth)}px`;
+  bar.scrollLeft = main.scrollLeft;
 }
 
 function updateResultStickyHeaderMetrics() {
