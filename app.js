@@ -6221,15 +6221,15 @@ function updateResultsHorizontalScroll() {
     bar.appendChild(document.createElement("div"));
     wrapper.before(bar);
     bar.addEventListener("scroll", () => {
-      if (window.innerWidth > 768 && Math.abs(main.scrollLeft - bar.scrollLeft) > 1) main.scrollLeft = bar.scrollLeft;
+      if (window.innerWidth > 768 && Math.abs(wrapper.scrollLeft - bar.scrollLeft) > 1) wrapper.scrollLeft = bar.scrollLeft;
     }, { passive: true });
-    main.addEventListener("scroll", () => {
-      if (window.innerWidth > 768 && Math.abs(bar.scrollLeft - main.scrollLeft) > 1) bar.scrollLeft = main.scrollLeft;
+    wrapper.addEventListener("scroll", () => {
+      if (window.innerWidth > 768 && Math.abs(bar.scrollLeft - wrapper.scrollLeft) > 1) bar.scrollLeft = wrapper.scrollLeft;
     }, { passive: true });
   }
-  bar.style.width = `${Math.max(0, main.clientWidth - 48)}px`;
-  bar.firstElementChild.style.width = `${Math.max(0, main.scrollWidth - main.clientWidth + bar.clientWidth)}px`;
-  bar.scrollLeft = main.scrollLeft;
+  bar.style.width = `${wrapper.clientWidth}px`;
+  bar.firstElementChild.style.width = `${Math.max(0, wrapper.scrollWidth - wrapper.clientWidth + bar.clientWidth)}px`;
+  bar.scrollLeft = wrapper.scrollLeft;
 }
 
 function updateResultStickyHeaderMetrics() {

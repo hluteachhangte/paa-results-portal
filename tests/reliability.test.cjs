@@ -49,6 +49,30 @@ test('Moral grade boundaries use percentages out of 50', () => {
   }
 });
 
+test('Results horizontal scrollbar moves the table rather than the page', () => {
+  const main = { scrollLeft: 0 };
+  const wrapper = { clientWidth: 800, scrollWidth: 1400, scrollLeft: 0,
+    closest: () => main, before() {}, addEventListener(name, handler) { this[name] = handler; } };
+  const bar = { style: {}, clientWidth: 800, scrollLeft: 0, setAttribute() {},
+    appendChild(child) { this.firstElementChild = child; },
+    addEventListener(name, handler) { this[name] = handler; } };
+  let creations = 0;
+  const context = vm.createContext({
+    els: { resultsTable: { closest: () => wrapper } }, window: { innerWidth: 1310 },
+    document: { querySelector: () => null, createElement: () => creations++ ? { style: {} } : bar }
+  });
+  vm.runInContext(appFunction('updateResultsHorizontalScroll'), context);
+  context.updateResultsHorizontalScroll();
+  bar.scrollLeft = 250;
+  bar.scroll();
+  assert.equal(wrapper.scrollLeft, 250);
+  assert.equal(main.scrollLeft, 0);
+  wrapper.scrollLeft = 400;
+  wrapper.scroll();
+  assert.equal(bar.scrollLeft, 400);
+  assert.equal(bar.firstElementChild.style.width, '1400px');
+});
+
 test('marksheet PDF exports the entire class using plain capture styling', async () => {
   const sheets = Array.from({ length: 5 }, () => ({ classList: { remove() {} } }));
   const captured = [];

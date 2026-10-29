@@ -18992,6 +18992,22 @@ option:hover {
 #resultsHorizontalScroll { display: none; }
 
 @media screen and (min-width: 769px) {
+  body.results-active #resultsView > .table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    overflow: auto !important;
+    max-height: max(360px, 75vh) !important;
+  }
+
+  body.results-active #resultsView .results-table.result-layout-optimized {
+    width: max(1400px, var(--result-layout-table-width, 1400px)) !important;
+    min-width: max(1400px, var(--result-layout-table-width, 1400px)) !important;
+  }
+}
+
+@media screen and (min-width: 769px) {
   #resultsHorizontalScroll {
     display: block;
     position: sticky;
