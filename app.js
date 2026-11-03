@@ -9786,8 +9786,7 @@ function resultPdfLayout(className, exam = selectedExam()) {
     "Class V", "Class VI", "Class VII", "Class VIII"
   ].includes(className);
   const landscape = earlyClass
-    || (termSheetClass && termExams.includes(exam))
-    || (["Class IX", "Class X"].includes(className) && exam === "Third Term");
+    || (termSheetClass && termExams.includes(exam));
   const pageWidth = landscape ? 420 : 297;
   const pageHeight = landscape ? 297 : 420;
   const margin = 5;
@@ -10015,6 +10014,7 @@ function createResultPdfPage({ layout, includeSummary, rows }) {
   rebalanceHighClassResultPdfColumns(table);
   abbreviateHighClassResultPdfHeaders(table, selectedClass(), selectedExam());
   abbreviateUnitTestResultPdfHeaders(table, selectedExam());
+  normalizeThirdTermPdfHeaders(table);
   markClassITermPdfHeaders(table);
   markClassSixTermPdfHeaders(table);
   tableBody.appendChild(table);
@@ -10364,9 +10364,22 @@ function abbreviateResultPdfRow(row) {
   });
 }
 
+function normalizeThirdTermPdfHeaders(table) {
+  const labels = {
+    "First Term (30%)": "FT (30%)",
+    "Second Term (30%)": "ST (30%)",
+    "Third Term (40%)": "TT (40%)"
+  };
+  table.querySelectorAll("thead .third-term-component-header").forEach((cell) => {
+    const label = cell.querySelector("span");
+    if (label && labels[label.textContent.trim()]) label.textContent = labels[label.textContent.trim()];
+    cell.classList.remove("third-term-component-header");
+  });
+}
+
 function markClassITermPdfHeaders(table) {
   if (!table.classList.contains("result-pdf-class-i-term")) return;
-  const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "W.E.", "G. TOTAL", "ATTND.", "DIV.", "RESULT"]);
+  const verticalLabels = new Set(["ACTIVITIES", "UNIT TEST", "EXAM", "TOTAL", "W.E.", "G. TOTAL", "ATTND.", "DIV.", "RESULT", "FT (30%)", "ST (30%)", "TT (40%)"]);
   const svgNamespace = "http://www.w3.org/2000/svg";
   table.querySelectorAll("thead th").forEach((cell) => {
     const label = cell.querySelector("span") || cell;

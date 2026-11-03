@@ -49,6 +49,19 @@ test('Moral grade boundaries use percentages out of 50', () => {
   }
 });
 
+test('Third Term PDF uses the same page format as earlier terms', () => {
+  const classNames = ['LKG', 'UKG', 'Class I', 'Class II', 'Class III', 'Class IV', 'Class V', 'Class VI', 'Class VII', 'Class VIII', 'Class IX', 'Class X'];
+  const context = vm.createContext({ termExams: ['First Term', 'Second Term', 'Third Term'], isClassSixTermPdf: name => name === 'Class VI' });
+  vm.runInContext(appFunction('resultPdfLayout'), context);
+  for (const name of classNames) {
+    const first = context.resultPdfLayout(name, 'First Term');
+    const third = context.resultPdfLayout(name, 'Third Term');
+    assert.equal(third.orientation, first.orientation);
+    assert.equal(third.contentWidth, first.contentWidth);
+    assert.equal(third.contentHeight, first.contentHeight);
+  }
+});
+
 test('Class III PDF reserves separate total and percentage columns', () => {
   const columns = ['name', 'component', 'component', 'total', 'percentage', 'result']
     .map(role => ({ dataset: { resultRole: role }, style: { width: `${100 / 6}%` } }));
